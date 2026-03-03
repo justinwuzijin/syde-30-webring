@@ -2,61 +2,69 @@
 
 ## Concept
 
-The webring is a living, breathing Spider-Verse. Each SYDE 2030 member is a **node** in a vast web — their personal slice of the internet embedded directly in their node, visible to anyone exploring the ring. The webs that connect them aren't metaphorical; they're the literal visual connective tissue of the page.
+The webring is a living, breathing Spider-Verse. Each SYDE 2030 member is a **node** in a vast web — a screenshot of their personal slice of the internet frozen inside their polygon. The webs that connect them aren't metaphorical; they're the literal visual connective tissue of the page.
 
 The experience should feel like you've stumbled into an alternate dimension where the internet is spatial — you can see how people are connected, zoom into their worlds, and follow threads to discover new people.
+
+**This is a 2D-only experience.** No Three.js. The film itself is predominantly 2D, and the Spider-Verse aesthetic translates beautifully to a flat SVG + HTML layout.
 
 ---
 
 ## Visual Identity: Spider-Verse Aesthetic
 
 The film's defining visual language:
-- **Halftone dot patterns** as background texture and overlay effects
-- **Bold, thick outlines** on UI elements (comic book inking)
-- **Off-register color printing** — RGB color split/glitch on hover/focus
-- **Hand-drawn feel** — slightly imperfect curves, organic line weight variation
+- **Halftone dot patterns** — background texture applied globally via `body::before` CSS pseudo-element
+- **Bold, thick outlines** on UI elements (comic book inking via `box-shadow` offsets)
+- **Off-register color printing** — RGB color split/glitch on hover (CSS `text-shadow` animation)
+- **Hand-drawn feel** — slightly imperfect polygon shapes, organic bezier web threads
 - **High contrast** — deep blacks, vivid accent colors
-- **Action lines** radiating from active nodes (like comic panels)
-- **Multiple Spider-people = multiple color palettes** → each member can have a personal accent color
+- **Action lines** radiating from active nodes (optional enhancement)
+- **Multiple Spider-people = multiple accent colors** → each member gets one based on join order
 
-### Color Palette (Base)
+### Color Palette
 
 ```
-Background:    #0a0a0f  (near black, deep space)
-Web threads:   #e8e0d0  (aged silk / off-white)
-Node border:   #ff0000  (Spider-Man red) or member's accent
-Accent 1:      #ff2020  (red)
-Accent 2:      #0a4fff  (Miles Morales blue)
-Accent 3:      #ffdd00  (Spider-Gwen yellow)
-Accent 4:      #ff6600  (Peni Parker orange)
-Text:          #f0f0f0
+Background:  #0a0a0f  (near-black, deep space)
+Web threads: #e8e0d0  (aged silk / off-white)
+Text:        #f0f0f0
+
+Accent 1:    #ff2020  (red — Spider-Man)
+Accent 2:    #0a4fff  (blue — Miles Morales)
+Accent 3:    #ffdd00  (yellow — Spider-Gwen)
+Accent 4:    #ff6600  (orange — Peni Parker)
+Accent 5:    #cc44ff  (purple)
+Accent 6:    #00cc88  (teal)
 ```
 
-Each member gets assigned one accent color from a predefined set (or can choose). Their node border, web thread color, and hover state all reflect their accent.
+Accent colors cycle by join order: member index 0 gets accent 1, index 1 gets accent 2, etc. (mod 6). The accent drives the node's border color, `box-shadow` glow, and thread color on hover.
+
+---
+
+## Typography
+
+Consistent with the film's typographic energy:
+
+- **Display / Headers**: `Bebas Neue` (Google Fonts) — condensed, bold, caps-only. Used for page title, join page headings, success screens.
+- **Body / Names**: `Inter` (Google Fonts) — clean, modern. Used for member names, form labels, UI chrome.
+- **Accent / Data**: `JetBrains Mono` (Google Fonts) — monospace. Used for member IDs, social handles, status text.
+
+All imported via a single `@import` in `globals.css`. See CLAUDE.md for the full import URL.
+
+All headings should feel like they could be a comic book caption box.
 
 ---
 
 ## Layout: The Web
 
-### 2D Force-Directed Graph (Start Here)
+### 2D Force-Directed Graph
 
-Use D3's force simulation to arrange nodes:
-- Nodes repel each other (collision force) so they don't overlap
-- Connections attract linked nodes (link force) — people who are connected drift closer
-- A centering force keeps everything on-screen
-- The whole graph is pannable and zoomable (like a map)
+D3's force simulation arranges nodes organically:
+- **Link force**: Connected nodes attract each other (distance 160px)
+- **Charge force**: All nodes repel each other (strength -350)
+- **Collision force**: Prevents overlap (radius 100px)
+- **Center force**: Keeps the whole graph roughly centered on screen
 
-The web feels **alive**: nodes gently drift, web threads sway slightly, new members cause a ripple when added.
-
-### Potential 3D Upgrade (Later)
-
-Three.js scene with nodes floating in z-space:
-- Web threads are 3D tube geometries with a silk-like shader
-- Camera can be rotated/zoomed
-- Nodes face the camera (billboarding)
-- More dramatic, but harder to click/interact with iframes
-
-**Recommendation**: Ship 2D first. It's more functional and the Spider-Verse aesthetic works beautifully in 2D (the film itself is 2D-first).
+The simulation runs to completion before first render — nodes don't animate from center on every load. The graph is pannable and zoomable via D3 zoom (mouse drag + scroll wheel).
 
 ---
 
@@ -64,43 +72,35 @@ Three.js scene with nodes floating in z-space:
 
 ### Shape
 
-Each node is a **irregular polygon** — not a perfect square. Think comic panel borders: slightly tilted, rough edges. Options:
-- CSS `clip-path: polygon(...)` for irregular shape
-- SVG `<polygon>` or `<clipPath>` for more control
-- Each member's polygon is slightly unique (randomized corner offsets seeded by their ID)
+Each node is an **irregular polygon HTML div** shaped by CSS `clip-path: polygon(...)`. The corner offsets are deterministically derived from the member's ID (a simple hash seeded by the string), so each member has a unique but consistent shape every time. Think comic panel borders: slightly askew, roughed up.
+
+### Size
+
+Node size is based on connection count:
+```
+width = height = clamp(120 + connections.length × 10, 120, 200)  // px
+```
+More connected members appear slightly larger — a natural visual hierarchy that emerges from the data.
 
 ### Node Content
 
-The node displays an embedded preview of their primary URL:
-
 ```
-┌─────────────────────────────┐  ← thick colored border (accent color)
-│  [iframe: their website]    │
-│                             │
-│  ┌──────────────────────┐   │
-│  │  embedded content    │   │
-│  └──────────────────────┘   │
-│                             │
-│  Name          @handle      │  ← name bar at bottom
-└─────────────────────────────┘
+┌──────────────────────────────┐  ← polygon clip-path
+│                              │  ← colored outline (accent) + shadow
+│  [Microlink screenshot of    │
+│   their personal website]    │
+│                              │
+│  [Name]              [↗]     │  ← label bar: name + visit button
+└──────────────────────────────┘
 ```
 
-**Iframe fallback chain:**
-1. Try `<iframe src={embedUrl} />` — works for sites that allow embedding
-2. `onError` / load check → swap in `<img src={screenshotUrl} />` (Microlink API)
-3. If screenshot also fails → show stylized "VISIT SITE" button with halftone fill
-
-**Node sizes:** Nodes can vary in size based on... something interesting. Ideas:
-- Random within a range (for visual variety)
-- Number of connections they have (more connected = bigger node)
-- Time in the webring (older members = slightly larger)
+**No live iframes inside nodes.** Screenshots (pre-generated via Microlink API at build time, cached in `public/screenshots/`) are used exclusively. Live iframes inside transformed/scaled containers are broken in Safari and unreliable in Chrome. The `↗` button opens the member's site in a new tab on click.
 
 ### Node States
 
-- **Default**: Idle, slight float animation, iframe or screenshot visible
-- **Hovered**: Glow effect (box-shadow in accent color), web threads to their connections highlight, name/socials pop up in a tooltip overlay
-- **Focused/Selected**: Expands to a larger size, shows full member card (all socials, bio blurb if any)
-- **Connected**: When another node is hovered, this node glows softly if it's connected to the hovered one
+- **Default**: Static screenshot, subtle float animation (CSS keyframe, ±6px vertical, 4s period), comic border
+- **Hovered**: Border thickens, glow expands (`box-shadow` transition 150ms), connected web threads highlight (opacity 0.3 → 0.8), name label gets glitch animation
+- **Connected to hovered**: Soft glow in the node's own accent color when a connected node is hovered
 
 ---
 
@@ -108,81 +108,90 @@ The node displays an embedded preview of their primary URL:
 
 ### Visual Design
 
-SVG `<path>` using quadratic bezier curves:
-- Curve control point is offset above/below the midpoint for a natural droop
-- Line weight: 1–2px normally, 3–4px on hover
-- Opacity: 0.3 normally, 0.8 on hover of either endpoint
-- Animation: Threads "draw in" on page load using `stroke-dashoffset` animation
+SVG `<path>` using quadratic bezier curves (`M x1 y1 Q mx my x2 y2`):
+- Control point is offset 40px above the midpoint for a natural catenary droop
+- Line weight: 1.5px normally, 3px on hover of either endpoint
+- Opacity: 0.35 normally, 0.8 on hover
+- Color: `#e8e0d0` normally; on hover, takes the accent of the hovered node
+- Draw-in animation: `stroke-dashoffset` from 1000→0, staggered by thread index × 80ms
 
-### What Defines a Connection?
+### What Defines a Connection
 
-Members can specify connections when joining. Connections are mutual (if A lists B, B's node also shows the thread to A). Ideas for connection types:
-- Friends / people they know IRL
-- Shared work term / co-op location
-- Shared interests/tags
+Members self-report connections when they join by listing the IDs of people they know. Connections are **rendered bidirectionally** — if A lists B, the thread shows regardless of whether B listed A. Only one side needs to store the link. The `getEdges()` helper in `src/lib/members.ts` deduplicates edges at render time.
 
-Keep it simple: just a list of mutual connections specified at join time.
+Connection types are intentionally open: friends, co-op cohort, same project team, same hometown — whatever the member chooses to specify.
 
 ---
 
 ## Page Layout
 
 ### Main Canvas (`/`)
+
 - Full-screen, no traditional navbar
-- The web IS the page
-- Minimal UI chrome: small logo top-left, "JOIN" button top-right, maybe a search/filter
-- Pan and zoom with mouse drag + scroll wheel (D3 zoom behavior)
-- On mobile: simplified layout (scrollable grid or simplified force graph)
+- The web IS the page content
+- Minimal UI chrome:
+  - Top-left: small wordmark / logo
+  - Top-right: `JOIN THE WEB` button (links to `/join`)
+  - Optional: search/filter input (post-MVP)
+- Pan: click-drag on the background SVG
+- Zoom: scroll wheel
+- On mobile (`< 768px`): switch to `<MobileGrid />` — a 2-column scrollable grid of member cards (no force graph)
 
 ### Join Page (`/join`)
-- Spider-Verse styled form — dark background, bold typography, red accents
-- Fields: Name, Website URL, Social handles, "Who do you know in this ring?" (connection nominations), optional bio
-- On submit: shows a "WEB INCOMING" success screen
 
-### Admin Panel (`/admin`)
-- Simple, functional (not polished) — only Justin sees this
-- List of pending join requests
-- Approve/reject buttons
-- Approved entries auto-write to `data/members.json` + trigger Vercel redeploy
+- Spider-Verse styled: dark background, `Bebas Neue` heading "INTO THE WEB", bold red accent
+- Form fields in `Inter`, monospace placeholders in `JetBrains Mono`
+- On submit: success screen with "WEB INCOMING" heading, spider-silk animation, instructions that they'll hear back when approved
 
----
+### Admin Approval
 
-## Typography
-
-Spider-Verse uses strong typographic contrast:
-- **Display / Headers**: A condensed, bold sans-serif. Options: `Bebas Neue`, `Anton`, or a custom variable font
-- **Body / Names**: Clean sans-serif — `Inter` or `DM Sans`
-- **Accent / Numbers**: Monospace for any data-like text — `JetBrains Mono` or `IBM Plex Mono`
-
-All headings should feel like they could be a comic book caption box.
+There is no `/admin` UI page. Approval is entirely email-link-based:
+1. Admin receives email with formatted join request data
+2. Admin clicks a single "APPROVE" link
+3. The `GET /api/approve` route handles the rest — commits to GitHub, page confirms
 
 ---
 
 ## Animation Principles
 
-- **On load**: Nodes spawn from center, threads draw outward (sequential, not all at once)
-- **Idle**: Subtle float/drift (CSS keyframe, small amplitude)
-- **Thread draw**: `stroke-dasharray` + `stroke-dashoffset` animated with CSS or Framer Motion
-- **Hover**: Instant glow, 200ms thread highlight transition
-- **New member added**: Ripple animation from their node position outward
+- **On load**: Threads draw outward sequentially (staggered `stroke-dashoffset` animation)
+- **Idle**: Nodes float gently (CSS keyframe, small amplitude, long period, stagger by index)
+- **Hover**: Instant glow on node, 200ms opacity transition on threads
+- **Page transitions**: Framer Motion `AnimatePresence` for `/join` page enter/exit
 
-Keep animations meaningful and purposeful. The goal is "this feels alive," not "this is distracting."
+Keep animations purposeful. The goal is "this feels alive," not "this is distracting."
 
 ---
 
-## Mobile Considerations
+## Mobile Layout (`< 768px`)
 
-Force-directed graph + iframe embeds is very hard to use on mobile. Options:
-- Below a breakpoint, switch to a **scrollable grid** of member cards (no iframes, just screenshots + links)
-- Or: a **simplified radial layout** with no iframes, just touch-navigable node cards
-- The full interactive web is a desktop-first experience
+The force-directed graph is not rendered on mobile. Instead, `page.tsx` conditionally renders a `<MobileGrid />` component:
+- CSS grid, 2 columns, auto rows
+- Each card: screenshot thumbnail, member name, social icons, "Visit" link
+- Dark background, accent-colored card borders
+- Scrollable — full list of members
+
+---
+
+## globals.css Foundation
+
+The following must be established in `src/app/globals.css` before any component work:
+
+1. Google Fonts `@import` for `Bebas Neue`, `Inter`, `JetBrains Mono`
+2. CSS custom properties (`:root`) for all color tokens (`--bg`, `--web`, `--text`, `--accent-1` through `--accent-6`)
+3. Base `body` styles: `background-color: var(--bg)`, `color: var(--text)`, `font-family: 'Inter'`, `overflow: hidden`, `margin: 0`
+4. `body::before` halftone dot overlay: `position: fixed`, `inset: 0`, `radial-gradient` dot pattern, `pointer-events: none`, `z-index: 1`
+5. Web thread draw animation keyframes: `drawThread` (stroke-dashoffset 1000 → 0)
+6. Glitch animation keyframes: `glitch` (text-shadow RGB split)
+7. Node float animation keyframes: `nodeFloat` (translateY 0 → -6px → 0)
 
 ---
 
 ## Future Ideas (Post-MVP)
 
-- **Spider-sense mode**: Click a node and the camera "web-swings" to it, pulling it to center
-- **Dimension filter**: Filter by SYDE cohort year, program, or tag
-- **Live visitor dots**: Show who else is on the site right now (WebSocket)
-- **Node customization**: Members can customize their node's accent color via a settings link
-- **Easter egg**: Find the hidden Spiderman node — clicking it triggers a full-screen comic panel animation
+- **Spider-sense mode**: Click a node → camera "web-swings" to it, pulling it to center with a spring animation
+- **Dimension filter**: Filter the graph by tag, co-op city, or graduation year
+- **Live visitor dots**: Tiny pulsing dot on nodes of members currently viewing the site (WebSocket)
+- **Node accent customization**: Members can update their accent color via an edit link in their approval email
+- **Easter egg**: A hidden node somewhere in the graph — clicking it triggers a full-screen comic panel animation
+- **3D upgrade**: Evaluate Three.js once the 2D version ships and the team knows what the experience needs
