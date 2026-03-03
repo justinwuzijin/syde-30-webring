@@ -3,335 +3,529 @@
 ## System Overview
 
 ```
-                    ┌─────────────────────────────────────────┐
-                    │              Vercel (hosting)            │
-                    │                                          │
-                    │   Next.js App                           │
-                    │   ┌─────────────┐  ┌─────────────────┐  │
-  User visits  ──▶  │   │ / (canvas)  │  │  data/          │  │
-                    │   │ /join       │  │  members.json   │  │
-  Admin email  ──▶  │   │ /admin      │  │  (flat file DB) │  │
-  approve link      │   └─────────────┘  └─────────────────┘  │
-                    │         │                                │
-                    │   ┌─────▼──────────────────────────┐    │
-                    │   │   API Routes                   │    │
-                    │   │   POST /api/join               │    │
-                    │   │   GET  /api/approve?token=...  │    │
-                    │   └──────────────┬─────────────────┘    │
-                    └─────────────────┼───────────────────────┘
-                                      │
-                          ┌───────────▼───────────┐
-                          │   Gmail (SMTP)         │
-                          │   Admin notification   │
-                          │   + approval link      │
-                          └───────────────────────┘
+  User visits   ──▶  Vercel CDN  ──▶  Next.js (static + SSR)
+                                            │
+                                     data/members.json
+                                     (read at build time)
+
+  User submits       POST /api/join
+  join form     ──▶  ─────────────  ──▶  Nodemailer  ──▶  Gmail (admin inbox)
+                                                                │
+  Admin clicks  ──▶  GET /api/approve?token=...                ▼
+  email link         ──────────────────────────────▶  GitHub Contents API
+                                                       (commits members.json)
+                                                                │
+                                                                ▼
+                                                       GitHub push detected
+                                                                │
+                                                                ▼
+                                                       Vercel auto-redeploys
+                                                       (picks up new member)
 ```
+
+**Key constraint**: Vercel serverless functions have a read-only filesystem at runtime. The approve flow commits member data directly to the GitHub repo via the Contents API. Vercel's GitHub integration picks up the commit and redeploys automatically — no deploy hook needed.
 
 ---
 
 ## Phase 1: Scaffold & Data
 
-**Goal**: Running Next.js app that reads `members.json` and renders a static list.
+**Goal**: Running Next.js 15 app that reads `members.json` and renders a plain member list.
+
+### Bootstrapping (non-empty directory)
+
+The repo already has `CLAUDE.md`, `docs/`, `README.md`. Running `create-next-app` in-place will fail. Use the temp-dir merge approach:
+
+```bash
+npx create-next-app@15 /tmp/webring-scaffold --typescript --tailwind --app --src-dir --yes
+cp -r /tmp/webring-scaffold/. .
+rm -rf /tmp/webring-scaffold
+npm install d3 framer-motion nodemailer zod
+npm install -D @types/d3 @types/nodemailer
+```
 
 ### Steps
-1. `npx create-next-app@latest` with TypeScript, Tailwind, App Router
-2. Create `data/members.json` with 2–3 seed members (yourself + friends)
-3. Define the `Member` TypeScript interface in `src/types/member.ts`
-4. Create `src/lib/members.ts` — sync file read of JSON (server-side only)
-5. Render a plain `<ul>` of member names on `/` — just to confirm data flows
 
-### Key Decision: Flat File vs. Database
-For ~100 members (a SYDE cohort), a JSON flat file is sufficient. Benefits:
-- No database to provision or pay for
-- Member data is version-controlled (auditable)
-- Vercel redeploys on file change
+1. Merge scaffold as above
+2. Create `data/members.json` with 3 seed members (see CLAUDE.md)
+3. Create `src/types/member.ts` — `Member` interface and `joinSchema`
+4. Create `src/lib/members.ts`:
+   ```typescript
+   import { readFileSync } from 'fs';
+   import path from 'path';
+   import type { Member } from '@/types/member';
 
-If the webring grows beyond one cohort or needs real-time updates, migrate to Supabase.
+   export function getMembers(): Member[] {
+     const file = path.join(process.cwd(), 'data', 'members.json');
+     return JSON.parse(readFileSync(file, 'utf-8')) as Member[];
+   }
+
+   // Derive bidirectional edges from one-sided connection data
+   export function getEdges(members: Member[]): Array<{ source: string; target: string; id: string }> {
+     const seen = new Set<string>();
+     const edges: Array<{ source: string; target: string; id: string }> = [];
+     for (const m of members) {
+       for (const targetId of m.connections) {
+         const key = [m.id, targetId].sort().join('--');
+         if (!seen.has(key)) {
+           seen.add(key);
+           edges.push({ source: m.id, target: targetId, id: key });
+         }
+       }
+     }
+     return edges;
+   }
+   ```
+5. Render a `<ul>` of member names on `/` to confirm data flows end to end
+6. Create `src/app/globals.css` with Spider-Verse base (see CLAUDE.md for full CSS)
+7. Create `src/app/layout.tsx`
 
 ---
 
 ## Phase 2: Web Graph (Core Visual)
 
-**Goal**: D3 force-directed graph rendering member nodes and web threads as SVG.
+**Goal**: D3 force-directed layout feeding a two-layer SVG + HTML render.
 
-### Architecture: D3 + React Coexistence
+### Rendering Architecture: Two Layers, No foreignObject
 
-The critical pattern — D3 computes layout, React renders:
+`<foreignObject>` + iframes inside SVG is broken on Safari and has clipping bugs in Chrome. The correct pattern is two absolutely-positioned layers sharing the same D3 zoom transform:
+
+```
+┌──────────────── position: relative container ─────────────────┐
+│                                                                │
+│  Layer 1 (bottom): <svg position:absolute inset:0>            │
+│    <g transform="translate(x,y) scale(k)">                    │
+│      <WebThread /> × N   ← SVG paths only, no HTML            │
+│    </g>                                                        │
+│  </svg>                                                        │
+│                                                                │
+│  Layer 2 (top): <div position:absolute inset:0                │
+│                      transform="translate(x,y) scale(k)"      │
+│                      transformOrigin="0 0">                    │
+│    <MemberNode position:absolute left={x} top={y} /> × N     │
+│  </div>                                                        │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+Both layers read the same `transform` from React state, which is updated by the D3 zoom handler.
+
+### D3 + React: Pre-computation Pattern
+
+D3 must never touch the DOM. Use D3 only for physics math, then hand positions to React state. Run the simulation synchronously to avoid hundreds of re-renders from streaming tick callbacks:
 
 ```typescript
-// WebCanvas.tsx (simplified)
+// WebCanvas.tsx
 'use client';
-
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import * as d3 from 'd3';
+import type { Member } from '@/types/member';
 
-export function WebCanvas({ members }: { members: Member[] }) {
-  const [positions, setPositions] = useState<Map<string, {x: number, y: number}>>(new Map());
+const ACCENT_COLORS = ['#ff2020','#0a4fff','#ffdd00','#ff6600','#cc44ff','#00cc88'];
 
+export function WebCanvas({ members, edges }: Props) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [positions, setPositions] = useState<Map<string, {x:number; y:number}>>(new Map());
+  const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
+
+  // D3 layout: run to completion, then set state once
   useEffect(() => {
-    const simulation = d3.forceSimulation(members)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(150))
-      .force('charge', d3.forceManyBody().strength(-300))
-      .force('collision', d3.forceCollide(80))
-      .force('center', d3.forceCenter(width / 2, height / 2));
+    const w = window.innerWidth, h = window.innerHeight;
+    const nodes = members.map(m => ({ id: m.id }));
+    const links = edges.map(e => ({ source: e.source, target: e.target }));
 
-    simulation.on('tick', () => {
-      // Update React state with new positions
-      setPositions(new Map(members.map(m => [m.id, { x: m.x!, y: m.y! }])));
-    });
+    const sim = d3.forceSimulation(nodes as any)
+      .force('link', d3.forceLink(links).id((d: any) => d.id).distance(160))
+      .force('charge', d3.forceManyBody().strength(-350))
+      .force('collision', d3.forceCollide(100))
+      .force('center', d3.forceCenter(w / 2, h / 2))
+      .stop();
 
-    return () => simulation.stop();
-  }, [members]);
+    sim.tick(300); // Pre-compute — no streaming ticks
+
+    const pos = new Map((nodes as any[]).map(n => [n.id, { x: n.x, y: n.y }]));
+    setPositions(pos);
+  }, [members, edges]);
+
+  // D3 zoom: update React state only — never mutate DOM
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.3, 3])
+      .on('zoom', e => setTransform({ x: e.transform.x, y: e.transform.y, k: e.transform.k }));
+    d3.select(svgRef.current).call(zoom);
+  }, []);
+
+  const t = transform;
+  const svgTransform = `translate(${t.x},${t.y}) scale(${t.k})`;
+  const htmlTransform = `translate(${t.x}px,${t.y}px) scale(${t.k})`;
 
   return (
-    <svg width="100%" height="100%">
-      {links.map(link => <WebThread key={...} source={positions.get(link.source)} target={positions.get(link.target)} />)}
-      {members.map(m => <MemberNode key={m.id} member={m} position={positions.get(m.id)} />)}
-    </svg>
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      {/* SVG threads layer */}
+      <svg ref={svgRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+        <g transform={svgTransform}>
+          {edges.map((edge, i) => (
+            <WebThread key={edge.id} source={positions.get(edge.source)} target={positions.get(edge.target)} index={i} />
+          ))}
+        </g>
+      </svg>
+
+      {/* HTML nodes layer */}
+      <div style={{ position: 'absolute', inset: 0, transform: htmlTransform, transformOrigin: '0 0' }}>
+        {members.map((m, i) => {
+          const pos = positions.get(m.id);
+          if (!pos) return null;
+          const nodeSize = Math.min(120 + m.connections.length * 10, 200);
+          return (
+            <MemberNode key={m.id} member={m} position={pos} size={nodeSize}
+                        accent={ACCENT_COLORS[i % ACCENT_COLORS.length]} />
+          );
+        })}
+      </div>
+    </div>
   );
 }
 ```
 
-**Why not use D3 to render DOM?** React handles the DOM — D3 mutating the DOM directly conflicts with React's reconciler. D3 for math, React for rendering.
+### Force Simulation Parameters
 
-### Force Simulation Parameters (starting values, tweak to taste)
 ```
-linkDistance:    150    // px between connected nodes
-chargeStrength:  -300   // repulsion between all nodes
-collideRadius:   80     // minimum node spacing
-alphaDecay:      0.028  // how fast simulation settles (lower = more movement)
+linkDistance:  160   px between connected nodes
+chargeStrength: -350  repulsion between all nodes
+collideRadius:  100   minimum center-to-center clearance
+tick count:     300   iterations run synchronously before first render
 ```
 
-### SVG vs. Canvas
+### Web Threads (`WebThread.tsx`)
 
-Use **SVG** (not `<canvas>`):
-- React can render SVG elements natively — each node/thread is a component
-- CSS animations work on SVG elements
-- Easier to attach React event handlers
-- `<foreignObject>` lets you embed HTML (including iframes) inside SVG
+SVG quadratic bezier with draw-in animation:
 
-Switch to `<canvas>` only if performance becomes an issue with 100+ nodes.
+```tsx
+export function WebThread({ source, target, index }: Props) {
+  if (!source || !target) return null;
+  const mx = (source.x + target.x) / 2;
+  const my = (source.y + target.y) / 2 - 40; // droop upward
+  const d = `M ${source.x} ${source.y} Q ${mx} ${my} ${target.x} ${target.y}`;
+  return (
+    <path d={d} fill="none" stroke="#e8e0d0" strokeWidth={1.5} opacity={0.35}
+          className="web-thread"
+          style={{ animationDelay: `${index * 80}ms` }} />
+  );
+}
+```
 
-### Pan & Zoom
-
-Use D3's `zoom` behavior, but apply transforms to an SVG `<g>` container:
-```typescript
-d3.zoom().on('zoom', (event) => {
-  d3.select(svgGroupRef.current).attr('transform', event.transform);
-});
+```css
+/* globals.css */
+.web-thread {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: drawThread 1.4s ease forwards;
+}
+@keyframes drawThread { to { stroke-dashoffset: 0; } }
 ```
 
 ---
 
-## Phase 3: Member Nodes & iframe Embedding
+## Phase 3: Member Nodes
 
-**Goal**: Each node shows an embedded preview of the member's site.
+**Goal**: Each node is a polygon HTML div showing a Microlink screenshot.
 
-### Node Component Hierarchy
+### Node Sizing
 
+Node size (width = height) is based on connection count:
 ```
-MemberNode (SVG <foreignObject>)
-  └── NodeContainer (HTML div, clip-path polygon)
-       ├── EmbedFrame
-       │    ├── <iframe> (attempt 1)
-       │    └── <img screenshotUrl> (fallback)
-       └── NodeLabel (name + socials bar)
+size = clamp(120 + connections.length × 10, 120, 200)  // px
 ```
 
-### iframe Fallback Strategy
+### Node Shape
+
+Irregular polygon via `clip-path`, seeded by member ID for deterministic uniqueness:
 
 ```typescript
-// EmbedFrame.tsx
-function EmbedFrame({ url, memberId }: { url: string; memberId: string }) {
-  const [failed, setFailed] = useState(false);
-  const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false&embed=screenshot.url`;
+// Returns a clip-path polygon string based on a hash of the member ID
+function polygonForId(id: string): string {
+  // Simple djb2 hash → offset values for each corner
+  let h = 5381;
+  for (const c of id) h = ((h << 5) + h) ^ c.charCodeAt(0);
+  const jitter = (seed: number) => ((seed & 0xf) - 8) * 1.5; // ±12px range
+  return `polygon(
+    ${jitter(h)} 0%, calc(100% - ${jitter(h >> 4)}px) ${jitter(h >> 8)}%,
+    100% ${jitter(h >> 12)}%, calc(100% + ${jitter(h >> 16)}px) 100%,
+    ${jitter(h >> 20)}% 100%, 0% calc(100% - ${jitter(h >> 24)}px)
+  )`;
+}
+```
 
-  if (failed) {
-    return <img src={screenshotUrl} alt="Site preview" onError={() => {/* show button */}} />;
-  }
+### Node Component (`MemberNode.tsx`)
 
+```tsx
+export function MemberNode({ member, position, size, accent }: Props) {
   return (
-    <iframe
-      src={url}
-      sandbox="allow-scripts allow-same-origin"
-      onError={() => setFailed(true)}
-      // Note: onError doesn't fire for X-Frame-Options blocks
-      // Use postMessage or load event + timeout detection instead
-    />
+    <div style={{
+      position: 'absolute',
+      left: position.x - size / 2,
+      top:  position.y - size / 2,
+      width: size,
+      height: size,
+      clipPath: polygonForId(member.id),
+      outline: `3px solid ${accent}`,
+      boxShadow: `4px 4px 0 #000, 6px 6px 0 ${accent}`,
+    }}>
+      {/* Screenshot preview */}
+      <img src={`/screenshots/${member.id}.jpg`} alt={`${member.name}'s site`}
+           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+
+      {/* Name label bar */}
+      <div className="node-label">
+        <span className="member-name">{member.name}</span>
+        <a href={member.embedUrl} target="_blank" rel="noopener" className="visit-btn">↗</a>
+      </div>
+    </div>
   );
 }
 ```
 
-**Important**: `iframe` `onError` doesn't fire for `X-Frame-Options` blocks — the iframe loads but shows an error page. Detection requires:
-- A short timeout after `onLoad` — check if iframe `contentDocument` is accessible
-- If cross-origin (always will be) — use a proxy or just accept screenshot fallback for all
+### Screenshot Generation Script
 
-**Simplest reliable approach**: Default to screenshot for all nodes, with an "expand to live" button that opens the iframe on click (user interaction bypasses some restrictions).
+`scripts/generate-screenshots.ts` — run with `npx ts-node scripts/generate-screenshots.ts` at build prep time:
 
-### Microlink API
+```typescript
+import fs from 'fs';
+import path from 'path';
 
-Free tier: 100 requests/month per IP. For production:
-- Cache screenshots to `public/screenshots/{memberId}.jpg` at build time
-- Regenerate on `npm run build` or via a cron job
+const members = JSON.parse(fs.readFileSync('data/members.json', 'utf-8'));
+const outDir = path.join('public', 'screenshots');
+fs.mkdirSync(outDir, { recursive: true });
+
+for (const m of members) {
+  const url = `https://api.microlink.io/?url=${encodeURIComponent(m.embedUrl)}&screenshot=true&meta=false&embed=screenshot.url`;
+  const res = await fetch(url);
+  const json = await res.json();
+  const screenshotUrl = json.data?.screenshot?.url;
+  if (!screenshotUrl) continue;
+  const img = await fetch(screenshotUrl);
+  const buf = await img.arrayBuffer();
+  fs.writeFileSync(path.join(outDir, `${m.id}.jpg`), Buffer.from(buf));
+  console.log(`✓ ${m.id}`);
+}
+```
 
 ---
 
 ## Phase 4: Join Flow & Admin Approval
 
-### Join Form (`/join`)
+### Join Form
 
-Fields:
-- `name` (required)
-- `embedUrl` — primary URL to display in node (required)
-- `socials` — object of optional social handles
-- `connections` — array of existing member IDs they know
-- `bio` — optional, max 280 chars
+`/join` — Spider-Verse styled dark form. Validate on the client with Zod + React state. On success show a "WEB INCOMING — your request is in the spider's web" screen.
 
-Submit → `POST /api/join`
+Fields: `name`, `embedUrl`, `socials` (all optional), `connections` (member IDs, comma-separated input), `bio` (optional, 280 chars).
 
-### API: POST /api/join
+### POST /api/join
 
 ```typescript
 // src/app/api/join/route.ts
-export async function POST(request: Request) {
-  const body = await request.json();
-  // 1. Validate fields (zod schema)
-  // 2. Generate a signed approval token (HMAC or JWT)
-  // 3. Send email to admin with member data + approval link
-  // 4. Return 200 (pending review message)
+import { NextResponse } from 'next/server';
+import { joinSchema } from '@/types/member';
+import { signToken } from '@/lib/token';
+import { sendApprovalEmail } from '@/lib/email';
+
+export async function POST(req: Request) {
+  const body = await req.json();
+  const result = joinSchema.safeParse(body);
+  if (!result.success) return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
+
+  const data = result.data;
+  const token = signToken(data); // HMAC-signed, 7-day expiry
+  const approveUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/approve?token=${token}`;
+
+  await sendApprovalEmail({ data, approveUrl });
+  return NextResponse.json({ message: 'Submitted — pending review' }, { status: 202 });
 }
 ```
 
-### Email Template
+### Token Signing (`src/lib/token.ts`)
 
-The email to the admin contains:
-- Submitted member data (formatted)
-- Approve link: `https://syde30webring.com/api/approve?token=<signedToken>`
-- Reject link (just ignore, or a separate endpoint)
+```typescript
+import crypto from 'crypto';
 
-### API: GET /api/approve?token=...
+const SECRET = process.env.APPROVAL_SECRET!;
+
+export function signToken(payload: object): string {
+  const data = JSON.stringify({ payload, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+  const sig = crypto.createHmac('sha256', SECRET).update(data).digest('hex');
+  return Buffer.from(JSON.stringify({ data, sig })).toString('base64url');
+}
+
+export function verifyToken(token: string): { payload: any } | null {
+  try {
+    const { data, sig } = JSON.parse(Buffer.from(token, 'base64url').toString());
+    const expected = crypto.createHmac('sha256', SECRET).update(data).digest('hex');
+    if (sig !== expected) return null;
+    const parsed = JSON.parse(data);
+    if (parsed.exp < Date.now()) return null;
+    return { payload: parsed.payload };
+  } catch { return null; }
+}
+```
+
+### GitHub Contents API (`src/lib/github.ts`)
+
+```typescript
+// Read + commit data/members.json via GitHub API — works on Vercel (no filesystem writes)
+const API = 'https://api.github.com';
+const REPO = process.env.GITHUB_REPO!; // e.g. "justinwu/syde-30-webring"
+const TOKEN = process.env.GITHUB_TOKEN!;
+const FILE_PATH = 'data/members.json';
+
+async function ghFetch(path: string, options: RequestInit = {}) {
+  return fetch(`${API}/repos/${REPO}/contents/${FILE_PATH}`, {
+    ...options,
+    headers: {
+      Authorization: `token ${TOKEN}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+      ...((options as any).headers ?? {}),
+    },
+  });
+}
+
+export async function appendMember(newMember: object) {
+  // 1. Get current file (need SHA for update)
+  const res = await ghFetch('');
+  const file = await res.json();
+  const current = JSON.parse(Buffer.from(file.content, 'base64').toString('utf-8'));
+
+  // 2. Append new member
+  const updated = [...current, newMember];
+  const content = Buffer.from(JSON.stringify(updated, null, 2)).toString('base64');
+
+  // 3. Commit updated file
+  await ghFetch('', {
+    method: 'PUT',
+    body: JSON.stringify({
+      message: `Add member: ${(newMember as any).name}`,
+      content,
+      sha: file.sha,
+    }),
+  });
+  // GitHub push → Vercel detects new commit → auto-redeploys
+}
+```
+
+### GET /api/approve
 
 ```typescript
 // src/app/api/approve/route.ts
-export async function GET(request: Request) {
-  const token = new URL(request.url).searchParams.get('token');
-  // 1. Verify + decode token (extract member data)
-  // 2. Read data/members.json
-  // 3. Append new member (approved: true, joinedAt: now())
-  // 4. Write data/members.json
-  // 5. Trigger Vercel deploy hook (fetch to webhook URL)
-  // 6. Return success page
+import { NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/token';
+import { appendMember } from '@/lib/github';
+
+export async function GET(req: Request) {
+  const token = new URL(req.url).searchParams.get('token');
+  if (!token) return new Response('Missing token', { status: 400 });
+
+  const result = verifyToken(token);
+  if (!result) return new Response('Invalid or expired token', { status: 403 });
+
+  const { payload } = result;
+  const newMember = {
+    id: payload.name.toLowerCase().replace(/\s+/g, '-'),
+    ...payload,
+    approved: true,
+    joinedAt: new Date().toISOString(),
+  };
+
+  await appendMember(newMember);
+
+  return new Response(`
+    <html><body style="font-family:sans-serif;text-align:center;padding:60px;background:#0a0a0f;color:#f0f0f0">
+      <h1 style="font-size:3rem;color:#ff2020">✓ APPROVED</h1>
+      <p>${newMember.name} has been added to the webring.</p>
+      <p style="color:#888">The site will redeploy in ~1 minute.</p>
+    </body></html>
+  `, { headers: { 'Content-Type': 'text/html' } });
 }
 ```
-
-### Vercel Deploy Hook
-
-In Vercel project settings → Git → Deploy Hooks → create a hook URL.
-Store as `VERCEL_DEPLOY_HOOK_URL` env var.
-After writing to `members.json`, call:
-```typescript
-await fetch(process.env.VERCEL_DEPLOY_HOOK_URL!, { method: 'POST' });
-```
-
-This triggers a redeploy which picks up the new member.
-
-### Security
-
-- Token: HMAC-SHA256 of the member data + a secret + expiry timestamp
-- Token expires in 7 days (admin must approve within a week)
-- Single-use: once approved, store token hash in a small blocklist (or just check `approved` status)
-- Admin route `/admin` protected by HTTP Basic Auth or NextAuth with a single admin user
 
 ---
 
 ## Phase 5: Spider-Verse Polish
 
-### Halftone Dot Effect
+### Halftone Background
 
-CSS + SVG filter approach:
-```css
-/* Halftone texture overlay */
-.halftone-overlay {
-  background-image: radial-gradient(circle, #ffffff22 1px, transparent 1px);
-  background-size: 12px 12px;
-  pointer-events: none;
-}
-```
+Applied globally via `body::before` in `globals.css` (see CLAUDE.md). The dot grid is a CSS `radial-gradient` pattern — simple, zero runtime cost.
 
-For a proper halftone (dots that vary in size by brightness), use an SVG `<feTurbulence>` + `<feColorMatrix>` filter or a canvas post-process pass.
-
-### Glitch / Color-Split Effect on Hover
+### Glitch / Color-Split on Hover
 
 ```css
 @keyframes glitch {
-  0%   { text-shadow: 2px 0 #ff0000, -2px 0 #0a4fff; }
-  25%  { text-shadow: -2px 0 #ff0000, 2px 0 #0a4fff; }
-  50%  { text-shadow: 2px 2px #ff0000, -2px -2px #0a4fff; }
-  100% { text-shadow: 2px 0 #ff0000, -2px 0 #0a4fff; }
+  0%   { text-shadow:  2px 0 #ff0000, -2px 0 #0a4fff; }
+  33%  { text-shadow: -2px 0 #ff0000,  2px 0 #0a4fff; }
+  66%  { text-shadow:  2px 2px #ff0000, -2px -2px #0a4fff; }
+  100% { text-shadow:  2px 0 #ff0000, -2px 0 #0a4fff; }
 }
-
-.member-name:hover {
-  animation: glitch 0.3s steps(2) infinite;
-}
+.member-name:hover { animation: glitch 0.3s steps(2) infinite; }
 ```
 
-For image/iframe glitch: CSS `clip-path` animation with duplicate shifted layers.
-
-### Comic Book Ink Border
+### Comic-Book Node Border
 
 ```css
-.node-border {
-  outline: 3px solid var(--accent-color);
-  box-shadow: 4px 4px 0 #000, 6px 6px 0 var(--accent-color);
+.member-node {
+  outline: 3px solid var(--accent);
+  box-shadow: 4px 4px 0 #000, 6px 6px 0 var(--accent);
+  transition: box-shadow 0.15s, outline-width 0.15s;
+}
+.member-node:hover {
+  outline-width: 4px;
+  box-shadow: 6px 6px 0 #000, 9px 9px 0 var(--accent);
 }
 ```
 
-### Web Thread Draw Animation
+### Node Float (Idle Animation)
 
 ```css
-.web-thread {
-  stroke-dasharray: 1000;
-  stroke-dashoffset: 1000;
-  animation: drawThread 1.5s ease forwards;
+@keyframes nodeFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
 }
-
-@keyframes drawThread {
-  to { stroke-dashoffset: 0; }
+.member-node {
+  animation: nodeFloat 4s ease-in-out infinite;
+  /* Stagger by member index: style={{ animationDelay: `${index * 0.3}s` }} */
 }
 ```
 
-Stagger thread animations by index: `animation-delay: calc(var(--thread-index) * 100ms)`.
+### Thread Draw Stagger
+
+Threads stagger their draw animation by index (see Phase 2). Each thread gets `animationDelay: index * 80ms`.
+
+### Mobile Fallback
+
+Below `768px`, `page.tsx` renders a `<MobileGrid />` instead of `<WebCanvas />`:
+- CSS grid of member cards (2 columns)
+- Each card shows screenshot, name, socials icons, visit link
+- No force graph, no SVG — just static layout
 
 ---
 
 ## Environment Variables
 
 ```env
-# .env.local (never commit)
+# .env.local
 GMAIL_USER=your@gmail.com
-GMAIL_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx   # Gmail App Password, not account password
+GMAIL_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx   # Gmail App Password (Settings → Security → App Passwords)
 ADMIN_EMAIL=your@gmail.com
-APPROVAL_SECRET=random-long-hex-string
-VERCEL_DEPLOY_HOOK_URL=https://api.vercel.com/v1/integrations/deploy/...
+APPROVAL_SECRET=<64-char hex>            # openssl rand -hex 32
+GITHUB_TOKEN=ghp_...                     # GitHub PAT: repo scope (read + write contents)
+GITHUB_REPO=justinwu/syde-30-webring    # owner/repo
+NEXT_PUBLIC_BASE_URL=https://syde30.vercel.app
 ```
 
 ---
 
-## Performance Considerations
+## Performance Notes
 
-- **100 members**: SVG force graph is fine; no optimization needed
-- **iframe rendering**: Lazy-load iframes (only render when node is in viewport or focused)
-- **Screenshots**: Pre-generate at build time, serve from `/public/screenshots/`
-- **D3 simulation**: Run simulation to completion off-screen before first paint (use `simulation.tick(300)`) so nodes don't animate from center on every load
-
----
-
-## Open Questions / Decisions to Make
-
-1. **2D or 3D first?** — Recommendation: 2D SVG first, evaluate 3D later
-2. **Polygon shapes**: Fixed set of shapes per member? Or randomized per ID?
-3. **Connection definition**: Self-reported by joining member, or bilateral confirmation?
-4. **Screenshot service**: Microlink (free tier) or ScreenshotOne ($)?
-5. **Admin panel**: Email-link-only approval, or build a `/admin` UI dashboard?
-6. **Member count**: Is this only SYDE 2030? Open to all UW students later?
-7. **Accent colors**: Assigned automatically, or let members pick from a set?
+- **D3 layout**: Pre-computed synchronously via `simulation.tick(300)` — zero ongoing CPU cost
+- **Screenshots**: Static images served from `/public/screenshots/` — Vercel CDN caches them globally
+- **Nodes**: Plain HTML divs + CSS — no canvas, no WebGL, no overhead
+- **100+ members**: SVG with ~100 paths + ~100 divs is well within browser limits
+- **Mobile**: Full canvas not rendered on mobile — saves compute on lower-powered devices
