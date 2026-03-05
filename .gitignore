@@ -8,3 +8,10 @@ node_modules/
 .next/
 .env*.local
 .DS_Store
+
+# Package manager stores
+.pnpm-store/
+package-lock.json
+
+# TypeScript build info
+*.tsbuildinfo
