@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
+
 interface WebThreadProps {
   sourceX: number
   sourceY: number
@@ -7,7 +9,6 @@ interface WebThreadProps {
   targetY: number
   index: number
   isHighlighted?: boolean
-  accentColor?: string
 }
 
 export function WebThread({
@@ -17,28 +18,39 @@ export function WebThread({
   targetY,
   index,
   isHighlighted = false,
-  accentColor,
 }: WebThreadProps) {
-  const mx = (sourceX + targetX) / 2
-  const my = (sourceY + targetY) / 2 - 30
+  const pathRef = useRef<SVGPathElement>(null)
 
-  // Subtle asymmetry for organic feel
-  const offset = ((index * 7) % 20) - 10
-  const d = `M ${sourceX} ${sourceY} Q ${mx + offset} ${my} ${targetX} ${targetY}`
+  // Bezier with gravity sag
+  const mx = (sourceX + targetX) / 2
+  const my = (sourceY + targetY) / 2
+  const controlY = my + 65
+  const d = `M ${sourceX} ${sourceY} Q ${mx} ${controlY} ${targetX} ${targetY}`
+
+  // Draw-in animation via stroke-dashoffset
+  useEffect(() => {
+    const path = pathRef.current
+    if (!path) return
+    const len = Math.ceil(path.getTotalLength())
+    path.style.strokeDasharray = String(len)
+    path.style.strokeDashoffset = String(len)
+    // Force reflow
+    void path.getBoundingClientRect()
+    path.style.transition = `stroke-dashoffset 500ms cubic-bezier(0.22, 1, 0.36, 1) ${index * 50}ms`
+    path.style.strokeDashoffset = '0'
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <path
+      ref={pathRef}
       d={d}
       fill="none"
-      stroke={isHighlighted && accentColor ? accentColor : 'var(--web)'}
-      strokeWidth={isHighlighted ? 2 : 1}
-      opacity={isHighlighted ? 0.7 : 0.15}
-      className="web-thread"
+      stroke={isHighlighted ? 'rgba(220,210,190,0.55)' : 'rgba(220,210,190,0.22)'}
+      strokeWidth={isHighlighted ? 1.5 : 1}
       strokeLinecap="round"
       style={{
-        animationDelay: `${index * 60}ms`,
-        transition: 'stroke 0.25s ease, opacity 0.25s ease, stroke-width 0.25s ease',
-        filter: isHighlighted ? `drop-shadow(0 0 6px ${accentColor}40)` : 'none',
+        transition: 'stroke 200ms ease, stroke-width 200ms ease',
       }}
     />
   )
