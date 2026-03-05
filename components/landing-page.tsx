@@ -1,8 +1,11 @@
 'use client'
 
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+
+const GooseViewer = dynamic(() => import('./goose-viewer'), { ssr: false })
 
 interface LandingPageProps {
   onEnterWebring?: () => void
@@ -89,22 +92,18 @@ export function LandingPage({ onEnterWebring }: LandingPageProps) {
         />
       </div>
 
-      {/* Goose - bottom left (transparent PNG, on top of all elements) */}
+      {/* Goose 3D - fills bottom-left black space below 2030 text */}
       <div
         className="absolute"
         style={{
           left: '-3%',
-          bottom: '8%',
-          width: '24%',
+          top: '62%',
+          bottom: '-5%',
+          width: '46%',
           zIndex: 20,
         }}
       >
-        <img
-          src="/goose-transparent.png"
-          alt="Goose"
-          className="w-full h-auto object-contain"
-          style={{ transform: 'scaleX(-1)' }}
-        />
+        <GooseViewer />
       </div>
 
       {/* Crest and RELEASING MARCH sticker - overlapping, positioned between circle and webring */}
