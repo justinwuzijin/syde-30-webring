@@ -1,21 +1,43 @@
 'use client'
 
-import { Suspense, useLayoutEffect, useRef, useState, useCallback } from 'react'
+import { Suspense, useLayoutEffect, useRef, useState, useCallback, useEffect } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
-import { useGLTF, OrbitControls } from '@react-three/drei'
+import { useGLTF, useAnimations, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 
 function GooseMesh({ onReady }: { onReady: () => void }) {
-  const { scene } = useGLTF('/goose.glb')
+  const groupRef = useRef<THREE.Group>(null)
+  const { scene, animations } = useGLTF('/goose.glb')
+  const { actions, names } = useAnimations(animations, groupRef)
   const { camera } = useThree()
   const fired = useRef(false)
+
+  // Play animation on mount
+  useEffect(() => {
+    if (names.length > 0) {
+      // Log available animations for debugging
+      console.log('Available goose animations:', names)
+      
+      // Play the first available animation, looping
+      const firstAction = actions[names[0]]
+      if (firstAction) {
+        firstAction.reset().fadeIn(0.5).play()
+        firstAction.setLoop(THREE.LoopRepeat, Infinity)
+      }
+    }
+    
+    return () => {
+      // Cleanup: fade out all actions
+      names.forEach(name => {
+        actions[name]?.fadeOut(0.5)
+      })
+    }
+  }, [actions, names])
 
   useLayoutEffect(() => {
     if (fired.current) return
     fired.current = true
 
-    // At this point R3F has committed the scene into the Three.js tree,
-    // so updateMatrixWorld gives correct world-space positions.
     scene.updateMatrixWorld(true)
 
     const box = new THREE.Box3().setFromObject(scene)
@@ -27,11 +49,9 @@ function GooseMesh({ onReady }: { onReady: () => void }) {
     const maxDim = Math.max(size.x, size.y, size.z)
     const s = maxDim > 0 ? 2.2 / maxDim : 1
 
-    // Normalize scale and center model at world origin (OrbitControls target)
     scene.scale.setScalar(s)
     scene.position.set(-center.x * s, -center.y * s, -center.z * s)
 
-    // Set camera distance to frame the model — no animation, instant
     const cam = camera as THREE.PerspectiveCamera
     const fovRad = cam.fov * (Math.PI / 180)
     const dist = (s * maxDim * 0.5) / Math.tan(fovRad * 0.5) * 1.4
@@ -40,11 +60,14 @@ function GooseMesh({ onReady }: { onReady: () => void }) {
     cam.far = dist * 100
     cam.updateProjectionMatrix()
 
-    // Reveal only after camera and scale are fully set
     onReady()
   }, [scene, camera, onReady])
 
-  return <primitive object={scene} />
+  return (
+    <group ref={groupRef}>
+      <primitive object={scene} />
+    </group>
+  )
 }
 
 useGLTF.preload('/goose.glb')
