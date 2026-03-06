@@ -212,6 +212,23 @@ export function LandingPage({ onEnterWebring }: LandingPageProps) {
           </span>
         </motion.div>
 
+        {/* Goose 3D model attribution */}
+        <motion.div 
+          className="absolute bottom-[0.5%] left-1/2 -translate-x-1/2 pointer-events-auto"
+          style={{ opacity: elementsOpacity }}
+        >
+          <span 
+            className="text-white/80 text-[0.5vw]"
+            style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
+          >
+            &quot;Goose&quot; (
+            <a href="https://skfb.ly/oJtwy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/90">https://skfb.ly/oJtwy</a>
+            ) by OlegPopka is licensed under Creative Commons Attribution (
+            <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/90">http://creativecommons.org/licenses/by/4.0/</a>
+            ).
+          </span>
+        </motion.div>
+
         {/* Sign up / Log in - fade with scroll */}
         <motion.div
           className="absolute flex items-center gap-3"
