@@ -13,6 +13,7 @@ const WebringPortal = dynamic(
   () => import('./webring-portal').then(m => m.WebringPortal),
   { ssr: false }
 )
+const DotGrid = dynamic(() => import('./dot-grid'), { ssr: false })
 
 interface LandingPageProps {
   onEnterWebring?: () => void
@@ -58,6 +59,21 @@ export function LandingPage({ onEnterWebring }: LandingPageProps) {
       {/* Sticky viewport - stays in view while scrolling */}
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         
+        {/* Purple dot grid background */}
+        <div className="absolute inset-0 z-0">
+          <DotGrid
+            dotSize={5}
+            gap={15}
+            baseColor="#271E37"
+            activeColor="#5227FF"
+            proximity={120}
+            shockRadius={250}
+            shockStrength={5}
+            resistance={750}
+            returnDuration={1.5}
+          />
+        </div>
+
         {/* Hero text container - fade only */}
         <motion.div 
           className="absolute top-[2%] left-0 w-full pointer-events-none"

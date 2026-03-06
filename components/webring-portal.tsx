@@ -145,26 +145,28 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {/* CRT terminal background — inside the circle, z:0, non-interactive */}
-        <FaultyTerminal
-          scale={1.5}
-          gridMul={[2, 1]}
-          digitSize={1.2}
-          timeScale={0.5}
-          pause={false}
-          scanlineIntensity={0.5}
-          glitchAmount={1}
-          flickerAmount={1}
-          noiseAmp={1}
-          chromaticAberration={0}
-          dither={0}
-          curvature={0.1}
-          tint="#A7EF9E"
-          mouseReact
-          mouseStrength={0.5}
-          pageLoadAnimation
-          brightness={0.6}
-        />
+        {/* Faulty terminal CRT background — inside the circle */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+          <FaultyTerminal
+            scale={1.5}
+            gridMul={[2, 1]}
+            digitSize={1.2}
+            timeScale={0.5}
+            pause={false}
+            scanlineIntensity={0.5}
+            glitchAmount={1}
+            flickerAmount={1}
+            noiseAmp={1}
+            chromaticAberration={0}
+            dither={0}
+            curvature={0.1}
+            tint="#A7EF9E"
+            mouseReact
+            mouseStrength={0.5}
+            pageLoadAnimation
+            brightness={0.6}
+          />
+        </div>
 
         {/* Loading state */}
         {!hasPositions && (
@@ -202,7 +204,7 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
           pointerEvents: 'none',
         }}
       >
-        <span className="text-white/50 text-xs uppercase tracking-[0.2em]">Scroll to explore</span>
+        <span className="text-white/50 text-xs lowercase tracking-[0.2em]">scroll to explore</span>
         <motion.div
           className="w-5 h-8 rounded-full border border-white/40 flex items-start justify-center p-1.5"
         >
