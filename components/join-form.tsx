@@ -108,6 +108,8 @@ function parseSocialLink(platform: SocialPlatform, input: string): { username: s
   }
 }
 
+const sfPro = { fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }
+
 function InputField({
   id,
   label,
@@ -133,7 +135,8 @@ function InputField({
     <div className="flex flex-col gap-2">
       <label
         htmlFor={id}
-        className="font-sans text-xs font-medium uppercase tracking-widest text-white"
+        className="text-xs font-medium text-white lowercase"
+        style={sfPro}
       >
         {label}
         {required && <span className="ml-0.5 text-red-400">*</span>}
@@ -181,7 +184,8 @@ function PasswordField({
     <div className="flex flex-col gap-2">
       <label
         htmlFor={id}
-        className="font-sans text-xs font-medium uppercase tracking-widest text-white"
+        className="text-xs font-medium text-white lowercase"
+        style={sfPro}
       >
         {label}
         {required && <span className="ml-0.5 text-red-400">*</span>}
@@ -295,8 +299,8 @@ function ProfilePictureField({
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="font-sans text-xs font-medium uppercase tracking-widest text-white">
-        Profile picture
+      <span className="text-xs font-medium text-white lowercase" style={sfPro}>
+        profile picture
         <span className="font-normal normal-case italic ml-1 text-[10px] text-white/70">
           (ideally headshot)
         </span>
@@ -342,7 +346,7 @@ function ProfilePictureField({
                 }}
                 className="font-mono text-xs text-white/70 hover:text-white transition-colors"
               >
-                Replace
+                replace
               </button>
               <span className="text-white/30">|</span>
               <button
@@ -354,21 +358,21 @@ function ProfilePictureField({
                 className="font-mono text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                Delete
+                delete
               </button>
             </div>
             <p className="font-mono text-[10px] italic text-white/50 mt-0.5">
-              Click image to enlarge
+              click image to enlarge
             </p>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 py-8">
             <Upload className="w-10 h-10 text-white/40" />
             <span className="font-mono text-xs text-white/60">
-              Drag and drop, paste, or click to upload
+              drag and drop, paste, or click to upload
             </span>
             <p className="font-mono text-[10px] italic text-white/50">
-              JPG, PNG, WebP. Optional.
+              jpg, png, webp. optional.
             </p>
           </div>
         )}
@@ -529,7 +533,7 @@ export function JoinForm() {
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards',
           }}
         >
-          WEB INCOMING
+          web incoming
         </h1>
         <p
           className="font-sans mt-6 text-center max-w-sm leading-relaxed text-white/80"
@@ -539,7 +543,7 @@ export function JoinForm() {
           }}
         >
           {
-            "Your request is in the spider's web. You'll hear back once an admin approves your membership."
+            "your request is in the spider's web. you'll hear back once an admin approves your membership."
           }
         </p>
         <div
@@ -559,7 +563,7 @@ export function JoinForm() {
           }}
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Back to the web
+          back to the web
         </Link>
       </div>
     )
@@ -574,22 +578,22 @@ export function JoinForm() {
         {/* Back */}
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider uppercase transition-opacity hover:opacity-80 mb-8 sm:mb-12 text-white/70"
+          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 sm:mb-12 text-white/70"
         >
           <ArrowLeft className="w-3 h-3" />
-          Back
+          back
         </Link>
 
         {/* Heading */}
         <h1
-          className="leading-none text-white"
+          className="leading-none text-white lowercase"
           style={{
-            fontFamily: "'Bebas Neue', sans-serif",
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
             fontSize: 'clamp(2.5rem, 8vw, 5.5rem)',
             letterSpacing: '0.02em',
           }}
         >
-          SIGN UP
+          sign up
         </h1>
         <p
           className="font-sans mt-4 leading-relaxed text-white/80 md:whitespace-nowrap"
@@ -609,7 +613,7 @@ export function JoinForm() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-7">
             <InputField
               id="name"
-              label="Name"
+              label="name"
               required
               value={form.name}
               onChange={update('name')}
@@ -619,7 +623,7 @@ export function JoinForm() {
 
             <InputField
               id="email"
-              label="Email"
+              label="email"
               required
               value={form.email}
               onChange={update('email')}
@@ -630,7 +634,7 @@ export function JoinForm() {
 
             <PasswordField
               id="password"
-              label="Password"
+              label="password"
               required
               value={form.password}
               onChange={update('password')}
@@ -640,7 +644,7 @@ export function JoinForm() {
 
             <InputField
               id="program"
-              label="Program"
+              label="program"
               required
               value={form.program}
               onChange={update('program')}
@@ -651,7 +655,7 @@ export function JoinForm() {
             <div className="flex flex-col gap-2 lg:col-span-2">
               <InputField
                 id="websiteLink"
-                label="Website link"
+                label="website link"
                 value={form.websiteLink}
                 onChange={update('websiteLink')}
                 placeholder="e.g. https://example.com"
@@ -660,7 +664,7 @@ export function JoinForm() {
                 error={errors.websiteLink}
               />
               <p className="font-mono text-[10px] italic -mt-2 text-white/50">
-                We will automatically capture a screenshot of your website&apos;s
+                we will automatically capture a screenshot of your website&apos;s
                 landing page
               </p>
             </div>
@@ -668,8 +672,8 @@ export function JoinForm() {
 
           {/* Social links */}
           <div className="flex flex-col gap-3">
-            <span className="font-sans text-xs font-medium uppercase tracking-widest text-white">
-              Social links
+            <span className="text-xs font-medium text-white lowercase" style={sfPro}>
+              social links
               <span className="ml-0.5 text-red-400">*</span>
               <span className="font-normal normal-case italic ml-1 text-[10px] text-white/70">
                 (at least one)
@@ -679,9 +683,10 @@ export function JoinForm() {
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor="linkedin"
-                  className="font-mono text-xs text-white/70"
+                  className="text-xs text-white/70 lowercase"
+                  style={sfPro}
                 >
-                  LinkedIn
+                  linkedin
                 </label>
                 <input
                   id="linkedin"
@@ -700,9 +705,10 @@ export function JoinForm() {
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor="twitter"
-                  className="font-mono text-xs text-white/70"
+                  className="text-xs text-white/70 lowercase"
+                  style={sfPro}
                 >
-                  Twitter
+                  twitter
                 </label>
                 <input
                   id="twitter"
@@ -721,9 +727,10 @@ export function JoinForm() {
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor="github"
-                  className="font-mono text-xs text-white/70"
+                  className="text-xs text-white/70 lowercase"
+                  style={sfPro}
                 >
-                  GitHub
+                  github
                 </label>
                 <input
                   id="github"
@@ -759,7 +766,7 @@ export function JoinForm() {
           <button
             type="submit"
             disabled={submitting}
-            className="group flex items-center justify-center gap-2.5 px-6 py-3.5 font-sans text-xs sm:text-sm font-medium uppercase tracking-widest transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-[0.98] mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="group flex items-center justify-center gap-2.5 px-6 py-3.5 font-sans text-xs sm:text-sm font-medium lowercase transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-[0.98] mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
               background: 'var(--accent-red)',
               color: '#fff',
@@ -767,7 +774,7 @@ export function JoinForm() {
               border: 'none',
             }}
           >
-            <span>{submitting ? 'Signing up…' : 'Sign Up'}</span>
+            <span>{submitting ? 'signing up…' : 'sign up'}</span>
             <ArrowUpRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </button>
         </form>

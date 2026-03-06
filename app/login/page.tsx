@@ -47,21 +47,21 @@ export default function LoginPage() {
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider uppercase transition-opacity hover:opacity-80 mb-8 text-white/70"
+          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
         >
           <ArrowLeft className="w-3 h-3" />
-          Back
+          back
         </Link>
 
         <h1
-          className="leading-none text-white"
+          className="leading-none text-white lowercase"
           style={{
-            fontFamily: "'Bebas Neue', sans-serif",
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
             fontSize: 'clamp(2.5rem, 8vw, 4rem)',
             letterSpacing: '0.02em',
           }}
         >
-          LOG IN
+          log in
         </h1>
         <p className="font-sans mt-4 text-white/80" style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}>
           Sign in with your approved webring account.
@@ -74,8 +74,8 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <label htmlFor="email" className="font-mono text-xs text-white/70">
-              Email
+            <label htmlFor="email" className="text-xs text-white/70 lowercase" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}>
+              email
             </label>
             <input
               id="email"
@@ -94,14 +94,14 @@ export default function LoginPage() {
           </div>
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <label htmlFor="password" className="font-mono text-xs text-white/70">
-                Password
+              <label htmlFor="password" className="text-xs text-white/70 lowercase" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}>
+                password
               </label>
               <Link
                 href="/forgot-password"
                 className="font-mono text-xs text-white/50 hover:text-white/80 transition-colors"
               >
-                Forgot password?
+                forgot password?
               </Link>
             </div>
             <div className="relative">
@@ -133,7 +133,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="group flex items-center justify-center gap-2.5 px-6 py-3.5 font-sans text-xs sm:text-sm font-medium uppercase tracking-widest transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+            className="group flex items-center justify-center gap-2.5 px-6 py-3.5 font-sans text-xs sm:text-sm font-medium lowercase transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             style={{
               background: 'var(--accent-red)',
               color: '#fff',
@@ -141,14 +141,14 @@ export default function LoginPage() {
               border: 'none',
             }}
           >
-            {loading ? 'Signing in…' : 'Log In'}
+            {loading ? 'signing in…' : 'log in'}
           </button>
         </form>
 
         <p className="font-mono text-xs text-white/50 mt-6">
           Don&apos;t have an account?{' '}
           <Link href="/join" className="text-white/80 hover:text-white transition-colors">
-            Sign up
+            sign up
           </Link>
         </p>
       </div>

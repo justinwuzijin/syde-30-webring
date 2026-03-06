@@ -12,6 +12,7 @@ interface WebCanvasProps {
   edges: Edge[]
   panX: number
   panY: number
+  scale?: number
   hoveredId: string | null
   onHover: (id: string | null) => void
   onCardClick: (member: Member) => void
@@ -22,6 +23,7 @@ export function WebCanvas({
   edges,
   panX,
   panY,
+  scale = 1,
   hoveredId,
   onHover,
   onCardClick,
@@ -37,7 +39,7 @@ export function WebCanvas({
     }
   }
 
-  const transform = `translate(${panX}px, ${panY}px)`
+  const transform = `translate(${panX}px, ${panY}px) scale(${scale})`
 
   return (
     <>
