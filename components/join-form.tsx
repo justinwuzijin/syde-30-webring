@@ -9,7 +9,6 @@ interface FormData {
   name: string
   email: string
   password: string
-  program: string
   websiteLink: string
   linkedin: string
   twitter: string
@@ -21,7 +20,6 @@ const initialForm: FormData = {
   name: '',
   email: '',
   password: '',
-  program: '',
   websiteLink: '',
   linkedin: '',
   twitter: '',
@@ -433,10 +431,6 @@ export function JoinForm() {
       newErrors.password = 'Password must be at least 8 characters'
     }
 
-    if (!form.program.trim()) {
-      newErrors.program = 'Program is required'
-    }
-
     if (form.websiteLink.trim() && !isValidUrl(form.websiteLink)) {
       newErrors.websiteLink = 'Enter a valid URL (e.g. https://example.com)'
     }
@@ -478,7 +472,6 @@ export function JoinForm() {
       fd.set('name', form.name.trim())
       fd.set('email', form.email.trim())
       fd.set('password', form.password)
-      fd.set('program', form.program.trim())
       fd.set('websiteLink', form.websiteLink.trim())
       fd.set('linkedin', form.linkedin.trim())
       fd.set('twitter', form.twitter.trim())
@@ -640,16 +633,6 @@ export function JoinForm() {
               onChange={update('password')}
               placeholder="e.g. 12345678"
               error={errors.password}
-            />
-
-            <InputField
-              id="program"
-              label="program"
-              required
-              value={form.program}
-              onChange={update('program')}
-              placeholder="e.g. SYDE 2030"
-              error={errors.program}
             />
 
             <div className="flex flex-col gap-2 lg:col-span-2">

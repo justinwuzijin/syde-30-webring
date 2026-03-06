@@ -6,7 +6,6 @@ interface TokenPayload {
   name: string
   email: string
   password_hash: string
-  program: string
   website_link: string | null
   profile_picture_url: string | null
   linkedin_handle: string | null
@@ -34,13 +33,13 @@ export async function GET(request: Request) {
   }
 
   const payload = result.payload as TokenPayload
-  const { name, email, password_hash, program, website_link, profile_picture_url, linkedin_handle, twitter_handle, github_handle } = payload
+  const { name, email, password_hash, website_link, profile_picture_url, linkedin_handle, twitter_handle, github_handle } = payload
 
   const { error } = await supabaseAdmin.from('members').insert({
     name,
     email,
     password_hash,
-    program,
+    program: 'SYDE 2030',
     website_link: website_link || null,
     profile_picture_url: profile_picture_url || null,
     linkedin_handle: linkedin_handle || null,

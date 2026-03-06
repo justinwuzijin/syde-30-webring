@@ -1,7 +1,6 @@
 export interface Member {
   id: string
   name: string
-  program: string
   embedUrl: string
   socials: {
     website?: string

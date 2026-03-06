@@ -4,7 +4,6 @@ export const MOCK_MEMBERS: Member[] = [
   {
     id: 'justin-wu',
     name: 'Justin Wu',
-    program: 'SYDE 2030',
     embedUrl: 'https://justinzwu.com',
     socials: { github: 'justinwuzijin', linkedin: 'justinzijinwu' },
     connections: ['leo-zhang'],
@@ -14,7 +13,6 @@ export const MOCK_MEMBERS: Member[] = [
   {
     id: 'leo-zhang',
     name: 'Leo Zhang',
-    program: 'SYDE 2030',
     embedUrl: 'https://leo-zhang.com/',
     socials: { github: 'leozhang', twitter: 'leozhang' },
     connections: ['justin-wu'],
@@ -24,7 +22,6 @@ export const MOCK_MEMBERS: Member[] = [
   {
     id: 'sara-kim',
     name: 'Sara Kim',
-    program: 'SYDE 2030',
     embedUrl: 'https://sarakim.io',
     socials: { instagram: 'sarakim', linkedin: 'sara-kim-uw' },
     connections: ['justin-wu', 'alex-chen'],
@@ -34,7 +31,6 @@ export const MOCK_MEMBERS: Member[] = [
   {
     id: 'maya-patel',
     name: 'Maya Patel',
-    program: 'SYDE 2030',
     embedUrl: 'https://mayapatel.design',
     socials: { website: 'https://mayapatel.design', github: 'mayapatel' },
     connections: ['sara-kim', 'alex-chen'],
@@ -44,7 +40,6 @@ export const MOCK_MEMBERS: Member[] = [
   {
     id: 'liam-nguyen',
     name: 'Liam Nguyen',
-    program: 'SYDE 2030',
     embedUrl: 'https://liamnguyen.ca',
     socials: { github: 'liamnguyen', linkedin: 'liam-nguyen-syde' },
     connections: ['justin-wu', 'maya-patel'],
@@ -54,7 +49,6 @@ export const MOCK_MEMBERS: Member[] = [
   {
     id: 'emma-zhang',
     name: 'Emma Zhang',
-    program: 'SYDE 2030',
     embedUrl: 'https://emmazhang.dev',
     socials: { github: 'emmazhang', twitter: 'emzhang_dev' },
     connections: ['alex-chen', 'liam-nguyen', 'sara-kim'],
@@ -64,7 +58,6 @@ export const MOCK_MEMBERS: Member[] = [
   {
     id: 'omar-hassan',
     name: 'Omar Hassan',
-    program: 'SYDE 2030',
     embedUrl: 'https://omarhassan.me',
     socials: { github: 'omarhassan', linkedin: 'omar-hassan' },
     connections: ['justin-wu', 'emma-zhang'],

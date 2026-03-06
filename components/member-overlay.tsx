@@ -124,17 +124,6 @@ export function MemberOverlay({ member, memberIndex, onClose }: MemberOverlayPro
                 >
                   {member.name}
                 </h2>
-                <p
-                  style={{
-                    fontFamily: 'Inter, system-ui, sans-serif',
-                    fontSize: 12,
-                    color: 'var(--text-muted)',
-                    margin: '4px 0 0',
-                  }}
-                >
-                  {member.program}
-                </p>
-              </div>
 
               {/* Socials */}
               {activeSocials.length > 0 && (

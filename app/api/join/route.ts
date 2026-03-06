@@ -28,7 +28,6 @@ export async function POST(request: Request) {
     const name = (formData.get('name') as string)?.trim() ?? ''
     const email = (formData.get('email') as string)?.trim() ?? ''
     const password = (formData.get('password') as string) ?? ''
-    const program = (formData.get('program') as string)?.trim() ?? ''
     const websiteLink = (formData.get('websiteLink') as string)?.trim() ?? ''
     const linkedin = (formData.get('linkedin') as string)?.trim() ?? ''
     const twitter = (formData.get('twitter') as string)?.trim() ?? ''
@@ -43,7 +42,6 @@ export async function POST(request: Request) {
     else if (!isValidEmail(email)) errors.email = 'Please enter a valid email address'
     if (!password) errors.password = 'Password is required'
     else if (password.length < 8) errors.password = 'Password must be at least 8 characters'
-    if (!program) errors.program = 'Program is required'
     if (websiteLink && !isValidUrl(websiteLink)) errors.websiteLink = 'Enter a valid URL'
     const hasAnySocial = linkedin || twitter || github
     if (!hasAnySocial) errors.socials = 'At least one social link is required'
@@ -100,7 +98,6 @@ export async function POST(request: Request) {
       name,
       email,
       password_hash,
-      program,
       website_link: websiteLink || null,
       profile_picture_url,
       linkedin_handle,
@@ -119,7 +116,6 @@ export async function POST(request: Request) {
     await sendApprovalEmail(adminEmail, {
       name,
       email,
-      program,
       website_link: websiteLink || null,
       profile_picture_url,
       linkedin_handle,

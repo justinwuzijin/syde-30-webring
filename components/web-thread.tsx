@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useId } from 'react'
 
 interface WebThreadProps {
   sourceX: number
@@ -9,6 +9,8 @@ interface WebThreadProps {
   targetY: number
   index: number
   isHighlighted?: boolean
+  sourceColor?: string
+  targetColor?: string
 }
 
 export function WebThread({
@@ -18,8 +20,11 @@ export function WebThread({
   targetY,
   index,
   isHighlighted = false,
+  sourceColor = '#ffffff',
+  targetColor = '#ffffff',
 }: WebThreadProps) {
   const pathRef = useRef<SVGPathElement>(null)
+  const gradientId = useId()
 
   // Bezier with gravity sag
   const mx = (sourceX + targetX) / 2
@@ -41,17 +46,34 @@ export function WebThread({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Default: thick white thread, Highlighted: gradient between source and target colors
+  const defaultStroke = 'rgba(255, 255, 255, 0.5)'
+  const highlightedStroke = `url(#${gradientId})`
+
   return (
-    <path
-      ref={pathRef}
-      d={d}
-      fill="none"
-      stroke={isHighlighted ? 'rgba(220,210,190,0.55)' : 'rgba(220,210,190,0.22)'}
-      strokeWidth={isHighlighted ? 1.5 : 1}
-      strokeLinecap="round"
-      style={{
-        transition: 'stroke 200ms ease, stroke-width 200ms ease',
-      }}
-    />
+    <>
+      {/* Gradient definition for highlighted state */}
+      {isHighlighted && (
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={sourceColor} stopOpacity={0.9} />
+            <stop offset="50%" stopColor="#ffffff" stopOpacity={0.7} />
+            <stop offset="100%" stopColor={targetColor} stopOpacity={0.9} />
+          </linearGradient>
+        </defs>
+      )}
+      <path
+        ref={pathRef}
+        d={d}
+        fill="none"
+        stroke={isHighlighted ? highlightedStroke : defaultStroke}
+        strokeWidth={isHighlighted ? 4 : 2.5}
+        strokeLinecap="round"
+        style={{
+          transition: 'stroke 200ms ease, stroke-width 200ms ease',
+          filter: isHighlighted ? 'drop-shadow(0 0 6px rgba(255,255,255,0.5))' : 'none',
+        }}
+      />
+    </>
   )
 }

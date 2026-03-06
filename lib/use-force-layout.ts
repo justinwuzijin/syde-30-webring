@@ -26,7 +26,7 @@ function hashId(id: string): number {
 function initialPos(id: string, index: number, total: number): { x: number; y: number } {
   const h = hashId(id)
   const angle = (index / total) * Math.PI * 2 + (h % 100) * 0.01
-  const radius = 500 + (h % 300)
+  const radius = 600 + (h % 400)
   return {
     x: CANVAS_SIZE / 2 + Math.cos(angle) * radius,
     y: CANVAS_SIZE / 2 + Math.sin(angle) * radius,
@@ -55,7 +55,7 @@ export function useForceLayout(
     for (let t = 0; t < TICKS; t++) {
       const alpha = 1 - t / TICKS
 
-      // Repulsion between all pairs
+      // Repulsion between all pairs (increased strength for more spacing)
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i]
@@ -63,17 +63,17 @@ export function useForceLayout(
           const dx = b.x - a.x
           const dy = b.y - a.y
           const dist = Math.sqrt(dx * dx + dy * dy) || 1
-          const strength = (500 * alpha) / (dist * dist)
+          const strength = (900 * alpha) / (dist * dist)
           const fx = (dx / dist) * strength
           const fy = (dy / dist) * strength
-          a.vx -= fx * 0.08
-          a.vy -= fy * 0.08
-          b.vx += fx * 0.08
-          b.vy += fy * 0.08
+          a.vx -= fx * 0.1
+          a.vy -= fy * 0.1
+          b.vx += fx * 0.1
+          b.vy += fy * 0.1
         }
       }
 
-      // Attraction along edges
+      // Attraction along edges (increased target distance)
       for (const e of edges) {
         const a = nodeMap.get(e.source)
         const b = nodeMap.get(e.target)
@@ -81,8 +81,8 @@ export function useForceLayout(
         const dx = b.x - a.x
         const dy = b.y - a.y
         const dist = Math.sqrt(dx * dx + dy * dy) || 1
-        const TARGET_DIST = 320
-        const f = ((dist - TARGET_DIST) * 0.015 * alpha)
+        const TARGET_DIST = 480
+        const f = ((dist - TARGET_DIST) * 0.012 * alpha)
         const fx = (dx / dist) * f
         const fy = (dy / dist) * f
         a.vx += fx
@@ -91,13 +91,13 @@ export function useForceLayout(
         b.vy -= fy
       }
 
-      // Center gravity
+      // Center gravity (slightly reduced to allow more spread)
       for (const n of nodes) {
-        n.vx += (cx - n.x) * 0.003 * alpha
-        n.vy += (cy - n.y) * 0.003 * alpha
+        n.vx += (cx - n.x) * 0.002 * alpha
+        n.vy += (cy - n.y) * 0.002 * alpha
       }
 
-      // Collision avoidance (min distance 160px)
+      // Collision avoidance (increased min distance for bigger cards)
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i]
@@ -105,9 +105,9 @@ export function useForceLayout(
           const dx = b.x - a.x
           const dy = b.y - a.y
           const dist = Math.sqrt(dx * dx + dy * dy) || 1
-          const MIN = 180
+          const MIN = 320
           if (dist < MIN) {
-            const push = ((MIN - dist) / dist) * 0.4
+            const push = ((MIN - dist) / dist) * 0.5
             a.x -= dx * push
             a.y -= dy * push
             b.x += dx * push

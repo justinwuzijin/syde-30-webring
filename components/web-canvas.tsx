@@ -5,7 +5,7 @@ import type { Edge } from '@/lib/mock-data'
 import { useForceLayout, CANVAS_SIZE } from '@/lib/use-force-layout'
 import { getAccentColor } from '@/types/member'
 import { WebThread } from './web-thread'
-import { MemberCard } from './member-card'
+import { MemberCard, getCardBgColor } from './member-card'
 
 interface WebCanvasProps {
   members: Member[]
@@ -29,6 +29,12 @@ export function WebCanvas({
   onCardClick,
 }: WebCanvasProps) {
   const positions = useForceLayout(members, edges)
+
+  // Build a map of member id -> background color
+  const memberColorMap = new Map<string, string>()
+  for (const m of members) {
+    memberColorMap.set(m.id, getCardBgColor(m.id))
+  }
 
   // Nodes connected to the currently hovered node
   const connectedIds = new Set<string>()
@@ -73,6 +79,8 @@ export function WebCanvas({
               targetY={t.y}
               index={i}
               isHighlighted={highlighted}
+              sourceColor={memberColorMap.get(edge.source) || '#ffffff'}
+              targetColor={memberColorMap.get(edge.target) || '#ffffff'}
             />
           )
         })}

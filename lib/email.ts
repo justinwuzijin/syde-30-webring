@@ -13,7 +13,6 @@ const transporter = nodemailer.createTransport({
 export interface ApprovalMemberInfo {
   name: string
   email: string
-  program: string
   website_link: string | null
   profile_picture_url: string | null
   linkedin_handle: string | null
@@ -54,7 +53,6 @@ export async function sendApprovalEmail(
       <table style="border-collapse:collapse;margin:16px 0;font-family:sans-serif;">
         ${row('Name', member.name)}
         ${row('Email', member.email)}
-        ${row('Program', member.program)}
         ${row('Website', member.website_link)}
         ${member.profile_picture_url ? row('Profile picture', member.profile_picture_url) : ''}
         ${socialRows}

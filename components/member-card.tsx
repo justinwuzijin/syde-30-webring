@@ -1,13 +1,38 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import type { Member } from '@/types/member'
 import { cardRotation, CANVAS_SIZE } from '@/lib/use-force-layout'
 
-const CARD_BASE_WIDTH  = 160
-const CARD_WIDTH_PER_CONN = 12
-const CARD_MAX_WIDTH   = 220
+const CARD_BASE_WIDTH  = 180
+const CARD_WIDTH_PER_CONN = 14
+const CARD_MAX_WIDTH   = 260
 const CARD_ASPECT      = 0.72
+
+const PREVIEW_WIDTH = 400
+const PREVIEW_HEIGHT = 300
+
+// Tailwind orange & yellow (500–700) for card backgrounds
+const TAILWIND_700_COLORS = [
+  '#c2410c', // orange-700
+  '#b45309', // amber-700
+  '#a16207', // yellow-700
+  '#ea580c', // orange-600
+  '#d97706', // amber-600
+  '#ca8a04', // yellow-600
+  '#f97316', // orange-500
+  '#f59e0b', // amber-500
+  '#eab308', // yellow-500
+]
+
+// Deterministic color from member id
+function getCardBgColor(id: string): string {
+  let h = 5381
+  for (const c of id) h = ((h << 5) + h) ^ c.charCodeAt(0)
+  return TAILWIND_700_COLORS[Math.abs(h) % TAILWIND_700_COLORS.length]
+}
+
+export { TAILWIND_700_COLORS, getCardBgColor }
 
 interface MemberCardProps {
   member: Member
@@ -31,14 +56,21 @@ export function MemberCard({
   onClick,
 }: MemberCardProps) {
   const [hovered, setHovered] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [iframeLoaded, setIframeLoaded] = useState(false)
   const nameRef = useRef<HTMLSpanElement>(null)
   const chromaticTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hoverTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const width = Math.min(CARD_BASE_WIDTH + member.connections.length * CARD_WIDTH_PER_CONN, CARD_MAX_WIDTH)
   const height = Math.round(width * CARD_ASPECT)
   const baseRotation = cardRotation(member.id)
 
-  const screenshotUrl = `https://picsum.photos/seed/${member.id}/400/280`
+  // Use Microlink API to get actual website screenshot
+  const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(member.embedUrl)}&screenshot=true&meta=false&embed=screenshot.url`
+
+  // Get randomized background color based on member id
+  const cardBgColor = getCardBgColor(member.id)
 
   // Calculate convex distortion based on position from center
   const centerX = CANVAS_SIZE / 2
@@ -48,11 +80,27 @@ export function MemberCard({
   const distFromCenter = Math.sqrt(dx * dx + dy * dy)
   
   // Perspective rotation - cards tilt away from center as if on a convex surface
-  const rotateY = dx * 25 // -25 to +25 degrees based on x position
-  const rotateX = -dy * 20 // -20 to +20 degrees based on y position
+  const rotateY = dx * 25
+  const rotateX = -dy * 20
   
   // Scale increases slightly toward edges (convex bulge effect)
   const convexScale = 1 + distFromCenter * 0.15
+
+  // Delayed preview show to avoid flickering
+  useEffect(() => {
+    if (hovered) {
+      hoverTimeout.current = setTimeout(() => {
+        setShowPreview(true)
+      }, 400)
+    } else {
+      if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
+      setShowPreview(false)
+      setIframeLoaded(false)
+    }
+    return () => {
+      if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
+    }
+  }, [hovered])
 
   const fireChromatic = useCallback(() => {
     const el = nameRef.current
@@ -94,7 +142,7 @@ export function MemberCard({
         height,
         perspective: '800px',
         perspectiveOrigin: 'center center',
-        zIndex: hovered ? 20 : 10,
+        zIndex: hovered ? 100 : 10,
         animation: `cardEntrance 400ms cubic-bezier(0.22, 1, 0.36, 1) ${index * 30 + 500}ms both`,
         ['--card-rotation' as string]: `${baseRotation}deg`,
       }}
@@ -107,10 +155,10 @@ export function MemberCard({
         style={{
           width: '100%',
           height: '100%',
-          background: 'var(--surface)',
-          border: '1px solid rgba(255,255,255,0.12)',
+          background: cardBgColor,
+          border: '1px solid rgba(255,255,255,0.2)',
           borderTop: `3px solid ${accent}`,
-          borderRadius: '4px',
+          borderRadius: '6px',
           position: 'relative',
           overflow: 'hidden',
           cursor: 'pointer',
@@ -123,22 +171,23 @@ export function MemberCard({
           `,
           transformStyle: 'preserve-3d',
           transition: 'transform 200ms ease-out, border-color 150ms ease, box-shadow 200ms ease',
-          borderColor: isActive ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.12)',
+          borderColor: isActive ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)',
           boxShadow: isActive 
-            ? '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1)' 
-            : '0 4px 20px rgba(0,0,0,0.4)',
+            ? `0 8px 32px rgba(0,0,0,0.4), 0 0 20px ${cardBgColor}40` 
+            : '0 4px 20px rgba(0,0,0,0.3)',
         }}
       >
-        {/* Screenshot (top 65%) */}
+        {/* Screenshot (top 82%) - grayscale when not hovered */}
         <div
           style={{
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
-            height: '65%',
+            height: '82%',
             overflow: 'hidden',
-            borderRadius: '3px 3px 0 0',
+            borderRadius: '5px 5px 0 0',
+            background: '#0a0a0a',
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -148,45 +197,50 @@ export function MemberCard({
             style={{
               width: '100%',
               height: '100%',
+              minWidth: '100%',
+              minHeight: '100%',
               objectFit: 'cover',
+              objectPosition: 'top center',
               display: 'block',
               filter: isActive
                 ? 'grayscale(0) contrast(1.1) brightness(1.05)'
-                : 'grayscale(0.4) contrast(1.05) brightness(0.8)',
-              transition: 'filter 200ms linear',
+                : 'grayscale(0.5) contrast(1) brightness(0.85)',
+              transition: 'filter 300ms ease',
             }}
             draggable={false}
           />
         </div>
 
-        {/* Name label (bottom 35%) */}
+        {/* Name label (bottom 18%) */}
         <div
           style={{
             position: 'absolute',
             bottom: 0,
             left: 0,
             right: 0,
-            height: '35%',
+            height: '18%',
             display: 'flex',
             alignItems: 'center',
-            paddingLeft: 10,
-            paddingRight: 10,
-            background: 'var(--surface)',
+            justifyContent: 'center',
+            paddingLeft: 12,
+            paddingRight: 12,
+            background: cardBgColor,
           }}
         >
           <span
             ref={nameRef}
             style={{
-              fontFamily: 'Inter, system-ui, sans-serif',
-              fontSize: 12,
+              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
+              fontSize: 18,
               fontWeight: 600,
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              color: 'var(--text)',
+              letterSpacing: '0.01em',
+              textTransform: 'lowercase',
+              color: '#ffffff',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               display: 'block',
+              textAlign: 'center',
               width: '100%',
             }}
           >
@@ -194,6 +248,130 @@ export function MemberCard({
           </span>
         </div>
       </div>
+
+      {/* Live Preview Popup - appears on hover after delay */}
+      {showPreview && (
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: '100%',
+            transform: 'translateX(-50%) translateY(-20px)',
+            width: PREVIEW_WIDTH,
+            height: PREVIEW_HEIGHT,
+            background: '#0a0a0f',
+            borderRadius: '8px',
+            border: `2px solid ${accent}`,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.1)',
+            overflow: 'hidden',
+            zIndex: 200,
+            opacity: iframeLoaded ? 1 : 0.7,
+            transition: 'opacity 300ms ease',
+          }}
+        >
+          {/* Loading indicator */}
+          {!iframeLoaded && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#0a0a0f',
+                color: 'rgba(255,255,255,0.5)',
+                fontSize: 12,
+                fontFamily: 'Inter, system-ui, sans-serif',
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ 
+                  width: 24, 
+                  height: 24, 
+                  border: '2px solid rgba(255,255,255,0.2)',
+                  borderTopColor: accent,
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 8px',
+                }} />
+                loading preview...
+              </div>
+            </div>
+          )}
+          
+          {/* Live iframe */}
+          <iframe
+            src={member.embedUrl}
+            title={`${member.name}'s website preview`}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              background: 'white',
+            }}
+            sandbox="allow-scripts allow-same-origin"
+            loading="lazy"
+            onLoad={() => setIframeLoaded(true)}
+          />
+          
+          {/* URL label at bottom */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              padding: '8px 12px',
+              background: 'linear-gradient(transparent, rgba(0,0,0,0.9))',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10,
+                fontFamily: 'JetBrains Mono, monospace',
+                color: 'rgba(255,255,255,0.7)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {member.embedUrl}
+            </span>
+            <span
+              style={{
+                fontSize: 9,
+                padding: '2px 6px',
+                background: accent,
+                color: 'white',
+                borderRadius: 3,
+                fontFamily: 'Inter, system-ui, sans-serif',
+                fontWeight: 600,
+                flexShrink: 0,
+              }}
+            >
+              LIVE
+            </span>
+          </div>
+
+          {/* Arrow pointer */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: -8,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 0,
+              height: 0,
+              borderLeft: '8px solid transparent',
+              borderRight: '8px solid transparent',
+              borderTop: `8px solid ${accent}`,
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }

@@ -116,13 +116,6 @@ export function MobileGrid({ members }: MobileGridProps) {
                   </a>
                 </div>
 
-                <p
-                  className="font-mono text-[10px] mt-1 truncate"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  {member.program}
-                </p>
-
                 {activeSocials.length > 0 && (
                   <div className="flex items-center gap-2 mt-2.5 pt-2.5" style={{ borderTop: '1px solid var(--border)' }}>
                     {activeSocials.map(([platform, handle]) => {
