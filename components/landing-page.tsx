@@ -106,18 +106,18 @@ export function LandingPage({ onEnterWebring }: LandingPageProps) {
           />
         </motion.div>
 
-        {/* Photo folder - bottom-left corner, in front of goose */}
-        {/*<motion.div
+        {/* Photo folder - bottom-left, vertically centered with goose */}
+        <motion.div
           className="absolute pointer-events-auto"
           style={{
             left: '3%',
-            bottom: '6%',
+            bottom: '15%',
             zIndex: 20,
             opacity: elementsOpacity,
           }}
         >
           <PhotoFolder />
-        </motion.div>*/}
+        </motion.div>
 
         {/* Webring portal - scroll-driven expansion */}
         <WebringPortal scrollYProgress={scrollYProgress} />

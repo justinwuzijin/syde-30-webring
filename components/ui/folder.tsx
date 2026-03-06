@@ -17,11 +17,12 @@ export function Folder({ photos, size = 154 }: FolderProps) {
   const photoW = Math.round(size * 0.70)
   const photoH = Math.round(size * 0.54)
 
-  // Photos peek out above the folder body.
-  // They are positioned at top=tabH with large negative translateY,
-  // so ~50% of the photo is visible above the folder body top edge.
-  // The folder body (z:10) covers the lower half — creating the "inside folder" illusion.
-  const peek = Math.round(photoH * 0.52) // px visible above folder body
+  // Photos peek out above the folder body. On hover, lift fully above folder.
+  const peek = Math.round(photoH * 0.52) // px visible above folder body when collapsed
+
+  // On hover: lift photos so full image is visible (above folder); use higher z-index
+  const liftY = hovered ? -(photoH - peek - 4) : 0 // move up so full photo clears folder
+  const photoZBase = hovered ? 20 : 0 // photos above folder (z:10) when hovered
 
   // Fan rotations + horizontal offsets for back / mid / front
   const slots = [
@@ -50,8 +51,7 @@ export function Folder({ photos, size = 154 }: FolderProps) {
       {visible.map((src, i) => {
         const slot = slots[i] ?? slots[0]
         // Base: top edge of photo sits `peek` px above the folder body top
-        // folder body top = tabH, so photo top = tabH - peek
-        // On hover, fan out a bit more
+        // On hover: lift up so full photo is visible above folder; fan out more
         const extraY = hovered ? -8 : 0
         const extraRot = hovered ? slot.rot * 0.3 : 0
 
@@ -61,15 +61,15 @@ export function Folder({ photos, size = 154 }: FolderProps) {
             style={{
               position: 'absolute',
               left: `calc(50% + ${slot.dx}px)`,
-              top: tabH - peek + extraY,
+              top: tabH - peek + extraY + liftY,
               width: photoW,
               height: photoH,
               transform: `translateX(-50%) rotate(${slot.rot + extraRot}deg)`,
-              transition: 'transform 320ms cubic-bezier(0.34, 1.4, 0.64, 1), top 320ms cubic-bezier(0.34, 1.4, 0.64, 1)',
-              zIndex: slot.zIndex,
-              borderRadius: 3,
+              transition: 'transform 320ms cubic-bezier(0.34, 1.4, 0.64, 1), top 320ms cubic-bezier(0.34, 1.4, 0.64, 1), z-index 320ms',
+              zIndex: photoZBase + slot.zIndex,
+              borderRadius: 4,
               overflow: 'hidden',
-              boxShadow: '0 3px 12px rgba(0,0,0,0.7)',
+              boxShadow: hovered ? '0 8px 24px rgba(0,0,0,0.6)' : '0 3px 12px rgba(0,0,0,0.7)',
               border: '1px solid rgba(255,255,255,0.12)',
             }}
           >
@@ -98,8 +98,8 @@ export function Folder({ photos, size = 154 }: FolderProps) {
           left: 0,
           width: tabW,
           height: tabH,
-          background: '#222222',
-          border: '1px solid rgba(255,255,255,0.14)',
+          background: '#ca8a04',
+          border: '1px solid rgba(0,0,0,0.15)',
           borderBottom: 'none',
           borderRadius: '4px 4px 0 0',
           zIndex: 10,
@@ -114,10 +114,10 @@ export function Folder({ photos, size = 154 }: FolderProps) {
           left: 0,
           width: w,
           height: h,
-          background: '#1a1a1a',
-          border: '1px solid rgba(255,255,255,0.14)',
+          background: '#eab308',
+          border: '1px solid rgba(0,0,0,0.15)',
           borderRadius: '0 4px 4px 4px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.7), 0 2px 8px rgba(0,0,0,0.5)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3)',
           zIndex: 10,
         }}
       >
@@ -128,7 +128,7 @@ export function Folder({ photos, size = 154 }: FolderProps) {
             left: 12,
             right: 12,
             height: 1,
-            background: 'rgba(255,255,255,0.06)',
+            background: 'rgba(0,0,0,0.1)',
           }}
         />
       </div>
