@@ -1,31 +1,111 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ArrowUpRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, ArrowUpRight, Eye, EyeOff, Trash2, Upload, X } from 'lucide-react'
 
 interface FormData {
   name: string
-  embedUrl: string
-  github: string
-  twitter: string
-  instagram: string
+  email: string
+  password: string
+  program: string
+  websiteLink: string
   linkedin: string
-  website: string
-  connections: string
-  bio: string
+  twitter: string
+  github: string
+  profilePicture: File | null
 }
 
 const initialForm: FormData = {
   name: '',
-  embedUrl: '',
-  github: '',
-  twitter: '',
-  instagram: '',
+  email: '',
+  password: '',
+  program: '',
+  websiteLink: '',
   linkedin: '',
-  website: '',
-  connections: '',
-  bio: '',
+  twitter: '',
+  github: '',
+  profilePicture: null,
+}
+
+// Validation helpers
+const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+const isValidUrl = (url: string) => {
+  if (!url.trim()) return true
+  try {
+    new URL(url.startsWith('http') ? url : `https://${url}`)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Accept handle (alphanumeric, dashes, underscores), @handle, or full URL
+const isValidSocial = (value: string) => {
+  if (!value.trim()) return true
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return isValidUrl(value)
+  }
+  const cleaned = value.trim().replace(/^@/, '')
+  return /^[A-Za-z0-9_.-]{1,100}$/.test(cleaned)
+}
+
+// Parse social link input (URL, @handle, or username) into normalized format for DB
+type SocialPlatform = 'linkedin' | 'twitter' | 'github'
+
+function parseSocialLink(platform: SocialPlatform, input: string): { username: string; url: string } | null {
+  const raw = input.trim().replace(/^@/, '')
+  if (!raw) return null
+
+  try {
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      const url = new URL(raw)
+      const pathParts = url.pathname.replace(/^\/+|\/+$/g, '').split('/')
+      let username = ''
+
+      if (platform === 'linkedin') {
+        if (url.hostname.includes('linkedin.com') && pathParts[0] === 'in') {
+          username = pathParts[1] ?? pathParts[0] ?? raw
+        } else {
+          username = pathParts[1] ?? pathParts[0] ?? raw
+        }
+      } else if (platform === 'twitter') {
+        if (url.hostname.includes('twitter.com') || url.hostname.includes('x.com')) {
+          username = pathParts[0] ?? raw
+        } else {
+          username = pathParts[pathParts.length - 1] ?? raw
+        }
+      } else if (platform === 'github') {
+        if (url.hostname.includes('github.com')) {
+          username = pathParts[0] ?? raw
+        } else {
+          username = pathParts[pathParts.length - 1] ?? raw
+        }
+      }
+
+      if (!username) username = raw
+      const urlMap: Record<SocialPlatform, (u: string) => string> = {
+        linkedin: (u) => `https://linkedin.com/in/${u}`,
+        twitter: (u) => `https://x.com/${u}`,
+        github: (u) => `https://github.com/${u}`,
+      }
+      return { username, url: urlMap[platform](username) }
+    }
+
+    // Plain username or @handle (already stripped @)
+    const username = raw
+    const urlMap: Record<SocialPlatform, (u: string) => string> = {
+      linkedin: (u) => `https://linkedin.com/in/${u}`,
+      twitter: (u) => `https://x.com/${u}`,
+      github: (u) => `https://github.com/${u}`,
+    }
+    return { username, url: urlMap[platform](username) }
+  } catch {
+    return null
+  }
 }
 
 function InputField({
@@ -53,11 +133,10 @@ function InputField({
     <div className="flex flex-col gap-2">
       <label
         htmlFor={id}
-        className="font-sans text-[11px] font-medium uppercase tracking-widest"
-        style={{ color: 'var(--text-secondary)' }}
+        className="font-sans text-xs font-medium uppercase tracking-widest text-white"
       >
         {label}
-        {required && <span style={{ color: 'var(--accent-1)' }} className="ml-0.5">*</span>}
+        {required && <span className="ml-0.5 text-red-400">*</span>}
       </label>
       <input
         id={id}
@@ -65,59 +144,386 @@ function InputField({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={`${mono ? 'font-mono' : 'font-sans'} text-sm px-4 py-3 outline-none transition-all duration-200`}
+        className={`${mono ? 'font-mono' : 'font-sans'} w-full text-xs sm:text-sm px-4 py-3 outline-none transition-all duration-200 text-white placeholder:text-white/50`}
         style={{
-          background: 'var(--bg-elevated)',
-          color: 'var(--text)',
-          border: `1px solid ${error ? 'var(--accent-1)' : 'var(--border)'}`,
+          background: 'var(--surface)',
+          border: `1px solid ${error ? '#ef4444' : 'var(--border)'}`,
           borderRadius: 'var(--radius)',
         }}
       />
       {error && (
-        <span className="font-mono text-[11px]" style={{ color: 'var(--accent-1)' }}>
-          {error}
+        <span className="font-mono text-xs text-red-400">{error}</span>
+      )}
+    </div>
+  )
+}
+
+function PasswordField({
+  id,
+  label,
+  required,
+  value,
+  onChange,
+  placeholder,
+  error,
+}: {
+  id: string
+  label: string
+  required?: boolean
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  placeholder: string
+  error?: string
+}) {
+  const [showPassword, setShowPassword] = useState(false)
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label
+        htmlFor={id}
+        className="font-sans text-xs font-medium uppercase tracking-widest text-white"
+      >
+        {label}
+        {required && <span className="ml-0.5 text-red-400">*</span>}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          type={showPassword ? 'text' : 'password'}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          className="font-sans w-full text-xs sm:text-sm px-4 py-3 pr-12 outline-none transition-all duration-200 text-white placeholder:text-white/50"
+          style={{
+            background: 'var(--surface)',
+            border: `1px solid ${error ? '#ef4444' : 'var(--border)'}`,
+            borderRadius: 'var(--radius)',
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword((p) => !p)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-white/60 hover:text-white transition-colors"
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+        >
+          {showPassword ? (
+            <EyeOff className="w-4 h-4" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
+        </button>
+      </div>
+      {error && (
+        <span className="font-mono text-xs text-red-400">{error}</span>
+      )}
+    </div>
+  )
+}
+
+function ProfilePictureField({
+  value,
+  onChange,
+}: {
+  value: File | null
+  onChange: (file: File | null) => void
+  error?: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [showEnlarged, setShowEnlarged] = useState(false)
+
+  useEffect(() => {
+    if (value) {
+      const url = URL.createObjectURL(value)
+      setPreviewUrl(url)
+      return () => URL.revokeObjectURL(url)
+    } else {
+      setPreviewUrl(null)
+    }
+  }, [value])
+
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return
+      const file = e.clipboardData?.files?.[0]
+      if (file && file.type.startsWith('image/')) {
+        e.preventDefault()
+        onChangeRef.current(file)
+      }
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [])
+
+  const handleFile = (file: File | null) => {
+    if (file && file.type.startsWith('image/')) {
+      onChange(file)
+    } else if (file === null) {
+      onChange(null)
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files && files.length > 0) {
+      handleFile(files[0])
+    }
+    e.target.value = ''
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    handleFile(e.dataTransfer.files?.[0] ?? null)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="font-sans text-xs font-medium uppercase tracking-widest text-white">
+        Profile picture
+        <span className="font-normal normal-case italic ml-1 text-[10px] text-white/70">
+          (ideally headshot)
         </span>
+      </span>
+      <div
+        className="flex flex-col items-center justify-center w-full min-h-[200px] rounded-lg border-2 border-dashed transition-colors cursor-pointer overflow-hidden relative"
+        style={{
+          background: isDragging ? 'rgba(255,255,255,0.05)' : 'var(--surface)',
+          borderColor: isDragging ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)',
+        }}
+        onClick={() => !previewUrl && inputRef.current?.click()}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        tabIndex={0}
+        role="button"
+        aria-label="Upload profile picture or paste image"
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleChange}
+          className="hidden"
+        />
+        {previewUrl ? (
+          <div className="flex flex-col items-center justify-center w-full h-full min-h-[200px] p-4">
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="max-w-full max-h-[180px] w-auto h-auto object-contain rounded cursor-zoom-in"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowEnlarged(true)
+              }}
+            />
+            <div className="flex items-center gap-3 mt-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  inputRef.current?.click()
+                }}
+                className="font-mono text-xs text-white/70 hover:text-white transition-colors"
+              >
+                Replace
+              </button>
+              <span className="text-white/30">|</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onChange(null)
+                }}
+                className="font-mono text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </button>
+            </div>
+            <p className="font-mono text-[10px] italic text-white/50 mt-0.5">
+              Click image to enlarge
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-2 py-8">
+            <Upload className="w-10 h-10 text-white/40" />
+            <span className="font-mono text-xs text-white/60">
+              Drag and drop, paste, or click to upload
+            </span>
+            <p className="font-mono text-[10px] italic text-white/50">
+              JPG, PNG, WebP. Optional.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {showEnlarged && previewUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 cursor-zoom-out"
+          onClick={() => setShowEnlarged(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setShowEnlarged(false)}
+            className="absolute top-4 right-4 p-2 text-white/70 hover:text-white transition-colors"
+            aria-label="Close preview"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={previewUrl}
+            alt="Preview"
+            className="preview-zoom-in max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
       )}
     </div>
   )
 }
 
 export function JoinForm() {
+  const router = useRouter()
   const [form, setForm] = useState<FormData>(initialForm)
   const [submitted, setSubmitted] = useState(false)
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof FormData | 'socials' | '_', string>>
+  >({})
 
   const validate = (): boolean => {
-    const newErrors: Partial<Record<keyof FormData, string>> = {}
-    if (form.name.length < 2) newErrors.name = 'Name must be at least 2 characters'
-    if (!form.embedUrl.startsWith('http')) newErrors.embedUrl = 'Must include https://'
+    const newErrors: Partial<Record<keyof FormData | 'socials', string>> = {}
+
+    const nameTrimmed = form.name.trim()
+    if (nameTrimmed.length < 2) {
+      newErrors.name = 'Name must be at least 2 characters'
+    } else if (!/^[a-zA-Z\s']+$/.test(nameTrimmed)) {
+      newErrors.name = 'Name can only contain letters, spaces, and apostrophes'
+    }
+
+    if (!form.email.trim()) {
+      newErrors.email = 'Please enter your email address'
+    } else if (!isValidEmail(form.email)) {
+      newErrors.email = 'Please enter a valid email address'
+    }
+
+    if (!form.password) {
+      newErrors.password = 'Password is required'
+    } else if (form.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters'
+    }
+
+    if (!form.program.trim()) {
+      newErrors.program = 'Program is required'
+    }
+
+    if (form.websiteLink.trim() && !isValidUrl(form.websiteLink)) {
+      newErrors.websiteLink = 'Enter a valid URL (e.g. https://example.com)'
+    }
+
+    const hasLinkedIn = form.linkedin.trim().length > 0
+    const hasTwitter = form.twitter.trim().length > 0
+    const hasGithub = form.github.trim().length > 0
+    const hasAnySocial = hasLinkedIn || hasTwitter || hasGithub
+
+    if (!hasAnySocial) {
+      newErrors.socials = 'At least one social link is required'
+    } else {
+      if (hasLinkedIn && !isValidSocial(form.linkedin)) {
+        newErrors.linkedin = 'Enter handle (e.g. username) or full URL'
+      }
+      if (hasTwitter && !isValidSocial(form.twitter)) {
+        newErrors.twitter = 'Enter handle (e.g. username) or full URL'
+      }
+      if (hasGithub && !isValidSocial(form.github)) {
+        newErrors.github = 'Enter handle (e.g. username) or full URL'
+      }
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (validate()) setSubmitted(true)
+    if (!validate()) return
+    setSubmitting(true)
+    try {
+      const linkedin = parseSocialLink('linkedin', form.linkedin)
+      const twitter = parseSocialLink('twitter', form.twitter)
+      const github = parseSocialLink('github', form.github)
+      const fd = new FormData()
+      fd.set('name', form.name.trim())
+      fd.set('email', form.email.trim())
+      fd.set('password', form.password)
+      fd.set('program', form.program.trim())
+      fd.set('websiteLink', form.websiteLink.trim())
+      fd.set('linkedin', form.linkedin.trim())
+      fd.set('twitter', form.twitter.trim())
+      fd.set('github', form.github.trim())
+      if (form.profilePicture) fd.set('profilePicture', form.profilePicture)
+
+      const res = await fetch('/api/join', { method: 'POST', body: fd })
+      if (res.status === 202) {
+        setSubmitted(true)
+        router.push('/')
+        return
+      }
+      const data = await res.json().catch(() => ({}))
+      if (data.errors && typeof data.errors === 'object') {
+        setErrors((prev) => ({ ...prev, ...data.errors }))
+      } else {
+        setErrors({ _: 'Something went wrong. Please try again.' })
+      }
+    } catch {
+      setErrors({ _: 'Something went wrong. Please try again.' })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const update = (field: keyof FormData) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }))
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
+  const update =
+    (field: keyof Omit<FormData, 'profilePicture'>) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setForm((prev) => ({ ...prev, [field]: e.target.value }))
+      if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
+      if (field === 'linkedin' || field === 'twitter' || field === 'github') {
+        if (errors.socials) setErrors((prev) => ({ ...prev, socials: undefined }))
+      }
+    }
+
+  const updateProfilePicture = (file: File | null) => {
+    setForm((prev) => ({ ...prev, profilePicture: file }))
   }
 
   if (submitted) {
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center px-6"
+        className="h-screen overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center px-6 scrollbar-blend"
         style={{ background: 'var(--bg)' }}
       >
         <h1
-          className="text-center leading-none"
+          className="text-center leading-none text-white"
           style={{
             fontFamily: "'Bebas Neue', sans-serif",
-            color: 'var(--accent-1)',
             fontSize: 'clamp(3rem, 10vw, 8rem)',
             letterSpacing: '0.02em',
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards',
@@ -126,28 +532,29 @@ export function JoinForm() {
           WEB INCOMING
         </h1>
         <p
-          className="font-sans text-sm mt-6 text-center max-w-sm leading-relaxed"
+          className="font-sans mt-6 text-center max-w-sm leading-relaxed text-white/80"
           style={{
-            color: 'var(--text-secondary)',
+            fontSize: 'clamp(12px, 2vw, 1rem)',
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both',
           }}
         >
-          {"Your request is in the spider's web. You'll hear back once an admin approves your membership."}
+          {
+            "Your request is in the spider's web. You'll hear back once an admin approves your membership."
+          }
         </p>
         <div
           className="mt-8 mb-8"
           style={{
             width: '32px',
             height: '1px',
-            backgroundColor: 'var(--border)',
+            backgroundColor: 'rgba(255,255,255,0.3)',
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both',
           }}
         />
         <Link
           href="/"
-          className="font-mono text-xs flex items-center gap-2 transition-opacity hover:opacity-80"
+          className="font-mono text-xs flex items-center gap-2 transition-opacity hover:opacity-80 text-white/70"
           style={{
-            color: 'var(--text-muted)',
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both',
           }}
         >
@@ -160,15 +567,14 @@ export function JoinForm() {
 
   return (
     <div
-      className="min-h-screen flex flex-col px-6 py-16 md:py-24"
+      className="h-screen overflow-y-auto overflow-x-hidden flex flex-col px-4 sm:px-6 md:px-8 lg:px-12 py-8 sm:py-16 md:py-24 scrollbar-blend"
       style={{ background: 'var(--bg)' }}
     >
-      <div className="w-full max-w-md mx-auto">
+      <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto flex-1">
         {/* Back */}
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase transition-opacity hover:opacity-80 mb-12"
-          style={{ color: 'var(--text-muted)' }}
+          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider uppercase transition-opacity hover:opacity-80 mb-8 sm:mb-12 text-white/70"
         >
           <ArrowLeft className="w-3 h-3" />
           Back
@@ -176,131 +582,192 @@ export function JoinForm() {
 
         {/* Heading */}
         <h1
-          className="leading-none"
+          className="leading-none text-white"
           style={{
             fontFamily: "'Bebas Neue', sans-serif",
-            color: 'var(--text)',
-            fontSize: 'clamp(3rem, 8vw, 5.5rem)',
+            fontSize: 'clamp(2.5rem, 8vw, 5.5rem)',
             letterSpacing: '0.02em',
           }}
         >
-          INTO THE <span style={{ color: 'var(--accent-1)' }}>WEB</span>
+          SIGN UP
         </h1>
         <p
-          className="font-sans text-sm mt-4 leading-relaxed max-w-xs"
-          style={{ color: 'var(--text-secondary)' }}
+          className="font-sans mt-4 leading-relaxed text-white/80 md:whitespace-nowrap"
+          style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}
         >
           Join the SYDE 2030 webring. Share your personal site and connect with your cohort.
         </p>
 
         {/* Divider */}
         <div
-          className="mt-8 mb-10"
+          className="mt-6 sm:mt-8 mb-8 sm:mb-10"
           style={{ width: '32px', height: '1px', backgroundColor: 'var(--border)' }}
         />
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-7">
-          <InputField
-            id="name"
-            label="Name"
-            required
-            value={form.name}
-            onChange={update('name')}
-            placeholder="Your full name"
-            error={errors.name}
-          />
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6 sm:gap-7">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-7">
+            <InputField
+              id="name"
+              label="Name"
+              required
+              value={form.name}
+              onChange={update('name')}
+              placeholder="e.g. leo zhang"
+              error={errors.name}
+            />
 
-          <InputField
-            id="embedUrl"
-            label="Site URL"
-            required
-            value={form.embedUrl}
-            onChange={update('embedUrl')}
-            placeholder="https://yoursite.com"
-            type="url"
-            mono
-            error={errors.embedUrl}
-          />
+            <InputField
+              id="email"
+              label="Email"
+              required
+              value={form.email}
+              onChange={update('email')}
+              placeholder="e.g. example@gmail.com"
+              type="email"
+              error={errors.email}
+            />
 
-          {/* Socials grid */}
-          <div className="flex flex-col gap-2">
-            <span
-              className="font-sans text-[11px] font-medium uppercase tracking-widest"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              Socials
-            </span>
-            <div className="grid grid-cols-2 gap-3">
-              {(['github', 'twitter', 'instagram', 'linkedin'] as const).map((platform) => (
-                <input
-                  key={platform}
-                  type="text"
-                  value={form[platform]}
-                  onChange={update(platform)}
-                  placeholder={platform}
-                  className="font-mono text-xs px-3 py-2.5 outline-none transition-all duration-200"
-                  style={{
-                    background: 'var(--bg-elevated)',
-                    color: 'var(--text)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius)',
-                  }}
-                />
-              ))}
+            <PasswordField
+              id="password"
+              label="Password"
+              required
+              value={form.password}
+              onChange={update('password')}
+              placeholder="e.g. 12345678"
+              error={errors.password}
+            />
+
+            <InputField
+              id="program"
+              label="Program"
+              required
+              value={form.program}
+              onChange={update('program')}
+              placeholder="e.g. SYDE 2030"
+              error={errors.program}
+            />
+
+            <div className="flex flex-col gap-2 lg:col-span-2">
+              <InputField
+                id="websiteLink"
+                label="Website link"
+                value={form.websiteLink}
+                onChange={update('websiteLink')}
+                placeholder="e.g. https://example.com"
+                type="url"
+                mono
+                error={errors.websiteLink}
+              />
+              <p className="font-mono text-[10px] italic -mt-2 text-white/50">
+                We will automatically capture a screenshot of your website&apos;s
+                landing page
+              </p>
             </div>
           </div>
 
-          <InputField
-            id="connections"
-            label="Connections"
-            value={form.connections}
-            onChange={update('connections')}
-            placeholder="friend-id, another-friend-id"
-            mono
-          />
-          <p className="font-mono text-[10px] -mt-5" style={{ color: 'var(--text-muted)' }}>
-            Comma-separated IDs of people you know in the webring
-          </p>
-
-          {/* Bio */}
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="bio"
-              className="font-sans text-[11px] font-medium uppercase tracking-widest"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              Bio
-            </label>
-            <textarea
-              id="bio"
-              value={form.bio}
-              onChange={update('bio')}
-              placeholder="A quick line about you (280 chars max)"
-              rows={3}
-              maxLength={280}
-              className="font-sans text-sm px-4 py-3 outline-none resize-none transition-all duration-200"
-              style={{
-                background: 'var(--bg-elevated)',
-                color: 'var(--text)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-              }}
-            />
+          {/* Social links */}
+          <div className="flex flex-col gap-3">
+            <span className="font-sans text-xs font-medium uppercase tracking-widest text-white">
+              Social links
+              <span className="ml-0.5 text-red-400">*</span>
+              <span className="font-normal normal-case italic ml-1 text-[10px] text-white/70">
+                (at least one)
+              </span>
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="flex flex-col gap-2">
+                <label
+                  htmlFor="linkedin"
+                  className="font-mono text-xs text-white/70"
+                >
+                  LinkedIn
+                </label>
+                <input
+                  id="linkedin"
+                  type="text"
+                  value={form.linkedin}
+                  onChange={update('linkedin')}
+                  placeholder="username or URL"
+                  className="font-mono text-xs sm:text-sm px-3 py-2.5 outline-none transition-all duration-200 text-white placeholder:text-white/50 w-full"
+                  style={{
+                    background: 'var(--surface)',
+                    border: `1px solid ${errors.linkedin || errors.socials ? '#ef4444' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius)',
+                  }}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label
+                  htmlFor="twitter"
+                  className="font-mono text-xs text-white/70"
+                >
+                  Twitter
+                </label>
+                <input
+                  id="twitter"
+                  type="text"
+                  value={form.twitter}
+                  onChange={update('twitter')}
+                  placeholder="username or URL"
+                  className="font-mono text-xs sm:text-sm px-3 py-2.5 outline-none transition-all duration-200 text-white placeholder:text-white/50 w-full"
+                  style={{
+                    background: 'var(--surface)',
+                    border: `1px solid ${errors.twitter || errors.socials ? '#ef4444' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius)',
+                  }}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label
+                  htmlFor="github"
+                  className="font-mono text-xs text-white/70"
+                >
+                  GitHub
+                </label>
+                <input
+                  id="github"
+                  type="text"
+                  value={form.github}
+                  onChange={update('github')}
+                  placeholder="username or URL"
+                  className="font-mono text-xs sm:text-sm px-3 py-2.5 outline-none transition-all duration-200 text-white placeholder:text-white/50 w-full"
+                  style={{
+                    background: 'var(--surface)',
+                    border: `1px solid ${errors.github || errors.socials ? '#ef4444' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius)',
+                  }}
+                />
+              </div>
+            </div>
+            {(errors.socials || errors.linkedin || errors.twitter || errors.github) && (
+              <span className="font-mono text-xs text-red-400">
+                {errors.socials || errors.linkedin || errors.twitter || errors.github}
+              </span>
+            )}
           </div>
 
+          <ProfilePictureField
+            value={form.profilePicture}
+            onChange={updateProfilePicture}
+          />
+
+          {errors._ && (
+            <p className="font-mono text-xs text-red-400">{errors._}</p>
+          )}
           {/* Submit */}
           <button
             type="submit"
-            className="group flex items-center justify-center gap-2.5 px-6 py-3.5 font-sans text-sm font-medium uppercase tracking-widest transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-[0.98]"
+            disabled={submitting}
+            className="group flex items-center justify-center gap-2.5 px-6 py-3.5 font-sans text-xs sm:text-sm font-medium uppercase tracking-widest transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-[0.98] mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
-              background: 'var(--accent-1)',
+              background: 'var(--accent-red)',
               color: '#fff',
               borderRadius: 'var(--radius)',
               border: 'none',
             }}
           >
-            <span>Join the Web</span>
+            <span>{submitting ? 'Signing up…' : 'Sign Up'}</span>
             <ArrowUpRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </button>
         </form>

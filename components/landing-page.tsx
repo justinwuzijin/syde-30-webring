@@ -4,6 +4,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '@/lib/auth-context'
 
 const GooseViewer = dynamic(() => import('./goose-viewer'), { ssr: false })
 
@@ -13,6 +14,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onEnterWebring }: LandingPageProps) {
   const [showWebring, setShowWebring] = useState(false)
+  const { user, logout } = useAuth()
 
   const handleCircleClick = () => {
     setShowWebring(true)
@@ -158,10 +160,9 @@ export function LandingPage({ onEnterWebring }: LandingPageProps) {
         </span>
       </div>
 
-      {/* JOIN button - centered below the circle in the black space */}
-      <Link
-        href="/join"
-        className="absolute px-6 py-2 text-white text-sm font-medium uppercase tracking-wider border border-white/30 hover:bg-white/10 transition-colors"
+      {/* Sign up / Log in - centered below the circle */}
+      <div
+        className="absolute flex items-center gap-3"
         style={{
           left: '50%',
           top: '90%',
@@ -169,8 +170,35 @@ export function LandingPage({ onEnterWebring }: LandingPageProps) {
           zIndex: 15,
         }}
       >
-        JOIN NOW
-      </Link>
+        {user ? (
+          <div className="flex items-center gap-3">
+            <span className="text-white text-sm font-medium uppercase tracking-wider">
+              Logged in as {user.name}
+            </span>
+            <button
+              onClick={logout}
+              className="px-4 py-2 text-white/70 text-xs font-medium uppercase tracking-wider border border-white/20 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              Log out
+            </button>
+          </div>
+        ) : (
+          <>
+            <Link
+              href="/join"
+              className="px-5 py-2 text-white text-sm font-medium uppercase tracking-wider border border-white/30 hover:bg-white/10 transition-colors"
+            >
+              Sign up
+            </Link>
+            <Link
+              href="/login"
+              className="px-5 py-2 text-white text-sm font-medium uppercase tracking-wider border border-white/30 hover:bg-white/10 transition-colors"
+            >
+              Log in
+            </Link>
+          </>
+        )}
+      </div>
 
       {/* Webring overlay when clicked */}
       <AnimatePresence>
@@ -190,6 +218,13 @@ export function LandingPage({ onEnterWebring }: LandingPageProps) {
               {/* This will be the actual webring component */}
               <div className="text-white text-center">
                 <p className="text-2xl mb-4">Webring Coming Soon</p>
+                <div
+                  className="w-12 h-px mx-auto mb-4"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.3)' }}
+                />
+                <p className="text-sm uppercase tracking-wider text-white/80 mb-4">
+                  {user ? `Logged in as ${user.name}` : 'Sign up / Log in'}
+                </p>
                 <button
                   onClick={() => setShowWebring(false)}
                   className="px-4 py-2 border border-white/30 hover:bg-white/10 transition-colors"
