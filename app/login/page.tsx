@@ -45,13 +45,13 @@ export default function LoginPage() {
       style={{ background: 'var(--bg)' }}
     >
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
-        <Link
+        <a
           href="/"
           className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
         >
           <ArrowLeft className="w-3 h-3" />
           back
-        </Link>
+        </a>
 
         <h1
           className="leading-none text-white lowercase"

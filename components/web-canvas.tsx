@@ -59,6 +59,7 @@ export function WebCanvas({
           height: CANVAS_SIZE,
           overflow: 'visible',
           transform,
+          transformOrigin: '0 0',
           willChange: 'transform',
           zIndex: 1,
         }}

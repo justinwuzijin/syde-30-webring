@@ -146,8 +146,8 @@ export function LandingPage({ onEnterWebring }: LandingPageProps) {
           style={{
             left: '0',
             bottom: '0',
-            width: '40%',
-            height: '45%',
+            width: '40vw',
+            height: '45vh',
             zIndex: 10,
             opacity: gooseOpacity,
           }}

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowUpRight, Eye, EyeOff, Trash2, Upload, X } from 'lucide-react'
 
@@ -548,7 +547,7 @@ export function JoinForm() {
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both',
           }}
         />
-        <Link
+        <a
           href="/"
           className="font-mono text-xs flex items-center gap-2 transition-opacity hover:opacity-80 text-white/70"
           style={{
@@ -557,7 +556,7 @@ export function JoinForm() {
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           back to the web
-        </Link>
+        </a>
       </div>
     )
   }
@@ -569,13 +568,13 @@ export function JoinForm() {
     >
       <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto flex-1">
         {/* Back */}
-        <Link
+        <a
           href="/"
           className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 sm:mb-12 text-white/70"
         >
           <ArrowLeft className="w-3 h-3" />
           back
-        </Link>
+        </a>
 
         {/* Heading */}
         <h1
