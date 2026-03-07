@@ -194,11 +194,15 @@ export default function DotGrid({
       ro = new ResizeObserver(buildGrid)
       if (wrapperRef.current) ro.observe(wrapperRef.current)
     } else {
-      window.addEventListener('resize', buildGrid)
+      const win = globalThis as typeof globalThis & { addEventListener: Window['addEventListener'] }
+      win.addEventListener('resize', buildGrid)
     }
     return () => {
       if (ro) ro.disconnect()
-      else window.removeEventListener('resize', buildGrid)
+      else {
+        const win = globalThis as typeof globalThis & { removeEventListener: Window['removeEventListener'] }
+        win.removeEventListener('resize', buildGrid)
+      }
     }
   }, [buildGrid])
 

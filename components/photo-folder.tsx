@@ -38,5 +38,5 @@ export function PhotoFolder() {
     ...photos.slice(0, activeIndex + 1),
   ]
 
-  return <Folder photos={rotated} activeIndex={activeIndex} size={104} />
+  return <Folder photos={rotated} size={104} />
 }

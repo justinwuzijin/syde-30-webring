@@ -124,6 +124,7 @@ export function MemberOverlay({ member, memberIndex, onClose }: MemberOverlayPro
                 >
                   {member.name}
                 </h2>
+              </div>
 
               {/* Socials */}
               {activeSocials.length > 0 && (
