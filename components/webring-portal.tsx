@@ -1,14 +1,16 @@
 'use client'
 
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { motion, useTransform, MotionValue } from 'framer-motion'
 import { MOCK_MEMBERS, getEdges } from '@/lib/mock-data'
 import { CANVAS_SIZE, useForceLayout } from '@/lib/use-force-layout'
 import { getAccentColor } from '@/types/member'
 import { WebThread } from './web-thread'
 import { MemberCard } from './member-card'
-import FaultyTerminal from './faulty-terminal'
 import type { Member } from '@/types/member'
+
+const SpiderWebBg = dynamic(() => import('./spider-web-bg'), { ssr: false })
 
 interface WebringPortalProps {
   scrollYProgress: MotionValue<number>
@@ -145,26 +147,14 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {/* Faulty terminal CRT background — inside the circle */}
+        {/* Spider-web animated background — inside the circle */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-          <FaultyTerminal
-            scale={1.5}
-            gridMul={[2, 1]}
-            digitSize={1.2}
-            timeScale={0.5}
-            pause={false}
-            scanlineIntensity={0.5}
-            glitchAmount={1}
-            flickerAmount={1}
-            noiseAmp={1}
-            chromaticAberration={0}
-            dither={0}
-            curvature={0.1}
-            tint="#A7EF9E"
-            mouseReact
-            mouseStrength={0.5}
-            pageLoadAnimation
-            brightness={0.6}
+          <SpiderWebBg
+            lineColor="rgba(255, 255, 255, 0.55)"
+            spokeCount={16}
+            ringCount={12}
+            hoverRadius={16}
+            vicinityRadius={90}
           />
         </div>
 
