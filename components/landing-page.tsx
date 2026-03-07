@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import Lenis from 'lenis'
 import { useAuth } from '@/lib/auth-context'
@@ -15,13 +16,24 @@ const WebringPortal = dynamic(
 )
 const DotGrid = dynamic(() => import('./dot-grid'), { ssr: false })
 
-interface LandingPageProps {
-  onEnterWebring?: () => void
-}
-
-export function LandingPage({ onEnterWebring }: LandingPageProps) {
+export function LandingPage() {
   const targetRef = useRef<HTMLDivElement>(null)
+  const pathname = usePathname()
   const { user, logout } = useAuth()
+  const [heavyMountKey] = useState(() => Date.now())
+  // Remount goose when returning to home (fixes 300x150 fallback after client-side nav)
+  const prevPathname = useRef<string | null>(null)
+  const [gooseKey, setGooseKey] = useState(0)
+  useEffect(() => {
+    if (pathname === '/') {
+      if (prevPathname.current !== null && prevPathname.current !== '/') {
+        setGooseKey(k => k + 1)
+      }
+      prevPathname.current = '/'
+    } else {
+      prevPathname.current = pathname
+    }
+  }, [pathname])
 
   // Initialize Lenis for smooth scrolling physics
   useEffect(() => {
@@ -120,7 +132,7 @@ export function LandingPage({ onEnterWebring }: LandingPageProps) {
         </motion.div>
 
         {/* Webring portal - scroll-driven expansion */}
-        <WebringPortal scrollYProgress={scrollYProgress} />
+        <WebringPortal key={`webring-${heavyMountKey}`} scrollYProgress={scrollYProgress} />
 
         {/* webring text - bottom right, fade only */}
         <motion.div
@@ -140,7 +152,7 @@ export function LandingPage({ onEnterWebring }: LandingPageProps) {
           />
         </motion.div>
 
-        {/* Goose 3D - stays longer, fades later */}
+        {/* Goose 3D - stays longer, fades later; remount on home nav for correct size */}
         <motion.div
           className="absolute pointer-events-none"
           style={{
@@ -148,11 +160,13 @@ export function LandingPage({ onEnterWebring }: LandingPageProps) {
             bottom: '0',
             width: '40vw',
             height: '45vh',
+            minWidth: 320,
+            minHeight: 360,
             zIndex: 10,
             opacity: gooseOpacity,
           }}
         >
-          <GooseViewer />
+          <GooseViewer key={`goose-${gooseKey}`} />
         </motion.div>
 
         {/* Crest and RELEASING MARCH sticker - fade only */}

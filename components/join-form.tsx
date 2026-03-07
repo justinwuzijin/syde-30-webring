@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowUpRight, Eye, EyeOff, Trash2, Upload, X } from 'lucide-react'
+import { parseSocialLink } from '@/lib/parse-social'
 
 interface FormData {
   name: string
@@ -48,61 +49,6 @@ const isValidSocial = (value: string) => {
   }
   const cleaned = value.trim().replace(/^@/, '')
   return /^[A-Za-z0-9_.-]{1,100}$/.test(cleaned)
-}
-
-// Parse social link input (URL, @handle, or username) into normalized format for DB
-type SocialPlatform = 'linkedin' | 'twitter' | 'github'
-
-function parseSocialLink(platform: SocialPlatform, input: string): { username: string; url: string } | null {
-  const raw = input.trim().replace(/^@/, '')
-  if (!raw) return null
-
-  try {
-    if (raw.startsWith('http://') || raw.startsWith('https://')) {
-      const url = new URL(raw)
-      const pathParts = url.pathname.replace(/^\/+|\/+$/g, '').split('/')
-      let username = ''
-
-      if (platform === 'linkedin') {
-        if (url.hostname.includes('linkedin.com') && pathParts[0] === 'in') {
-          username = pathParts[1] ?? pathParts[0] ?? raw
-        } else {
-          username = pathParts[1] ?? pathParts[0] ?? raw
-        }
-      } else if (platform === 'twitter') {
-        if (url.hostname.includes('twitter.com') || url.hostname.includes('x.com')) {
-          username = pathParts[0] ?? raw
-        } else {
-          username = pathParts[pathParts.length - 1] ?? raw
-        }
-      } else if (platform === 'github') {
-        if (url.hostname.includes('github.com')) {
-          username = pathParts[0] ?? raw
-        } else {
-          username = pathParts[pathParts.length - 1] ?? raw
-        }
-      }
-
-      if (!username) username = raw
-      const urlMap: Record<SocialPlatform, (u: string) => string> = {
-        linkedin: (u) => `https://linkedin.com/in/${u}`,
-        twitter: (u) => `https://x.com/${u}`,
-        github: (u) => `https://github.com/${u}`,
-      }
-      return { username, url: urlMap[platform](username) }
-    }
-
-    // Plain username or @handle (already stripped @)
-    const username = raw
-    const urlMap: Record<SocialPlatform, (u: string) => string> = {
-      linkedin: (u) => `https://linkedin.com/in/${u}`,
-      twitter: (u) => `https://x.com/${u}`,
-      github: (u) => `https://github.com/${u}`,
-    }
-    return { username, url: urlMap[platform](username) }
-  } catch {
-    return null
-  }
 }
 
 const sfPro = { fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }

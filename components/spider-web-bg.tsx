@@ -117,27 +117,6 @@ function getPos(grid: WebPoint[][], si: number, ri: number): Pt {
   return { x: p.bx + p.wave.x, y: p.by + p.wave.y }
 }
 
-function distToPolyline(px: number, py: number, pts: Pt[]): number {
-  let minD = Infinity
-  for (let i = 0; i < pts.length - 1; i++) {
-    const ax = pts[i].x, ay = pts[i].y, bx = pts[i + 1].x, by = pts[i + 1].y
-    const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy
-    if (len2 === 0) { minD = Math.min(minD, Math.hypot(px - ax, py - ay)); continue }
-    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2))
-    minD = Math.min(minD, Math.hypot(px - (ax + t * dx), py - (ay + t * dy)))
-  }
-  return minD
-}
-
-function bezierApprox(p1: Pt, ctrl: Pt, p2: Pt, steps = 10): Pt[] {
-  const pts: Pt[] = []
-  for (let k = 0; k <= steps; k++) {
-    const t = k / steps, u = 1 - t
-    pts.push({ x: u * u * p1.x + 2 * u * t * ctrl.x + t * t * p2.x, y: u * u * p1.y + 2 * u * t * ctrl.y + t * t * p2.y })
-  }
-  return pts
-}
-
 function getRingCtrl(p1: Pt, p2: Pt, cx: number, cy: number, sagFactor: number): Pt {
   const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2
   return { x: cx + (mx - cx) * sagFactor, y: cy + (my - cy) * sagFactor }
@@ -183,7 +162,7 @@ interface SpiderWebBgProps {
 }
 
 export default function SpiderWebBg({
-  lineColor = 'rgba(255, 255, 255, 0.65)',
+  lineColor = 'rgba(255, 255, 255, 0.4)',
   spokeCount = 16,
   ringCount = 12,
   waveSpeedX = 0.0125,
@@ -204,8 +183,10 @@ export default function SpiderWebBg({
   const spokeMulsRef = useRef<number[]>([])
   const noiseRef = useRef(new Noise(Math.random()))
   const mouseRef = useRef({ x: -10, y: 0, lx: 0, ly: 0, sx: 0, sy: 0, v: 0, vs: 0, a: 0, set: false })
-  // Abrupt glitch state: changes every few frames for sharp snapping
+  // Glitch trigger every 1s; each strand has its own duration 0.2–0.5s
   const glitchStateRef = useRef({ idx: 0, countdown: 0 })
+  // Strand id -> { total, left } for intensity ramp
+  const glitchedStrandsRef = useRef<Map<string, { total: number; left: number }>>(new Map())
   const configRef = useRef({ lineColor, spokeCount, ringCount, waveSpeedX, waveSpeedY, waveAmpX, waveAmpY, maxCursorMove, hoverRadius, vicinityRadius })
 
   useEffect(() => {
@@ -277,21 +258,6 @@ export default function SpiderWebBg({
 
     // ── Strand render helpers ─────────────────────────────────────────────────
 
-    function getStrandGeom(def: StrandDef, cx: number, cy: number, ringCount: number) {
-      const grid = gridRef.current
-      if (def.isSpoke) {
-        const approx: Pt[] = [{ x: cx, y: cy }]
-        for (let ri = 1; ri <= ringCount; ri++) approx.push(getPos(grid, def.si, ri))
-        return { approx, p1: null as Pt | null, p2: null as Pt | null, ctrl: null as Pt | null }
-      } else {
-        const sagFactor = 0.93 - (def.ri! / ringCount) * 0.04
-        const p1 = getPos(grid, def.si, def.ri!)
-        const p2 = getPos(grid, def.nextSi!, def.ri!)
-        const ctrl = getRingCtrl(p1, p2, cx, cy, sagFactor)
-        return { approx: bezierApprox(p1, ctrl, p2, 8), p1, p2, ctrl }
-      }
-    }
-
     function strokeStrand(def: StrandDef, cx: number, cy: number, ringCount: number, dx = 0, dy = 0) {
       const grid = gridRef.current
       ctx.beginPath()
@@ -312,66 +278,101 @@ export default function SpiderWebBg({
     }
 
     // ─ Spider-Verse glitch render ─────────────────────────────────────────────
-    function drawPrimary(def: StrandDef, cx: number, cy: number, ringCount: number) {
+    function drawPrimary(def: StrandDef, cx: number, cy: number, ringCount: number, entry: { total: number; left: number }) {
+      const { total, left: framesLeft } = entry
       const gs = glitchStateRef.current
       const palette = GLITCH_STATES[gs.idx]
-      const isDropout = gs.countdown === 1 && Math.random() < 0.2
+      const isDropout = framesLeft === 1 && Math.random() < 0.2
 
       if (isDropout) return  // strand blinks out completely for one frame
 
-      // Thick base in current glitch color
-      ctx.strokeStyle = palette.color
-      ctx.lineWidth = 3.5
-      strokeStrand(def, cx, cy, ringCount)
+      // Intensity ramp: fade in at start, fade out at end (0 at edges, 1 at middle)
+      const progress = 1 - framesLeft / total
+      const ramp = Math.sin(progress * Math.PI)  // 0 -> 1 -> 0 over duration
 
-      // RGB split — sharp, large offsets (Spider-Verse chromatic aberration)
-      const ox = 6 + Math.random() * 5
-      const oy = (Math.random() - 0.5) * 4
+      // Staggered RGB split: each channel gets its own spasm offset
+      const sx1 = (Math.random() - 0.5) * 6
+      const sy1 = (Math.random() - 0.5) * 2
+      const sx2 = (Math.random() - 0.5) * 6
+      const sy2 = (Math.random() - 0.5) * 2
+      const sx3 = (Math.random() - 0.5) * 6
+      const sy3 = (Math.random() - 0.5) * 2
 
-      ctx.strokeStyle = palette.alt + 'cc'
-      ctx.lineWidth = 2
-      strokeStrand(def, cx, cy, ringCount, ox, oy)
+      const ox = 1 + Math.random() * 1.5
+      const oy = (Math.random() - 0.5) * 0.8
 
-      ctx.strokeStyle = palette.color + 'cc'
-      ctx.lineWidth = 2
-      strokeStrand(def, cx, cy, ringCount, -ox * 1.2, -oy)
+      // Color shift: hue/saturation shift based on intensity (use opacity as proxy)
+      const colorAlpha = Math.round(ramp * 255).toString(16).padStart(2, '0')
+      const altAlpha = Math.round(ramp * 0.8 * 255).toString(16).padStart(2, '0')
+
+      // Thick base in current glitch color (intensity ramped)
+      ctx.strokeStyle = palette.color + colorAlpha
+      ctx.lineWidth = 3.5 * ramp
+      strokeStrand(def, cx, cy, ringCount, sx1, sy1)
+
+      // RGB split — staggered spasm per channel
+      ctx.strokeStyle = palette.alt + altAlpha
+      ctx.lineWidth = 2 * ramp
+      strokeStrand(def, cx, cy, ringCount, ox + sx2, oy + sy2)
+
+      ctx.strokeStyle = palette.color + altAlpha
+      ctx.lineWidth = 2 * ramp
+      strokeStrand(def, cx, cy, ringCount, -ox + sx3, -oy + sy3)
 
       // Bright white flash overlay on top
       if (Math.random() < 0.55) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.9)'
+        ctx.strokeStyle = `rgba(255,255,255,${0.9 * ramp})`
         ctx.lineWidth = 1
-        strokeStrand(def, cx, cy, ringCount)
+        strokeStrand(def, cx, cy, ringCount, sx1, sy1)
       }
 
       // Glow: draw blurred copy underneath using filter
       ctx.filter = `blur(4px)`
-      ctx.strokeStyle = palette.color + '88'
-      ctx.lineWidth = 8
-      strokeStrand(def, cx, cy, ringCount)
-      ctx.filter = 'none'
-    }
-
-    function drawVicinity(def: StrandDef, cx: number, cy: number, ringCount: number, falloff: number) {
-      const palette = GLITCH_STATES[glitchStateRef.current.idx]
-      // Subtle tint toward the active glitch color, stronger the closer we are
-      const alpha = Math.round(falloff * 200).toString(16).padStart(2, '0')
-
-      ctx.filter = `blur(2px)`
-      ctx.strokeStyle = palette.color + alpha
-      ctx.lineWidth = 3
-      strokeStrand(def, cx, cy, ringCount)
+      ctx.strokeStyle = palette.color + Math.round(ramp * 0.5 * 255).toString(16).padStart(2, '0')
+      ctx.lineWidth = 8 * ramp
+      strokeStrand(def, cx, cy, ringCount, sx1, sy1)
       ctx.filter = 'none'
 
-      // Solid slightly-brighter base on top
-      ctx.strokeStyle = `rgba(255,255,255,${0.7 + falloff * 0.25})`
-      ctx.lineWidth = 2
-      strokeStrand(def, cx, cy, ringCount)
+      // Color shift: subtle hue-shifted overlay (chromatic aberration)
+      const shiftAlpha = Math.round(ramp * 0.25 * 255).toString(16).padStart(2, '0')
+      ctx.strokeStyle = palette.alt + shiftAlpha
+      ctx.lineWidth = 1.5 * ramp
+      strokeStrand(def, cx, cy, ringCount, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 1)
+
+      // Noise overlay: random static over the glitched strand area
+      ctx.save()
+      ctx.globalAlpha = ramp * 0.15
+      const grid = gridRef.current
+      if (def.isSpoke) {
+        for (let ri = 1; ri <= ringCount; ri++) {
+          const p = getPos(grid, def.si, ri)
+          if (Math.random() < 0.4) {
+            ctx.fillStyle = '#ffffff'
+            ctx.fillRect(p.x - 2, p.y - 2, 4, 4)
+          }
+        }
+      } else {
+        const sagFactor = 0.93 - (def.ri! / ringCount) * 0.04
+        const p1 = getPos(grid, def.si, def.ri!)
+        const p2 = getPos(grid, def.nextSi!, def.ri!)
+        const ctrl = getRingCtrl(p1, p2, cx, cy, sagFactor)
+        for (let k = 0; k <= 12; k++) {
+          const t = k / 12, u = 1 - t
+          const px = u * u * p1.x + 2 * u * t * ctrl.x + t * t * p2.x
+          const py = u * u * p1.y + 2 * u * t * ctrl.y + t * t * p2.y
+          if (Math.random() < 0.4) {
+            ctx.fillStyle = '#ffffff'
+            ctx.fillRect(px - 2, py - 2, 4, 4)
+          }
+        }
+      }
+      ctx.restore()
     }
 
     // ── Main loop ─────────────────────────────────────────────────────────────
 
     function tick(t: number) {
-      const { lineColor, ringCount, hoverRadius, vicinityRadius } = configRef.current
+      const { lineColor, ringCount } = configRef.current
       const mouse = mouseRef.current
       const w = canvas.width, h = canvas.height
       const cx = w / 2, cy = h / 2
@@ -386,44 +387,38 @@ export default function SpiderWebBg({
       mouse.lx = mouse.x; mouse.ly = mouse.y
       mouse.a = Math.atan2(mdy, mdx)
 
-      // Advance abrupt glitch state — snaps to a new color every 4-12 frames
+      // Glitch every 1–2s: 1–5 branches, each with unique duration 0.2–0.5s
       const gs = glitchStateRef.current
       if (gs.countdown <= 0) {
         gs.idx = Math.floor(Math.random() * GLITCH_STATES.length)
-        gs.countdown = 4 + Math.floor(Math.random() * 8)
+        gs.countdown = Math.round((1 + Math.random()) * 60)  // 60–120 frames = 1–2s
+        const defs = strandDefsRef.current
+        const n = Math.min(1 + Math.floor(Math.random() * 5), defs.length)
+        const glitched = new Map<string, { total: number; left: number }>()
+        while (glitched.size < n) {
+          const def = defs[Math.floor(Math.random() * defs.length)]
+          const total = Math.round((0.2 + Math.random() * 0.3) * 60)
+          glitched.set(def.id, { total, left: total })
+        }
+        glitchedStrandsRef.current = glitched
       }
       gs.countdown--
 
+      // Decrement per-strand duration; remove when expired
+      const glitchedMap = glitchedStrandsRef.current
+      for (const [id, entry] of Array.from(glitchedMap.entries())) {
+        const next = entry.left - 1
+        if (next <= 0) glitchedMap.delete(id)
+        else glitchedMap.set(id, { ...entry, left: next })
+      }
+
       movePoints(t)
-
-      // Classify strands by distance from mouse
-      const strandDists = new Map<string, number>()
-      for (const def of strandDefsRef.current) {
-        const { approx } = getStrandGeom(def, cx, cy, ringCount)
-        strandDists.set(def.id, distToPolyline(mouse.x, mouse.y, approx))
-      }
-
-      // Find primary (closest within hoverRadius)
-      let primaryId: string | null = null
-      let primaryDist = Infinity
-      for (const [id, d] of strandDists) {
-        if (d < primaryDist) { primaryDist = d; if (d < hoverRadius) primaryId = id }
-      }
 
       ctx.clearRect(0, 0, w, h)
 
-      // Draw all strands — normal first, then vicinity, then primary on top
+      // Draw all strands — normal first, then glitched on top
       for (const def of strandDefsRef.current) {
-        const dist = strandDists.get(def.id) ?? Infinity
-        if (def.id === primaryId) continue  // drawn last
-
-        if (dist < vicinityRadius) {
-          const falloff = Math.max(0, 1 - (dist - hoverRadius) / (vicinityRadius - hoverRadius))
-          if (falloff > 0.02) {
-            drawVicinity(def, cx, cy, ringCount, falloff)
-            continue
-          }
-        }
+        if (glitchedMap.has(def.id)) continue  // drawn last
 
         // Normal static strand
         ctx.beginPath()
@@ -440,10 +435,12 @@ export default function SpiderWebBg({
         ctx.stroke()
       }
 
-      // Draw primary on top
-      if (primaryId) {
-        const def = strandDefsRef.current.find(d => d.id === primaryId)!
-        drawPrimary(def, cx, cy, ringCount)
+      // Draw glitched strands on top (always runs regardless of zoom/pan)
+      for (const def of strandDefsRef.current) {
+        const entry = glitchedMap.get(def.id)
+        if (entry !== undefined) {
+          drawPrimary(def, cx, cy, ringCount, entry)
+        }
       }
 
       frameIdRef.current = requestAnimationFrame(tick)

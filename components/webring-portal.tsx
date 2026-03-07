@@ -24,7 +24,7 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isFullyExpanded, setIsFullyExpanded] = useState(false)
-  const dragging = useRef(false)
+  const [isDragging, setIsDragging] = useState(false)
   const lastPos = useRef({ x: 0, y: 0 })
 
   // Track when fully expanded for interaction purposes
@@ -80,23 +80,23 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
 
   // Pan handlers (only when fully expanded)
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isFullyExpanded || !dragging.current) return
+    if (!isFullyExpanded || !isDragging) return
     const dx = e.clientX - lastPos.current.x
     const dy = e.clientY - lastPos.current.y
     setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }))
     lastPos.current = { x: e.clientX, y: e.clientY }
-  }, [isFullyExpanded])
+  }, [isFullyExpanded, isDragging])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!isFullyExpanded) return
     if ((e.target as HTMLElement).closest('a, button')) return
-    dragging.current = true
+    setIsDragging(true)
     lastPos.current = { x: e.clientX, y: e.clientY }
     e.preventDefault()
   }, [isFullyExpanded])
 
   const handleMouseUp = useCallback(() => {
-    dragging.current = false
+    setIsDragging(false)
   }, [])
 
   const handleCardClick = useCallback((_member: Member) => {
@@ -140,7 +140,7 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
           borderColor: useTransform(borderOpacity, v => `rgba(255,255,255,${v})`),
           boxShadow: 'inset 0 0 60px 20px rgba(0,0,0,0.7), 0 8px 40px rgba(0,0,0,0.6)',
           pointerEvents: isFullyExpanded ? 'auto' : 'none',
-          cursor: isFullyExpanded ? (dragging.current ? 'grabbing' : 'grab') : 'default',
+          cursor: isFullyExpanded ? (isDragging ? 'grabbing' : 'grab') : 'default',
         }}
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
@@ -150,7 +150,7 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
         {/* Spider-web animated background — inside the circle */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
           <SpiderWebBg
-            lineColor="rgba(255, 255, 255, 0.55)"
+            lineColor="rgba(255, 255, 255, 0.4)"
             spokeCount={16}
             ringCount={12}
             hoverRadius={16}

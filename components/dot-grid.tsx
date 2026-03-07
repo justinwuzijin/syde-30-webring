@@ -116,8 +116,8 @@ export default function DotGrid({
     const ctx = canvas.getContext('2d')
     if (ctx) ctx.scale(dpr, dpr)
 
-    const cols = Math.floor((width + gap) / (dotSize + gap))
-    const rows = Math.floor((height + gap) / (dotSize + gap))
+    const cols = Math.ceil((width + gap) / (dotSize + gap))
+    const rows = Math.ceil((height + gap) / (dotSize + gap))
     const cell = dotSize + gap
 
     const gridW = cell * cols - gap
@@ -183,8 +183,18 @@ export default function DotGrid({
       rafId = requestAnimationFrame(draw)
     }
 
+    const restartLoop = () => {
+      if (document.visibilityState === 'visible') draw()
+    }
+
     draw()
-    return () => cancelAnimationFrame(rafId)
+    document.addEventListener('visibilitychange', restartLoop)
+    window.addEventListener('focus', restartLoop)
+    return () => {
+      document.removeEventListener('visibilitychange', restartLoop)
+      window.removeEventListener('focus', restartLoop)
+      cancelAnimationFrame(rafId)
+    }
   }, [proximity, baseColor, activeRgb, baseRgb, circlePath])
 
   useEffect(() => {
@@ -197,18 +207,24 @@ export default function DotGrid({
       const win = globalThis as typeof globalThis & { addEventListener: Window['addEventListener'] }
       win.addEventListener('resize', buildGrid)
     }
+    if (typeof window !== 'undefined' && window.visualViewport) {
+      window.visualViewport.addEventListener('resize', buildGrid)
+    }
     return () => {
       if (ro) ro.disconnect()
       else {
         const win = globalThis as typeof globalThis & { removeEventListener: Window['removeEventListener'] }
         win.removeEventListener('resize', buildGrid)
       }
+      if (typeof window !== 'undefined' && window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', buildGrid)
+      }
     }
   }, [buildGrid])
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const wrap = wrapperRef.current
+    if (!wrap) return
 
     const onMove = (e: MouseEvent) => {
       const now = performance.now()
@@ -232,9 +248,11 @@ export default function DotGrid({
       pr.vy = vy
       pr.speed = speed
 
-      const rect = canvas.getBoundingClientRect()
-      pr.x = e.clientX - rect.left
-      pr.y = e.clientY - rect.top
+      const wrap = wrapperRef.current
+      if (!wrap) return
+      const rect = wrap.getBoundingClientRect()
+      pr.x = Math.max(0, Math.min(rect.width, e.clientX - rect.left))
+      pr.y = Math.max(0, Math.min(rect.height, e.clientY - rect.top))
 
       for (const dot of dotsRef.current) {
         const dist = Math.hypot(dot.cx - pr.x, dot.cy - pr.y)
@@ -263,9 +281,11 @@ export default function DotGrid({
     }
 
     const onClick = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect()
-      const cx = e.clientX - rect.left
-      const cy = e.clientY - rect.top
+      const w = wrapperRef.current
+      if (!w) return
+      const rect = w.getBoundingClientRect()
+      const cx = Math.max(0, Math.min(rect.width, e.clientX - rect.left))
+      const cy = Math.max(0, Math.min(rect.height, e.clientY - rect.top))
       for (const dot of dotsRef.current) {
         const dist = Math.hypot(dot.cx - cx, dot.cy - cy)
         if (dist < shockRadius && !dot._inertiaApplied) {

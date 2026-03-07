@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import type { Member } from '@/types/member'
 import type { Edge } from '@/lib/mock-data'
 import { useForceLayout, CANVAS_SIZE } from '@/lib/use-force-layout'
@@ -30,20 +31,22 @@ export function WebCanvas({
 }: WebCanvasProps) {
   const positions = useForceLayout(members, edges)
 
-  // Build a map of member id -> background color
-  const memberColorMap = new Map<string, string>()
-  for (const m of members) {
-    memberColorMap.set(m.id, getCardBgColor(m.id))
-  }
+  const memberColorMap = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const x of members) m.set(x.id, getCardBgColor(x.id))
+    return m
+  }, [members])
 
-  // Nodes connected to the currently hovered node
-  const connectedIds = new Set<string>()
-  if (hoveredId) {
-    for (const e of edges) {
-      if (e.source === hoveredId) connectedIds.add(e.target)
-      if (e.target === hoveredId) connectedIds.add(e.source)
+  const connectedIds = useMemo(() => {
+    const s = new Set<string>()
+    if (hoveredId) {
+      for (const e of edges) {
+        if (e.source === hoveredId) s.add(e.target)
+        if (e.target === hoveredId) s.add(e.source)
+      }
     }
-  }
+    return s
+  }, [edges, hoveredId])
 
   const transform = `translate(${panX}px, ${panY}px) scale(${scale})`
 

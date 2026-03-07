@@ -17,9 +17,6 @@ function GooseMesh({ onReady }: { onReady: () => void }) {
   // Play animation on mount
   useEffect(() => {
     if (names.length > 0) {
-      // Log available animations for debugging
-      console.log('Available goose animations:', names)
-      
       // Play the first available animation, looping
       const firstAction = actions[names[0]]
       if (firstAction) {
@@ -105,7 +102,7 @@ export default function GooseViewer() {
     const fallbackId = setTimeout(() => {
       if (!checkDimensions()) setDimensionsReady(true)
       ro.disconnect()
-    }, 150)
+    }, 400)
 
     return () => {
       ro.disconnect()

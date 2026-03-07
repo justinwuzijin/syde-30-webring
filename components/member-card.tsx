@@ -32,7 +32,7 @@ function getCardBgColor(id: string): string {
   return TAILWIND_700_COLORS[Math.abs(h) % TAILWIND_700_COLORS.length]
 }
 
-export { TAILWIND_700_COLORS, getCardBgColor }
+export { getCardBgColor }
 
 interface MemberCardProps {
   member: Member
