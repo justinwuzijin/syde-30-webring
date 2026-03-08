@@ -16,7 +16,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'SYDE 30 Webring',
-  description: 'A Spider-Verse themed webring for Systems Design Engineering 2030 at the University of Waterloo.',
+  description: 'A webring for Systems Design Engineering 2030 at the University of Waterloo.',
 }
 
 export const viewport: Viewport = {
