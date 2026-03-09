@@ -1,84 +1,66 @@
 'use client'
 
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react'
-import dynamic from 'next/dynamic'
 import { motion, useTransform, MotionValue } from 'framer-motion'
-import { MOCK_MEMBERS, getEdges } from '@/lib/mock-data'
-import { CANVAS_SIZE, useForceLayout } from '@/lib/use-force-layout'
-import { getAccentColor } from '@/types/member'
-import { WebThread } from './web-thread'
-import { MemberCard } from './member-card'
-import type { Member } from '@/types/member'
+import { MOCK_MEMBERS } from '@/lib/mock-data'
+import { WebringSiteCard, CARD_WIDTH, CARD_HEIGHT } from './webring-site-card'
 
-const SpiderWebBg = dynamic(() => import('./spider-web-bg'), { ssr: false })
+const CARD_GAP = 60 // enough room for cards to expand on hover without overlapping
+const GRID_PADDING = 40 // breathing room around the grid
+
+function computeGridPositions(members: typeof MOCK_MEMBERS) {
+  const n = members.length
+  // Roughly square grid; grows naturally as members are added
+  const cols = Math.max(2, Math.ceil(Math.sqrt(n)))
+  const rows = Math.ceil(n / cols)
+  const innerW = cols * (CARD_WIDTH + CARD_GAP) - CARD_GAP
+  const innerH = rows * (CARD_HEIGHT + CARD_GAP) - CARD_GAP
+  const canvasW = innerW + GRID_PADDING * 2
+  const canvasH = innerH + GRID_PADDING * 2
+
+  const positions = new Map<string, { x: number; y: number }>()
+  members.forEach((m, i) => {
+    positions.set(m.id, {
+      x: GRID_PADDING + (i % cols) * (CARD_WIDTH + CARD_GAP),
+      y: GRID_PADDING + Math.floor(i / cols) * (CARD_HEIGHT + CARD_GAP),
+    })
+  })
+
+  return { positions, canvasW, canvasH }
+}
 
 interface WebringPortalProps {
   scrollYProgress: MotionValue<number>
 }
 
 export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const edges = useMemo(() => getEdges(MOCK_MEMBERS), [])
-  const positions = useForceLayout(MOCK_MEMBERS, edges)
-  
-  const [hoveredId, setHoveredId] = useState<string | null>(null)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isFullyExpanded, setIsFullyExpanded] = useState(false)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const lastPos = useRef({ x: 0, y: 0 })
 
-  // Track when fully expanded for interaction purposes
+  const { positions, canvasW, canvasH } = useMemo(
+    () => computeGridPositions(MOCK_MEMBERS),
+    []
+  )
+
   useEffect(() => {
     const unsubscribe = scrollYProgress.on('change', (v) => {
-      setIsFullyExpanded(v > 0.85)
+      setIsFullyExpanded(v > 0.92)
     })
     return unsubscribe
   }, [scrollYProgress])
 
-  // Calculate the center of all nodes
-  const graphCenter = useMemo(() => {
-    if (positions.size === 0) return { x: CANVAS_SIZE / 2, y: CANVAS_SIZE / 2 }
-    let sumX = 0, sumY = 0
-    positions.forEach(pos => {
-      sumX += pos.x
-      sumY += pos.y
-    })
-    return { x: sumX / positions.size, y: sumY / positions.size }
-  }, [positions])
-
-  // Transform scroll progress to animation values using MotionValues
-  // Circle size: 30vw -> 200vw (covers screen with overflow)
-  const circleSize = useTransform(
-    scrollYProgress, 
-    [0, 0.8], 
-    [30, 200],
-    { clamp: true }
-  )
-
-  // Circle position: starts at center, stays centered
+  // ── Scroll-driven circle animation (unchanged) ──────────────────────────
+  const circleSize = useTransform(scrollYProgress, [0, 0.8], [30, 200], { clamp: true })
   const circleLeft = useTransform(scrollYProgress, [0, 1], [50, 50])
   const circleTop = useTransform(scrollYProgress, [0, 1], [45, 50])
-
-  // Scale inside the circle: 0.22 -> 0.6
-  const innerScale = useTransform(scrollYProgress, [0, 1], [0.22, 0.6])
-
-  // Border radius: 50% -> 0% (round -> square)
-  const borderRadius = useTransform(
-    scrollYProgress, 
-    [0, 0.7, 1], 
-    [50, 50, 0]
-  )
-
-  // Scroll indicator opacity
+  const borderRadius = useTransform(scrollYProgress, [0, 0.7, 1], [50, 50, 0])
   const scrollIndicatorOpacity = useTransform(scrollYProgress, [0, 0.15], [1, 0])
-
-  // Z-index increases as we scroll
   const zIndex = useTransform(scrollYProgress, [0, 1], [20, 50])
-
-  // Border opacity
   const borderOpacity = useTransform(scrollYProgress, [0.8, 1], [0.12, 0])
 
-  // Pan handlers (only when fully expanded)
+  // ── Pan (drag) ──────────────────────────────────────────────────────────
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isFullyExpanded || !isDragging) return
     const dx = e.clientX - lastPos.current.x
@@ -95,31 +77,10 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
     e.preventDefault()
   }, [isFullyExpanded])
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false)
-  }, [])
-
-  const handleCardClick = useCallback((_member: Member) => {
-    // Future: open member detail
-  }, [])
-
-  // Nodes connected to hovered node
-  const connectedIds = useMemo(() => {
-    const set = new Set<string>()
-    if (hoveredId) {
-      for (const e of edges) {
-        if (e.source === hoveredId) set.add(e.target)
-        if (e.target === hoveredId) set.add(e.source)
-      }
-    }
-    return set
-  }, [hoveredId, edges])
-
-  const hasPositions = positions.size > 0
+  const handleMouseUp = useCallback(() => setIsDragging(false), [])
 
   return (
     <motion.div
-      ref={containerRef}
       className="absolute inset-0"
       style={{ zIndex, pointerEvents: 'none' }}
     >
@@ -134,11 +95,11 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
           x: '-50%',
           y: '-50%',
           borderRadius: useTransform(borderRadius, v => `${v}%`),
-          background: '#0a0a0f',
+          background: '#ffffff',
           borderWidth: 1.5,
           borderStyle: 'solid',
-          borderColor: useTransform(borderOpacity, v => `rgba(255,255,255,${v})`),
-          boxShadow: 'inset 0 0 60px 20px rgba(0,0,0,0.7), 0 8px 40px rgba(0,0,0,0.6)',
+          borderColor: useTransform(borderOpacity, v => `rgba(0,0,0,${v})`),
+          boxShadow: '0 8px 40px rgba(0,0,0,0.15)',
           pointerEvents: isFullyExpanded ? 'auto' : 'none',
           cursor: isFullyExpanded ? (isDragging ? 'grabbing' : 'grab') : 'default',
         }}
@@ -147,45 +108,19 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {/* Spider-web animated background — inside the circle */}
-        <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-          <SpiderWebBg
-            lineColor="rgba(255, 255, 255, 0.4)"
-            spokeCount={16}
-            ringCount={12}
-            hoverRadius={16}
-            vicinityRadius={90}
-          />
-        </div>
-
-        {/* Loading state */}
-        {!hasPositions && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-white/30 text-xs">Loading...</span>
-          </div>
-        )}
-        
-        {hasPositions && (
-          <WebringContent
-            positions={positions}
-            edges={edges}
-            graphCenter={graphCenter}
-            innerScale={innerScale}
-            circleSize={circleSize}
-            pan={pan}
-            hoveredId={hoveredId}
-            connectedIds={connectedIds}
-            isFullyExpanded={isFullyExpanded}
-            setHoveredId={setHoveredId}
-            onCardClick={handleCardClick}
-          />
-        )}
+        {/* Always rendered — circle's overflow:hidden clips it; scroll reveals more */}
+        <GridContent
+          positions={positions}
+          canvasW={canvasW}
+          canvasH={canvasH}
+          pan={pan}
+        />
       </motion.div>
 
-      {/* Scroll indicator - below the circle */}
+      {/* Scroll indicator */}
       <motion.div
         className="absolute flex flex-col items-center gap-2"
-        style={{ 
+        style={{
           left: '50%',
           top: '72%',
           x: '-50%',
@@ -195,9 +130,7 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
         }}
       >
         <span className="text-white/50 text-xs lowercase tracking-[0.2em]">scroll to explore</span>
-        <motion.div
-          className="w-5 h-8 rounded-full border border-white/40 flex items-start justify-center p-1.5"
-        >
+        <motion.div className="w-5 h-8 rounded-full border border-white/40 flex items-start justify-center p-1.5">
           <motion.div
             className="w-1 h-1.5 bg-white/60 rounded-full"
             animate={{ y: [0, 6, 0] }}
@@ -206,11 +139,11 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
         </motion.div>
       </motion.div>
 
-      {/* Interaction hint - only when fully expanded */}
+      {/* Interaction hint — only when fully expanded */}
       {isFullyExpanded && (
         <motion.div
           className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[60] text-xs uppercase tracking-widest"
-          style={{ color: 'rgba(255,255,255,0.25)', pointerEvents: 'none' }}
+          style={{ color: 'rgba(0,0,0,0.25)', pointerEvents: 'none' }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
@@ -222,134 +155,43 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
   )
 }
 
-// Separate component for webring content - uses motion values directly, no React state
-interface WebringContentProps {
+// ── Grid content ────────────────────────────────────────────────────────────
+
+interface GridContentProps {
   positions: Map<string, { x: number; y: number }>
-  edges: { source: string; target: string; id: string }[]
-  graphCenter: { x: number; y: number }
-  innerScale: MotionValue<number>
-  circleSize: MotionValue<number>
+  canvasW: number
+  canvasH: number
   pan: { x: number; y: number }
-  hoveredId: string | null
-  connectedIds: Set<string>
-  isFullyExpanded: boolean
-  setHoveredId: (id: string | null) => void
-  onCardClick: (member: Member) => void
 }
 
-function WebringContent({
-  positions,
-  edges,
-  graphCenter,
-  innerScale,
-  circleSize,
-  pan,
-  hoveredId,
-  connectedIds,
-  isFullyExpanded,
-  setHoveredId,
-  onCardClick,
-}: WebringContentProps) {
-  const [windowWidth, setWindowWidth] = useState(1440)
-  
-  // Only update window width on resize, not on scroll
-  useEffect(() => {
-    setWindowWidth(window.innerWidth)
-    const handleResize = () => setWindowWidth(window.innerWidth)
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  // Derive transform values directly from MotionValues - no React state updates on scroll
-  const translateX = useTransform(
-    [circleSize, innerScale] as MotionValue<number>[],
-    ([size, scale]: number[]) => {
-      const circleSizePx = (size / 100) * windowWidth
-      return circleSizePx / 2 - graphCenter.x * scale + pan.x
-    }
-  )
-  
-  const translateY = useTransform(
-    [circleSize, innerScale] as MotionValue<number>[],
-    ([size, scale]: number[]) => {
-      const circleSizePx = (size / 100) * windowWidth
-      return circleSizePx / 2 - graphCenter.y * scale + pan.y
-    }
-  )
-
+function GridContent({ positions, canvasW, canvasH, pan }: GridContentProps) {
+  // Centered within the circle via left/top 50% + negative translate.
+  // As the circle grows (overflow:hidden clips), more cards are revealed.
+  // Pan offset is added once the user can drag.
   return (
-    <>
-      {/* SVG threads layer - uses motion.svg for smooth transforms */}
-      <motion.svg
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: CANVAS_SIZE,
-          height: CANVAS_SIZE,
-          overflow: 'visible',
-          x: translateX,
-          y: translateY,
-          scale: innerScale,
-          transformOrigin: '0 0',
-          zIndex: 1,
-        }}
-      >
-        {edges.map((edge, i) => {
-          const s = positions.get(edge.source)
-          const t = positions.get(edge.target)
-          if (!s || !t) return null
-          const highlighted = hoveredId !== null && 
-            (edge.source === hoveredId || edge.target === hoveredId)
-          return (
-            <WebThread
-              key={edge.id}
-              sourceX={s.x}
-              sourceY={s.y}
-              targetX={t.x}
-              targetY={t.y}
-              index={i}
-              isHighlighted={highlighted}
-            />
-          )
-        })}
-      </motion.svg>
-
-      {/* HTML member cards layer - uses motion.div for smooth transforms */}
-      <motion.div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: CANVAS_SIZE,
-          height: CANVAS_SIZE,
-          x: translateX,
-          y: translateY,
-          scale: innerScale,
-          transformOrigin: '0 0',
-          zIndex: 2,
-          pointerEvents: isFullyExpanded ? 'auto' : 'none',
-        }}
-      >
-        {MOCK_MEMBERS.map((m, i) => {
-          const pos = positions.get(m.id)
-          if (!pos) return null
-          return (
-            <div key={m.id} style={{ pointerEvents: isFullyExpanded ? 'auto' : 'none' }}>
-              <MemberCard
-                member={m}
-                x={pos.x}
-                y={pos.y}
-                accent={getAccentColor(i)}
-                index={i}
-                isHighlighted={connectedIds.has(m.id)}
-                onHover={isFullyExpanded ? setHoveredId : () => {}}
-                onClick={onCardClick}
-              />
-            </div>
-          )
-        })}
-      </motion.div>
-    </>
+    <div
+      style={{
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        width: canvasW,
+        height: canvasH,
+        transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px))`,
+        overflow: 'visible',
+      }}
+    >
+      {MOCK_MEMBERS.map(m => {
+        const pos = positions.get(m.id)
+        if (!pos) return null
+        return (
+          <WebringSiteCard
+            key={m.id}
+            member={m}
+            x={pos.x}
+            y={pos.y}
+          />
+        )
+      })}
+    </div>
   )
 }
