@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Member } from '@/types/member'
 
 export const CARD_WIDTH = 130
@@ -22,7 +22,17 @@ interface WebringSiteCardProps {
 
 export function WebringSiteCard({ member, x, y }: WebringSiteCardProps) {
   const [hovered, setHovered] = useState(false)
+  const [showIframe, setShowIframe] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
+  const [screenshotLoaded, setScreenshotLoaded] = useState(false)
+  useEffect(() => {
+    if (hovered) {
+      setShowIframe(true)
+    } else {
+      setShowIframe(false)
+      setIframeLoaded(false)
+    }
+  }, [hovered])
 
   const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(member.embedUrl)}&screenshot=true&meta=false&embed=screenshot.url`
 
@@ -65,6 +75,19 @@ export function WebringSiteCard({ member, x, y }: WebringSiteCardProps) {
           transition: 'height 250ms ease',
         }}
       >
+        {/* Shimmer skeleton — visible until screenshot loads */}
+        {!screenshotLoaded && (
+          <div
+            className="animate-pulse"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(90deg, #ececec 25%, #d8d8d8 50%, #ececec 75%)',
+              backgroundSize: '200% 100%',
+            }}
+          />
+        )}
+
         {/* Screenshot — always present */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -76,14 +99,15 @@ export function WebringSiteCard({ member, x, y }: WebringSiteCardProps) {
             objectFit: 'cover',
             objectPosition: 'top center',
             display: 'block',
-            opacity: hovered && iframeLoaded ? 0 : 1,
+            opacity: screenshotLoaded ? (hovered && iframeLoaded ? 0 : 1) : 0,
             transition: 'opacity 300ms ease',
           }}
           draggable={false}
+          onLoad={() => setScreenshotLoaded(true)}
         />
 
-        {/* Live iframe — loads on hover, replaces screenshot once ready */}
-        {hovered && (
+        {/* Live iframe — loads after 350ms hover delay, replaces screenshot once ready */}
+        {showIframe && (
           <iframe
             src={member.embedUrl}
             title={member.name}

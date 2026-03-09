@@ -38,6 +38,14 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const lastPos = useRef({ x: 0, y: 0 })
+  const circleRef = useRef<HTMLDivElement>(null)
+
+  // Hover-based pan: mouse position relative to circle center → pan offset
+  const [hoverPan, setHoverPan] = useState({ x: 0, y: 0 })
+  // Smoothed hover pan for fluid motion
+  const animFrame = useRef<number>(0)
+  const targetHoverPan = useRef({ x: 0, y: 0 })
+  const currentHoverPan = useRef({ x: 0, y: 0 })
 
   const { positions, canvasW, canvasH } = useMemo(
     () => computeGridPositions(MOCK_MEMBERS),
@@ -46,10 +54,38 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
 
   useEffect(() => {
     const unsubscribe = scrollYProgress.on('change', (v) => {
-      setIsFullyExpanded(v > 0.92)
+      const expanding = v > 0.92
+      setIsFullyExpanded(prev => {
+        // When transitioning into fully expanded, zero out hover pan
+        if (expanding && !prev) {
+          targetHoverPan.current = { x: 0, y: 0 }
+        }
+        return expanding
+      })
     })
     return unsubscribe
   }, [scrollYProgress])
+
+  // Smooth animation loop for hover pan
+  useEffect(() => {
+    let running = true
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+
+    function animate() {
+      if (!running) return
+      const t = currentHoverPan.current
+      const g = targetHoverPan.current
+      const nx = lerp(t.x, g.x, 0.08)
+      const ny = lerp(t.y, g.y, 0.08)
+      if (Math.abs(nx - t.x) > 0.1 || Math.abs(ny - t.y) > 0.1) {
+        currentHoverPan.current = { x: nx, y: ny }
+        setHoverPan({ x: nx, y: ny })
+      }
+      animFrame.current = requestAnimationFrame(animate)
+    }
+    animFrame.current = requestAnimationFrame(animate)
+    return () => { running = false; cancelAnimationFrame(animFrame.current) }
+  }, [])
 
   // ── Scroll-driven circle animation (unchanged) ──────────────────────────
   const circleSize = useTransform(scrollYProgress, [0, 0.8], [30, 200], { clamp: true })
@@ -60,14 +96,40 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
   const zIndex = useTransform(scrollYProgress, [0, 1], [20, 50])
   const borderOpacity = useTransform(scrollYProgress, [0.8, 1], [0.12, 0])
 
-  // ── Pan (drag) ──────────────────────────────────────────────────────────
+  // ── Hover pan: move mouse within circle to navigate ─────────────────────
+  const handleHoverMove = useCallback((e: React.MouseEvent) => {
+    // Hover pan only applies in circle view — fully expanded uses drag instead
+    if (isFullyExpanded) return
+    const el = circleRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    // Normalized position: -1 to 1 from center
+    const nx = ((e.clientX - rect.left) / rect.width - 0.5) * 2
+    const ny = ((e.clientY - rect.top) / rect.height - 0.5) * 2
+    // Pan range scales with content size vs visible area
+    const maxPanX = Math.max(0, (canvasW - rect.width) / 2)
+    const maxPanY = Math.max(0, (canvasH - rect.height) / 2)
+    // Multiply by a factor so you can see edges — clamp for safety
+    const PAN_STRENGTH = 1.2
+    targetHoverPan.current = {
+      x: -nx * maxPanX * PAN_STRENGTH,
+      y: -ny * maxPanY * PAN_STRENGTH,
+    }
+  }, [isFullyExpanded, canvasW, canvasH])
+
+  const handleHoverLeave = useCallback(() => {
+    // Return to center when mouse leaves
+    targetHoverPan.current = { x: 0, y: 0 }
+  }, [])
+
+  // ── Drag pan (fully expanded only) ─────────────────────────────────────
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isFullyExpanded || !isDragging) return
+    if (!isDragging) return
     const dx = e.clientX - lastPos.current.x
     const dy = e.clientY - lastPos.current.y
     setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }))
     lastPos.current = { x: e.clientX, y: e.clientY }
-  }, [isFullyExpanded, isDragging])
+  }, [isDragging])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!isFullyExpanded) return
@@ -86,6 +148,7 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
     >
       {/* The expanding circle */}
       <motion.div
+        ref={circleRef}
         className="absolute overflow-hidden"
         style={{
           left: useTransform(circleLeft, v => `${v}%`),
@@ -100,20 +163,20 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
           borderStyle: 'solid',
           borderColor: useTransform(borderOpacity, v => `rgba(0,0,0,${v})`),
           boxShadow: '0 8px 40px rgba(0,0,0,0.15)',
-          pointerEvents: isFullyExpanded ? 'auto' : 'none',
-          cursor: isFullyExpanded ? (isDragging ? 'grabbing' : 'grab') : 'default',
+          pointerEvents: 'auto',
+          cursor: isDragging ? 'grabbing' : isFullyExpanded ? 'grab' : 'default',
         }}
-        onMouseMove={handleMouseMove}
+        onMouseMove={(e) => { handleHoverMove(e); handleMouseMove(e) }}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={() => { handleMouseUp(); handleHoverLeave() }}
       >
         {/* Always rendered — circle's overflow:hidden clips it; scroll reveals more */}
         <GridContent
           positions={positions}
           canvasW={canvasW}
           canvasH={canvasH}
-          pan={pan}
+          pan={{ x: pan.x + hoverPan.x, y: pan.y + hoverPan.y }}
         />
       </motion.div>
 
