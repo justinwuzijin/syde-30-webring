@@ -3,26 +3,26 @@
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react'
 import { motion, useTransform, MotionValue } from 'framer-motion'
 import { MOCK_MEMBERS } from '@/lib/mock-data'
-import { WebringSiteCard, CARD_WIDTH, CARD_HEIGHT } from './webring-site-card'
+import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 
-const CARD_GAP = 60 // enough room for cards to expand on hover without overlapping
-const GRID_PADDING = 40 // breathing room around the grid
+const CARD_GAP = 50 // breathing room — polaroids can expand on hover
+const GRID_PADDING = 50 // extra padding for the scattered-photo feel
 
 function computeGridPositions(members: typeof MOCK_MEMBERS) {
   const n = members.length
   // Roughly square grid; grows naturally as members are added
   const cols = Math.max(2, Math.ceil(Math.sqrt(n)))
   const rows = Math.ceil(n / cols)
-  const innerW = cols * (CARD_WIDTH + CARD_GAP) - CARD_GAP
-  const innerH = rows * (CARD_HEIGHT + CARD_GAP) - CARD_GAP
+  const innerW = cols * (POLAROID_WIDTH + CARD_GAP) - CARD_GAP
+  const innerH = rows * (POLAROID_HEIGHT + CARD_GAP) - CARD_GAP
   const canvasW = innerW + GRID_PADDING * 2
   const canvasH = innerH + GRID_PADDING * 2
 
   const positions = new Map<string, { x: number; y: number }>()
   members.forEach((m, i) => {
     positions.set(m.id, {
-      x: GRID_PADDING + (i % cols) * (CARD_WIDTH + CARD_GAP),
-      y: GRID_PADDING + Math.floor(i / cols) * (CARD_HEIGHT + CARD_GAP),
+      x: GRID_PADDING + (i % cols) * (POLAROID_WIDTH + CARD_GAP),
+      y: GRID_PADDING + Math.floor(i / cols) * (POLAROID_HEIGHT + CARD_GAP),
     })
   })
 
@@ -247,7 +247,7 @@ function GridContent({ positions, canvasW, canvasH, pan }: GridContentProps) {
         const pos = positions.get(m.id)
         if (!pos) return null
         return (
-          <WebringSiteCard
+          <PolaroidCard
             key={m.id}
             member={m}
             x={pos.x}

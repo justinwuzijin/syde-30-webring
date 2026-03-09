@@ -1,0 +1,241 @@
+'use client'
+
+import { useState, useEffect, useRef, useCallback } from 'react'
+import type { Member } from '@/types/member'
+import { SignatureSVG } from './signature-svg'
+
+// ── Instax Mini proportions (real: 54×86mm, photo: 46×62mm) ──────────────
+// Scaled to pixel ratios matching the reference image
+const FRAME_PADDING_SIDE = 0.074    // ~7.4% of card width = side border
+const FRAME_PADDING_TOP = 0.065     // ~6.5% of card height = top border
+const PHOTO_HEIGHT_RATIO = 0.62     // photo window is ~62% of total card height
+const SIGNATURE_HEIGHT_RATIO = 0.255 // bottom signature area ~25.5%
+// remaining ~6.5% is the top border above photo
+
+// Card base dimensions for the grid
+export const POLAROID_WIDTH = 150
+export const POLAROID_HEIGHT = Math.round(POLAROID_WIDTH * (86 / 54)) // ~239px, real Instax ratio
+
+// Hover expansion
+const HOVER_SCALE = 1.08
+const HOVER_LIFT = -6 // px upward
+const HOVER_SHADOW_IDLE = '0 2px 8px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)'
+const HOVER_SHADOW_ACTIVE = '0 12px 32px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.10)'
+
+const IFRAME_SCALE = 0.25
+
+interface PolaroidCardProps {
+  member: Member
+  x: number
+  y: number
+}
+
+export function PolaroidCard({ member, x, y }: PolaroidCardProps) {
+  const [hovered, setHovered] = useState(false)
+  const [showIframe, setShowIframe] = useState(false)
+  const [iframeLoaded, setIframeLoaded] = useState(false)
+  const [screenshotLoaded, setScreenshotLoaded] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  // Slight random tilt per card (deterministic from id)
+  const tilt = useRef(0)
+  useEffect(() => {
+    let h = 5381
+    for (const c of member.id) h = ((h << 5) + h) ^ c.charCodeAt(0)
+    tilt.current = ((h % 11) - 5) * 0.8 // -4° to +4°
+  }, [member.id])
+
+  useEffect(() => {
+    if (hovered) {
+      setShowIframe(true)
+    } else {
+      setShowIframe(false)
+      setIframeLoaded(false)
+    }
+  }, [hovered])
+
+  const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(member.embedUrl)}&screenshot=true&meta=false&embed=screenshot.url`
+
+  // Computed pixel values
+  const photoW = POLAROID_WIDTH * (1 - 2 * FRAME_PADDING_SIDE)
+  const photoH = POLAROID_HEIGHT * PHOTO_HEIGHT_RATIO
+  const sigH = POLAROID_HEIGHT * SIGNATURE_HEIGHT_RATIO
+  const padSide = POLAROID_WIDTH * FRAME_PADDING_SIDE
+  const padTop = POLAROID_HEIGHT * FRAME_PADDING_TOP
+
+  const handleMouseEnter = useCallback(() => setHovered(true), [])
+  const handleMouseLeave = useCallback(() => {
+    setHovered(false)
+    setIframeLoaded(false)
+  }, [])
+
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        position: 'absolute',
+        left: x + POLAROID_WIDTH / 2,
+        top: y + POLAROID_HEIGHT / 2,
+        width: POLAROID_WIDTH,
+        height: POLAROID_HEIGHT,
+        transform: `translate(-50%, -50%) rotate(${tilt.current}deg)`,
+        zIndex: hovered ? 100 : 1,
+        userSelect: 'none',
+        cursor: 'default',
+        // Don't transition transform base — only the inner card animates
+      }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* ── Frame (the white Polaroid border) ── */}
+      <div
+        className="polaroid-frame"
+        style={{
+          width: '100%',
+          height: '100%',
+          background: '#f7f6f3',
+          borderRadius: 3,
+          overflow: 'hidden',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          // Subtle paper texture via box-shadow layers
+          boxShadow: hovered ? HOVER_SHADOW_ACTIVE : HOVER_SHADOW_IDLE,
+          transform: hovered
+            ? `scale(${HOVER_SCALE}) translateY(${HOVER_LIFT}px) rotate(0deg)`
+            : 'scale(1) translateY(0px) rotate(0deg)',
+          transition: 'transform 350ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 350ms cubic-bezier(0.23, 1, 0.32, 1)',
+          transformOrigin: 'center bottom',
+        }}
+      >
+        {/* Film grain overlay — always visible, subtle */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,
+            backgroundSize: '128px 128px',
+            pointerEvents: 'none',
+            zIndex: 10,
+            mixBlendMode: 'multiply',
+          }}
+        />
+
+        {/* ── Photo Window ── */}
+        <div
+          style={{
+            position: 'relative',
+            marginTop: padTop,
+            marginLeft: padSide,
+            marginRight: padSide,
+            width: photoW,
+            height: photoH,
+            overflow: 'hidden',
+            background: '#e8e5df',
+            flexShrink: 0,
+          }}
+        >
+          {/* Shimmer skeleton */}
+          {!screenshotLoaded && (
+            <div
+              className="animate-pulse"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'linear-gradient(90deg, #e8e5df 25%, #d8d5cf 50%, #e8e5df 75%)',
+                backgroundSize: '200% 100%',
+              }}
+            />
+          )}
+
+          {/* Screenshot (static "printed" photo — always shown as base) */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={screenshotUrl}
+            alt={`${member.name}'s site`}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'top center',
+              display: 'block',
+              // Idle: slightly desaturated + warm tone (printed photo feel)
+              // Hover: full color (comes alive)
+              filter: hovered
+                ? 'saturate(1.1) contrast(1.05) brightness(1.0)'
+                : 'saturate(0.7) contrast(1.02) brightness(0.95) sepia(0.08)',
+              opacity: screenshotLoaded ? (hovered && iframeLoaded ? 0 : 1) : 0,
+              transition: 'filter 400ms ease, opacity 300ms ease',
+            }}
+            draggable={false}
+            onLoad={() => setScreenshotLoaded(true)}
+          />
+
+          {/* Live iframe — replaces screenshot on hover */}
+          {showIframe && (
+            <iframe
+              src={member.embedUrl}
+              title={member.name}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: `${100 / IFRAME_SCALE}%`,
+                height: `${100 / IFRAME_SCALE}%`,
+                border: 'none',
+                transform: `scale(${IFRAME_SCALE})`,
+                transformOrigin: 'top left',
+                opacity: iframeLoaded ? 1 : 0,
+                transition: 'opacity 400ms ease',
+                pointerEvents: 'none',
+              }}
+              sandbox="allow-scripts allow-same-origin"
+              loading="lazy"
+              onLoad={() => setIframeLoaded(true)}
+            />
+          )}
+
+          {/* Photo texture overlay (light vignette) */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.06) 100%)',
+              pointerEvents: 'none',
+              zIndex: 5,
+            }}
+          />
+        </div>
+
+        {/* ── Signature Area ── */}
+        <div
+          className="polaroid-signature"
+          style={{
+            flex: 1,
+            minHeight: sigH,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: `0 ${padSide + 4}px`,
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Hand-drawn SVG signature — animates on hover */}
+          <div
+            style={{
+              width: '85%',
+              height: '70%',
+              transform: 'rotate(-1.5deg)',
+            }}
+          >
+            <SignatureSVG
+              memberId={member.id}
+              isHovered={hovered}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
