@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context'
 import { MOCK_MEMBERS } from '@/lib/mock-data'
 import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import { PhotoFolder } from './photo-folder'
+import { Input } from './ui/input'
 
 const CARD_GAP = 50
 const GRID_PADDING = 50
@@ -47,6 +48,20 @@ function computeGridPositions(members: typeof MOCK_MEMBERS) {
   return { positions, canvasW, canvasH }
 }
 
+const GLASS_CHROME =
+  'relative overflow-hidden rounded-full ' +
+  // Base glass fill: slightly darker, still translucent
+  'bg-white/35 bg-gradient-to-b from-white/60 via-white/35 to-white/25 ' +
+  // Strong, crisp glass edge
+  'border border-white/60 ' +
+  // Deep blur + saturation for Apple-style glass
+  'backdrop-blur-3xl backdrop-saturate-150 ' +
+  // Floating depth + top inset highlight
+  'shadow-[0_10px_30px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.8)] ' +
+  // On browsers that support backdrop-filter, keep the tint subtle
+  'supports-[backdrop-filter]:bg-white/30 ' +
+  'transition-colors transition-shadow duration-200';
+
 export function LandingPage() {
   const pathname = usePathname()
   const router = useRouter()
@@ -58,11 +73,21 @@ export function LandingPage() {
   const [phase, setPhase] = useState<Phase>(startExpanded ? 'expanded' : 'splash')
   const [pageReady, setPageReady] = useState(false)
   const circleRef = useRef<HTMLDivElement>(null)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const { positions, canvasW, canvasH } = useMemo(
     () => computeGridPositions(MOCK_MEMBERS),
     []
   )
+
+  const filteredMembers = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+    if (!query) return MOCK_MEMBERS
+    return MOCK_MEMBERS.filter(m => {
+      const firstName = m.name.split(' ')[0] ?? ''
+      return firstName.toLowerCase().startsWith(query)
+    })
+  }, [searchTerm])
 
   // Pan/zoom state — only active in expanded phase
   const [camera, setCamera] = useState({ x: 0, y: 0, k: 1 })
@@ -238,7 +263,18 @@ export function LandingPage() {
             pointerEvents: isExpanded ? 'auto' : 'none',
           }}
         >
-          {MOCK_MEMBERS.map(m => {
+          {filteredMembers.length === 0 && searchTerm.trim() && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className={'px-6 py-3 ' + GLASS_CHROME}>
+                <div className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
+                <p className="relative text-xs md:text-sm text-neutral-900 lowercase tracking-[0.16em] text-center">
+                  the user you are searching for does not exist yet, get them to sign up!
+                </p>
+              </div>
+            </div>
+          )}
+
+          {filteredMembers.map(m => {
             const pos = positions.get(m.id)
             if (!pos) return null
             return (
@@ -280,16 +316,42 @@ export function LandingPage() {
         </motion.div>
       </motion.div>
 
+      {/* ── Search bar — top center, expanded only ── */}
+      {isExpanded && (
+        <motion.div
+          className="fixed top-6 left-1/2 z-50 w-full max-w-md -translate-x-1/2 px-4"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.3 }}
+        >
+          <div className={'flex items-center ' + GLASS_CHROME + ' hover:bg-white/20'}>
+            <div className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
+            <Input
+              type="text"
+              placeholder="Search polaroids by first name..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="relative bg-transparent border-0 focus-visible:ring-0 focus-visible:border-0 text-sm text-neutral-900 placeholder:text-neutral-500 px-5 py-2.5 rounded-full"
+            />
+          </div>
+        </motion.div>
+      )}
+
       {/* ── Back button — top-left, expanded only ── */}
       {isExpanded && (
         <motion.button
-          className="fixed top-6 left-6 z-50 px-4 py-2 text-sm text-black/60 hover:text-black border border-black/15 hover:border-black/30 rounded-full bg-white/80 backdrop-blur-sm transition-colors"
+          className={
+            'fixed top-6 left-6 z-50 px-4 py-2 text-sm text-neutral-900 hover:text-neutral-950 ' +
+            GLASS_CHROME +
+            ' hover:bg-white/20'
+          }
           style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
           onClick={handleBack}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.3 }}
         >
+          <span className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
           &larr; back
         </motion.button>
       )}
