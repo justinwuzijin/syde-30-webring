@@ -2,6 +2,9 @@ export interface Member {
   id: string
   name: string
   embedUrl: string
+  /** Optional URLs to uploaded media for the polaroid */
+  polaroid_still_url?: string | null
+  polaroid_live_url?: string | null
   socials: {
     website?: string
     twitter?: string

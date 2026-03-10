@@ -45,6 +45,16 @@ function computeGridPositions(members: typeof MOCK_MEMBERS) {
       y: GRID_PADDING + Math.floor(i / cols) * (POLAROID_HEIGHT + CARD_GAP),
     })
   })
+
+  // Bias the newest member (last in the array) toward the center of the grid
+  if (members.length > 0) {
+    const centerCol = Math.floor(cols / 2)
+    const centerRow = Math.floor(rows / 2)
+    const centerX = GRID_PADDING + centerCol * (POLAROID_WIDTH + CARD_GAP)
+    const centerY = GRID_PADDING + centerRow * (POLAROID_HEIGHT + CARD_GAP)
+    const newest = members[members.length - 1]
+    positions.set(newest.id, { x: centerX, y: centerY })
+  }
   return { positions, canvasW, canvasH }
 }
 
@@ -74,6 +84,7 @@ export function LandingPage() {
   const [pageReady, setPageReady] = useState(false)
   const circleRef = useRef<HTMLDivElement>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [navigatingToProfile, setNavigatingToProfile] = useState(false)
 
   const { positions, canvasW, canvasH } = useMemo(
     () => computeGridPositions(MOCK_MEMBERS),
@@ -176,7 +187,11 @@ export function LandingPage() {
   // Click polaroid → profile (expanded only)
   const handleCardClick = useCallback((memberId: string) => {
     if (phase !== 'expanded') return
-    router.push(`/profile/${memberId}`)
+    // Fade out the canvas before navigating to profile
+    setNavigatingToProfile(true)
+    setTimeout(() => {
+      router.push(`/profile/${memberId}`)
+    }, 220)
   }, [phase, router])
 
   const isExpanded = phase === 'expanded'
@@ -567,6 +582,15 @@ export function LandingPage() {
         initial={{ opacity: 1 }}
         animate={{ opacity: pageReady ? 0 : 1 }}
         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      />
+
+      {/* Soft white veil when navigating into a profile from a polaroid click */}
+      <div
+        className="pointer-events-none fixed inset-0 z-[90] bg-white"
+        style={{
+          opacity: navigatingToProfile ? 1 : 0,
+          transition: 'opacity 220ms ease',
+        }}
       />
     </div>
   )

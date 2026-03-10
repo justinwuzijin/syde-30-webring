@@ -33,9 +33,11 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
   const [hovered, setHovered] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [videoVisible, setVideoVisible] = useState(false)
-  const [hasLivePhoto, setHasLivePhoto] = useState<boolean | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+
+  const hasUploadedStill = !!member.polaroid_still_url
+  const hasUploadedLive = !!member.polaroid_live_url
 
   // Slight random tilt per card (deterministic from id)
   const tilt = useRef(0)
@@ -45,23 +47,12 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
     tilt.current = ((h % 11) - 5) * 0.8 // -4° to +4°
   }, [member.id])
 
-  // Check if live photo exists on mount
-  useEffect(() => {
-    const img = new Image()
-    img.onload = () => setHasLivePhoto(true)
-    img.onerror = () => setHasLivePhoto(false)
-    img.src = `/live-photos/${member.id}.jpg`
-  }, [member.id])
+  // Fallback to Microlink screenshot if no uploaded still
+  const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(
+    member.embedUrl,
+  )}&screenshot=true&meta=false&embed=screenshot.url`
 
-  // Live photo paths
-  const livePhotoStill = `/live-photos/${member.id}.jpg`
-  const livePhotoVideo = `/live-photos/${member.id}.mp4`
-  
-  // Fallback to Microlink screenshot
-  const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(member.embedUrl)}&screenshot=true&meta=false&embed=screenshot.url`
-
-  // Use live photo if available, otherwise fallback
-  const stillImageSrc = hasLivePhoto ? livePhotoStill : screenshotUrl
+  const stillImageSrc = member.polaroid_still_url ?? screenshotUrl
 
   // Computed pixel values
   const photoW = POLAROID_WIDTH * (1 - 2 * FRAME_PADDING_SIDE)
@@ -72,7 +63,7 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
 
   const handleMouseEnter = useCallback(() => {
     setHovered(true)
-    if (hasLivePhoto) {
+    if (hasUploadedLive) {
       setVideoVisible(true)
       if (videoRef.current) {
         videoRef.current.currentTime = 0
@@ -81,7 +72,7 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
         })
       }
     }
-  }, [hasLivePhoto])
+  }, [hasUploadedLive])
 
   const handleMouseLeave = useCallback(() => {
     setHovered(false)
@@ -194,10 +185,10 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
           />
 
           {/* Live Photo video — plays once on hover */}
-          {hasLivePhoto && (
+          {hasUploadedLive && member.polaroid_live_url && (
             <video
               ref={videoRef}
-              src={livePhotoVideo}
+              src={member.polaroid_live_url}
               muted
               playsInline
               preload="auto"
