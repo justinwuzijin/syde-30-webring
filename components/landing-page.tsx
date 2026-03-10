@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
@@ -65,8 +65,12 @@ const GLASS_CHROME =
 export function LandingPage() {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, logout } = useAuth()
-  const [phase, setPhase] = useState<Phase>('splash')
+  
+  // Check if we should start in expanded view (coming back from profile)
+  const startExpanded = searchParams.get('view') === 'webring'
+  const [phase, setPhase] = useState<Phase>(startExpanded ? 'expanded' : 'splash')
   const [pageReady, setPageReady] = useState(false)
   const circleRef = useRef<HTMLDivElement>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -97,15 +101,20 @@ export function LandingPage() {
     if (pathname === '/') {
       if (prevPathname.current !== null && prevPathname.current !== '/') {
         setGooseKey(k => k + 1)
-        // Reset to splash when navigating back
-        setPhase('splash')
-        setCamera({ x: 0, y: 0, k: 1 })
+        // Check if we should go to webring view or splash
+        const viewParam = searchParams.get('view')
+        if (viewParam === 'webring') {
+          setPhase('expanded')
+        } else {
+          setPhase('splash')
+          setCamera({ x: 0, y: 0, k: 1 })
+        }
       }
       prevPathname.current = '/'
     } else {
       prevPathname.current = pathname
     }
-  }, [pathname])
+  }, [pathname, searchParams])
 
   // Fade out the white intro overlay after a short delay
   useEffect(() => {
@@ -120,10 +129,12 @@ export function LandingPage() {
     setTimeout(() => setPhase('expanded'), EXPANDED_DELAY)
   }, [phase])
 
-  // Back to splash
+  // Back to splash - also clear URL param so reload stays on splash
   const handleBack = useCallback(() => {
     setPhase('splash')
     setCamera({ x: 0, y: 0, k: 1 })
+    // Clear the ?view=webring param from URL without triggering navigation
+    window.history.replaceState({}, '', '/')
   }, [])
 
   // ── Wheel → zoom centered (expanded only) ──

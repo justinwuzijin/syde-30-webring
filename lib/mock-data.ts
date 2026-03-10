@@ -3,7 +3,7 @@ import type { Member } from '@/types/member'
 export const MOCK_MEMBERS: Member[] = [
   {
     id: 'justin-wu',
-    name: 'justin',
+    name: 'Justin Wu',
     embedUrl: 'https://justinzwu.com',
     socials: { github: 'justinwuzijin', linkedin: 'justinzijinwu' },
     connections: ['leo-zhang'],
@@ -12,7 +12,7 @@ export const MOCK_MEMBERS: Member[] = [
   },
   {
     id: 'leo-zhang',
-    name: 'leo',
+    name: 'Leo Zhang',
     embedUrl: 'https://leo-zhang.com/',
     socials: { github: 'leozhang', twitter: 'leozhang' },
     connections: ['justin-wu'],
