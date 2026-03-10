@@ -22,8 +22,6 @@ const HOVER_LIFT = -6 // px upward
 const HOVER_SHADOW_IDLE = '0 20px 16px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08)'
 const HOVER_SHADOW_ACTIVE = '0 40px 40px rgba(0,0,0,0.22), 0 6px 16px rgba(0,0,0,0.12)'
 
-const IFRAME_SCALE = 0.25
-
 interface PolaroidCardProps {
   member: Member
   x: number
@@ -33,10 +31,11 @@ interface PolaroidCardProps {
 
 export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
   const [hovered, setHovered] = useState(false)
-  const [showIframe, setShowIframe] = useState(false)
-  const [iframeLoaded, setIframeLoaded] = useState(false)
-  const [screenshotLoaded, setScreenshotLoaded] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const [videoVisible, setVideoVisible] = useState(false)
+  const [hasLivePhoto, setHasLivePhoto] = useState<boolean | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   // Slight random tilt per card (deterministic from id)
   const tilt = useRef(0)
@@ -46,16 +45,23 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
     tilt.current = ((h % 11) - 5) * 0.8 // -4° to +4°
   }, [member.id])
 
+  // Check if live photo exists on mount
   useEffect(() => {
-    if (hovered) {
-      setShowIframe(true)
-    } else {
-      setShowIframe(false)
-      setIframeLoaded(false)
-    }
-  }, [hovered])
+    const img = new Image()
+    img.onload = () => setHasLivePhoto(true)
+    img.onerror = () => setHasLivePhoto(false)
+    img.src = `/live-photos/${member.id}.jpg`
+  }, [member.id])
 
+  // Live photo paths
+  const livePhotoStill = `/live-photos/${member.id}.jpg`
+  const livePhotoVideo = `/live-photos/${member.id}.mp4`
+  
+  // Fallback to Microlink screenshot
   const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(member.embedUrl)}&screenshot=true&meta=false&embed=screenshot.url`
+
+  // Use live photo if available, otherwise fallback
+  const stillImageSrc = hasLivePhoto ? livePhotoStill : screenshotUrl
 
   // Computed pixel values
   const photoW = POLAROID_WIDTH * (1 - 2 * FRAME_PADDING_SIDE)
@@ -64,10 +70,26 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
   const padSide = POLAROID_WIDTH * FRAME_PADDING_SIDE
   const padTop = POLAROID_HEIGHT * FRAME_PADDING_TOP
 
-  const handleMouseEnter = useCallback(() => setHovered(true), [])
+  const handleMouseEnter = useCallback(() => {
+    setHovered(true)
+    if (hasLivePhoto) {
+      setVideoVisible(true)
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0
+        videoRef.current.play().catch(() => {
+          // Autoplay may be blocked; video will show on user interaction
+        })
+      }
+    }
+  }, [hasLivePhoto])
+
   const handleMouseLeave = useCallback(() => {
     setHovered(false)
-    setIframeLoaded(false)
+    setVideoVisible(false)
+    if (videoRef.current) {
+      videoRef.current.pause()
+      videoRef.current.currentTime = 0
+    }
   }, [])
 
   return (
@@ -83,7 +105,6 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
         zIndex: hovered ? 100 : 1,
         userSelect: 'none',
         cursor: onClick ? 'pointer' : 'default',
-        // Don't transition transform base — only the inner card animates
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -101,7 +122,6 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
-          // Subtle paper texture via box-shadow layers
           boxShadow: hovered ? HOVER_SHADOW_ACTIVE : HOVER_SHADOW_IDLE,
           transform: hovered
             ? `scale(${HOVER_SCALE}) translateY(${HOVER_LIFT}px) rotate(0deg)`
@@ -137,8 +157,8 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
             flexShrink: 0,
           }}
         >
-          {/* Shimmer skeleton */}
-          {!screenshotLoaded && (
+          {/* Shimmer skeleton while loading */}
+          {!imageLoaded && (
             <div
               className="animate-pulse"
               style={{
@@ -150,50 +170,48 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
             />
           )}
 
-          {/* Screenshot (static "printed" photo — always shown as base) */}
+          {/* Still frame image (greyed out by default, full color on hover) */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={screenshotUrl}
-            alt={`${member.name}'s site`}
+            src={stillImageSrc}
+            alt={`${member.name}'s photo`}
             style={{
+              position: 'absolute',
+              inset: 0,
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              objectPosition: 'top center',
+              objectPosition: 'center',
               display: 'block',
-              // Idle: slightly desaturated + warm tone (printed photo feel)
-              // Hover: full color (comes alive)
               filter: hovered
                 ? 'saturate(1.1) contrast(1.05) brightness(1.0)'
-                : 'saturate(0.7) contrast(1.02) brightness(0.95) sepia(0.08)',
-              opacity: screenshotLoaded ? (hovered && iframeLoaded ? 0 : 1) : 0,
+                : 'saturate(0) contrast(1.02) brightness(0.85)',
+              opacity: imageLoaded ? (videoVisible ? 0 : 1) : 0,
               transition: 'filter 400ms ease, opacity 300ms ease',
             }}
             draggable={false}
-            onLoad={() => setScreenshotLoaded(true)}
+            onLoad={() => setImageLoaded(true)}
           />
 
-          {/* Live iframe — replaces screenshot on hover */}
-          {showIframe && (
-            <iframe
-              src={member.embedUrl}
-              title={member.name}
+          {/* Live Photo video — plays once on hover */}
+          {hasLivePhoto && (
+            <video
+              ref={videoRef}
+              src={livePhotoVideo}
+              muted
+              playsInline
+              preload="auto"
               style={{
                 position: 'absolute',
-                top: 0,
-                left: 0,
-                width: `${100 / IFRAME_SCALE}%`,
-                height: `${100 / IFRAME_SCALE}%`,
-                border: 'none',
-                transform: `scale(${IFRAME_SCALE})`,
-                transformOrigin: 'top left',
-                opacity: iframeLoaded ? 1 : 0,
-                transition: 'opacity 400ms ease',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: 'center',
+                opacity: videoVisible ? 1 : 0,
+                transition: 'opacity 300ms ease',
                 pointerEvents: 'none',
               }}
-              sandbox="allow-scripts allow-same-origin"
-              loading="lazy"
-              onLoad={() => setIframeLoaded(true)}
             />
           )}
 
