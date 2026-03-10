@@ -170,6 +170,7 @@ function PasswordField({
 function ProfilePictureField({
   value,
   onChange,
+  error,
 }: {
   value: File | null
   onChange: (file: File | null) => void
@@ -244,6 +245,7 @@ function ProfilePictureField({
     <div className="flex flex-col gap-3">
       <span className="text-xs font-medium text-white lowercase" style={sfPro}>
         profile picture
+        <span className="ml-0.5 text-red-400">*</span>
         <span className="font-normal normal-case italic ml-1 text-[10px] text-white/70">
           (ideally headshot)
         </span>
@@ -252,7 +254,7 @@ function ProfilePictureField({
         className="flex flex-col items-center justify-center w-full min-h-[200px] rounded-lg border-2 border-dashed transition-colors cursor-pointer overflow-hidden relative"
         style={{
           background: isDragging ? 'rgba(255,255,255,0.05)' : 'var(--surface)',
-          borderColor: isDragging ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)',
+          borderColor: error ? '#ef4444' : isDragging ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)',
         }}
         onClick={() => !previewUrl && inputRef.current?.click()}
         onDrop={handleDrop}
@@ -315,7 +317,7 @@ function ProfilePictureField({
               drag and drop, paste, or click to upload
             </span>
             <p className="font-mono text-[10px] italic text-white/50">
-              jpg, png, webp. optional.
+              jpg, png, webp. required.
             </p>
           </div>
         )}
@@ -341,6 +343,9 @@ function ProfilePictureField({
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+      )}
+      {error && (
+        <span className="font-mono text-xs text-red-400">{error}</span>
       )}
     </div>
   )
@@ -385,6 +390,10 @@ export function JoinForm() {
     const hasGithub = form.github.trim().length > 0
     const hasAnySocial = hasLinkedIn || hasTwitter || hasGithub
 
+    if (!form.profilePicture || form.profilePicture.size === 0) {
+      newErrors.profilePicture = 'Profile picture is required'
+    }
+
     if (!hasAnySocial) {
       newErrors.socials = 'At least one social link is required'
     } else {
@@ -421,7 +430,7 @@ export function JoinForm() {
       fd.set('linkedin', form.linkedin.trim())
       fd.set('twitter', form.twitter.trim())
       fd.set('github', form.github.trim())
-      if (form.profilePicture) fd.set('profilePicture', form.profilePicture)
+      fd.set('profilePicture', form.profilePicture!)
 
       const res = await fetch('/api/join', { method: 'POST', body: fd })
       if (res.status === 202) {
@@ -454,6 +463,7 @@ export function JoinForm() {
 
   const updateProfilePicture = (file: File | null) => {
     setForm((prev) => ({ ...prev, profilePicture: file }))
+    if (file && errors.profilePicture) setErrors((prev) => ({ ...prev, profilePicture: undefined }))
   }
 
   if (submitted) {
@@ -685,6 +695,7 @@ export function JoinForm() {
           <ProfilePictureField
             value={form.profilePicture}
             onChange={updateProfilePicture}
+            error={errors.profilePicture}
           />
 
           {errors._ && (

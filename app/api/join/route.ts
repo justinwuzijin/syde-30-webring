@@ -51,6 +51,10 @@ export async function POST(request: Request) {
       if (github && !isValidSocial(github)) errors.github = 'Enter handle or full URL'
     }
 
+    if (!profilePicture || !(profilePicture instanceof File) || profilePicture.size === 0) {
+      errors.profilePicture = 'Profile picture is required'
+    }
+
     if (Object.keys(errors).length > 0) {
       return NextResponse.json({ errors }, { status: 400 })
     }
