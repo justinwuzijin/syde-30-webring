@@ -32,7 +32,8 @@ export async function POST(request: Request) {
     const linkedin = (formData.get('linkedin') as string)?.trim() ?? ''
     const twitter = (formData.get('twitter') as string)?.trim() ?? ''
     const github = (formData.get('github') as string)?.trim() ?? ''
-    const profilePicture = formData.get('profilePicture') as File | null
+    const polaroidStill = formData.get('polaroidStill') as File | null
+    const polaroidLive = formData.get('polaroidLive') as File | null
 
     // Validation
     const errors: Record<string, string> = {}
@@ -51,8 +52,11 @@ export async function POST(request: Request) {
       if (github && !isValidSocial(github)) errors.github = 'Enter handle or full URL'
     }
 
-    if (!profilePicture || !(profilePicture instanceof File) || profilePicture.size === 0) {
-      errors.profilePicture = 'Profile picture is required'
+    if (!polaroidStill || !(polaroidStill instanceof File) || polaroidStill.size === 0) {
+      errors.polaroidStill = 'Polaroid still photo is required'
+    }
+    if (!polaroidLive || !(polaroidLive instanceof File) || polaroidLive.size === 0) {
+      errors.polaroidLive = 'Polaroid live clip is required'
     }
 
     if (Object.keys(errors).length > 0) {
@@ -71,24 +75,45 @@ export async function POST(request: Request) {
 
     const password_hash = await bcrypt.hash(password, 10)
 
-    let profile_picture_url: string | null = null
-    if (profilePicture && profilePicture.size > 0) {
-      const ext = profilePicture.name.split('.').pop()?.toLowerCase() || 'jpg'
-      const allowed = ['jpg', 'jpeg', 'png', 'webp']
-      if (!allowed.includes(ext)) {
-        return NextResponse.json({ errors: { profilePicture: 'Invalid image format' } }, { status: 400 })
+    let polaroid_still_url: string | null = null
+    let polaroid_live_url: string | null = null
+
+    if (polaroidStill && polaroidStill.size > 0) {
+      const ext = polaroidStill.name.split('.').pop()?.toLowerCase() || 'heic'
+      const allowedStill = ['heic', 'heif', 'jpg', 'jpeg', 'png']
+      if (!allowedStill.includes(ext)) {
+        return NextResponse.json({ errors: { polaroidStill: 'Invalid still image format (use HEIC or JPG/PNG)' } }, { status: 400 })
       }
-      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const fileName = `${Date.now()}-still-${Math.random().toString(36).slice(2)}.${ext}`
       const { data: upload, error: uploadErr } = await supabaseAdmin.storage
         .from('profile-website-pictures')
-        .upload(fileName, profilePicture, { contentType: profilePicture.type, upsert: false })
+        .upload(fileName, polaroidStill, { contentType: polaroidStill.type, upsert: false })
       if (uploadErr) {
-        return NextResponse.json({ errors: { profilePicture: 'Failed to upload image' } }, { status: 500 })
+        return NextResponse.json({ errors: { polaroidStill: 'Failed to upload still image' } }, { status: 500 })
       }
       const { data: publicUrl } = supabaseAdmin.storage
         .from('profile-website-pictures')
         .getPublicUrl(upload.path)
-      profile_picture_url = publicUrl.publicUrl
+      polaroid_still_url = publicUrl.publicUrl
+    }
+
+    if (polaroidLive && polaroidLive.size > 0) {
+      const ext = polaroidLive.name.split('.').pop()?.toLowerCase() || 'mov'
+      const allowedLive = ['mov', 'mp4']
+      if (!allowedLive.includes(ext)) {
+        return NextResponse.json({ errors: { polaroidLive: 'Invalid live clip format (use MOV or MP4)' } }, { status: 400 })
+      }
+      const fileName = `${Date.now()}-live-${Math.random().toString(36).slice(2)}.${ext}`
+      const { data: upload, error: uploadErr } = await supabaseAdmin.storage
+        .from('profile-website-pictures')
+        .upload(fileName, polaroidLive, { contentType: polaroidLive.type, upsert: false })
+      if (uploadErr) {
+        return NextResponse.json({ errors: { polaroidLive: 'Failed to upload live clip' } }, { status: 500 })
+      }
+      const { data: publicUrl } = supabaseAdmin.storage
+        .from('profile-website-pictures')
+        .getPublicUrl(upload.path)
+      polaroid_live_url = publicUrl.publicUrl
     }
 
     const li = parseSocialLink('linkedin', linkedin)
@@ -103,7 +128,8 @@ export async function POST(request: Request) {
       email,
       password_hash,
       website_link: websiteLink || null,
-      profile_picture_url,
+      polaroid_still_url,
+      polaroid_live_url,
       linkedin_handle,
       twitter_handle,
       github_handle,
@@ -117,15 +143,20 @@ export async function POST(request: Request) {
     if (!adminEmail) {
       return NextResponse.json({ errors: { _: 'Server misconfiguration: ADMIN_EMAIL missing' } }, { status: 500 })
     }
-    await sendApprovalEmail(adminEmail, {
-      name,
-      email,
-      website_link: websiteLink || null,
-      profile_picture_url,
-      linkedin_handle,
-      twitter_handle,
-      github_handle,
-    }, approveUrl)
+    await sendApprovalEmail(
+      adminEmail,
+      {
+        name,
+        email,
+        website_link: websiteLink || null,
+        polaroid_still_url,
+        polaroid_live_url,
+        linkedin_handle,
+        twitter_handle,
+        github_handle,
+      },
+      approveUrl,
+    )
 
     return new NextResponse(null, { status: 202 })
   } catch (err) {

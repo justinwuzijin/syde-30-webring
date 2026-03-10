@@ -7,7 +7,8 @@ interface TokenPayload {
   email: string
   password_hash: string
   website_link: string | null
-  profile_picture_url: string | null
+  polaroid_still_url: string | null
+  polaroid_live_url: string | null
   linkedin_handle: string | null
   twitter_handle: string | null
   github_handle: string | null
@@ -33,7 +34,17 @@ export async function GET(request: Request) {
   }
 
   const payload = result.payload as TokenPayload
-  const { name, email, password_hash, website_link, profile_picture_url, linkedin_handle, twitter_handle, github_handle } = payload
+  const {
+    name,
+    email,
+    password_hash,
+    website_link,
+    polaroid_still_url,
+    polaroid_live_url,
+    linkedin_handle,
+    twitter_handle,
+    github_handle,
+  } = payload
 
   const { error } = await supabaseAdmin.from('members').insert({
     name,
@@ -41,7 +52,8 @@ export async function GET(request: Request) {
     password_hash,
     program: 'SYDE 2030',
     website_link: website_link || null,
-    profile_picture_url: profile_picture_url || null,
+    polaroid_still_url: polaroid_still_url || null,
+    polaroid_live_url: polaroid_live_url || null,
     linkedin_handle: linkedin_handle || null,
     twitter_handle: twitter_handle || null,
     github_handle: github_handle || null,

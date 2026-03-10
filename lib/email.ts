@@ -14,7 +14,8 @@ export interface ApprovalMemberInfo {
   name: string
   email: string
   website_link: string | null
-  profile_picture_url: string | null
+  polaroid_still_url: string | null
+  polaroid_live_url: string | null
   linkedin_handle: string | null
   twitter_handle: string | null
   github_handle: string | null
@@ -54,7 +55,8 @@ export async function sendApprovalEmail(
         ${row('Name', member.name)}
         ${row('Email', member.email)}
         ${row('Website', member.website_link)}
-        ${member.profile_picture_url ? row('Profile picture', member.profile_picture_url) : ''}
+        ${row('Polaroid still', member.polaroid_still_url)}
+        ${row('Polaroid live clip', member.polaroid_live_url)}
         ${socialRows}
       </table>
       <p style="margin-top:20px;"><a href="${approveUrl}" style="display:inline-block;padding:10px 20px;background:#E8251A;color:#fff;text-decoration:none;font-weight:600;border-radius:4px;">Approve member</a></p>

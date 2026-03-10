@@ -13,7 +13,8 @@ interface FormData {
   linkedin: string
   twitter: string
   github: string
-  profilePicture: File | null
+  polaroidStill: File | null
+  polaroidLive: File | null
 }
 
 const initialForm: FormData = {
@@ -24,7 +25,8 @@ const initialForm: FormData = {
   linkedin: '',
   twitter: '',
   github: '',
-  profilePicture: null,
+  polaroidStill: null,
+  polaroidLive: null,
 }
 
 // Validation helpers
@@ -168,13 +170,21 @@ function PasswordField({
 }
 
 function ProfilePictureField({
+  label,
+  requiredNote,
+  helperText,
   value,
   onChange,
   error,
+  accept,
 }: {
+  label: string
+  requiredNote?: string
+  helperText?: string
   value: File | null
   onChange: (file: File | null) => void
   error?: string
+  accept: string
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -244,11 +254,13 @@ function ProfilePictureField({
   return (
     <div className="flex flex-col gap-3">
       <span className="text-xs font-medium text-white lowercase" style={sfPro}>
-        profile picture
+        {label}
         <span className="ml-0.5 text-red-400">*</span>
-        <span className="font-normal normal-case italic ml-1 text-[10px] text-white/70">
-          (ideally headshot)
-        </span>
+        {requiredNote && (
+          <span className="font-normal normal-case italic ml-1 text-[10px] text-white/70">
+            {requiredNote}
+          </span>
+        )}
       </span>
       <div
         className="flex flex-col items-center justify-center w-full min-h-[200px] rounded-lg border-2 border-dashed transition-colors cursor-pointer overflow-hidden relative"
@@ -267,7 +279,7 @@ function ProfilePictureField({
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept={accept}
           onChange={handleChange}
           className="hidden"
         />
@@ -316,9 +328,11 @@ function ProfilePictureField({
             <span className="font-mono text-xs text-white/60">
               drag and drop, paste, or click to upload
             </span>
-            <p className="font-mono text-[10px] italic text-white/50">
-              jpg, png, webp. required.
-            </p>
+            {helperText && (
+              <p className="font-mono text-[10px] italic text-white/50">
+                {helperText}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -390,8 +404,11 @@ export function JoinForm() {
     const hasGithub = form.github.trim().length > 0
     const hasAnySocial = hasLinkedIn || hasTwitter || hasGithub
 
-    if (!form.profilePicture || form.profilePicture.size === 0) {
-      newErrors.profilePicture = 'Profile picture is required'
+    if (!form.polaroidStill || form.polaroidStill.size === 0) {
+      newErrors.polaroidStill = 'Polaroid still photo is required'
+    }
+    if (!form.polaroidLive || form.polaroidLive.size === 0) {
+      newErrors.polaroidLive = 'Polaroid live clip is required'
     }
 
     if (!hasAnySocial) {
@@ -430,7 +447,8 @@ export function JoinForm() {
       fd.set('linkedin', form.linkedin.trim())
       fd.set('twitter', form.twitter.trim())
       fd.set('github', form.github.trim())
-      fd.set('profilePicture', form.profilePicture!)
+      fd.set('polaroidStill', form.polaroidStill!)
+      fd.set('polaroidLive', form.polaroidLive!)
 
       const res = await fetch('/api/join', { method: 'POST', body: fd })
       if (res.status === 202) {
@@ -452,7 +470,7 @@ export function JoinForm() {
   }
 
   const update =
-    (field: keyof Omit<FormData, 'profilePicture'>) =>
+    (field: keyof Omit<FormData, 'polaroidStill' | 'polaroidLive'>) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setForm((prev) => ({ ...prev, [field]: e.target.value }))
       if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
@@ -461,9 +479,18 @@ export function JoinForm() {
       }
     }
 
-  const updateProfilePicture = (file: File | null) => {
-    setForm((prev) => ({ ...prev, profilePicture: file }))
-    if (file && errors.profilePicture) setErrors((prev) => ({ ...prev, profilePicture: undefined }))
+  const updatePolaroidStill = (file: File | null) => {
+    setForm((prev) => ({ ...prev, polaroidStill: file }))
+    if (file && errors.polaroidStill) {
+      setErrors((prev) => ({ ...prev, polaroidStill: undefined }))
+    }
+  }
+
+  const updatePolaroidLive = (file: File | null) => {
+    setForm((prev) => ({ ...prev, polaroidLive: file }))
+    if (file && errors.polaroidLive) {
+      setErrors((prev) => ({ ...prev, polaroidLive: undefined }))
+    }
   }
 
   if (submitted) {
@@ -693,9 +720,23 @@ export function JoinForm() {
           </div>
 
           <ProfilePictureField
-            value={form.profilePicture}
-            onChange={updateProfilePicture}
-            error={errors.profilePicture}
+            label="polaroid still (photo)"
+            requiredNote="heic, jpg, jpeg, png"
+            helperText="this will be your static polaroid image"
+            value={form.polaroidStill}
+            onChange={updatePolaroidStill}
+            error={errors.polaroidStill}
+            accept=".heic,.heif,.jpg,.jpeg,.png,image/*"
+          />
+
+          <ProfilePictureField
+            label="polaroid live clip"
+            requiredNote="mov or mp4"
+            helperText="short video shown when others hover your polaroid"
+            value={form.polaroidLive}
+            onChange={updatePolaroidLive}
+            error={errors.polaroidLive}
+            accept=".mov,.mp4,video/*"
           />
 
           {errors._ && (
