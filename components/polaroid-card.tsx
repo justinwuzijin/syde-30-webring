@@ -19,8 +19,8 @@ export const POLAROID_HEIGHT = Math.round(POLAROID_WIDTH * (86 / 54)) // ~239px,
 // Hover expansion
 const HOVER_SCALE = 1.08
 const HOVER_LIFT = -6 // px upward
-const HOVER_SHADOW_IDLE = '0 2px 8px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)'
-const HOVER_SHADOW_ACTIVE = '0 12px 32px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.10)'
+const HOVER_SHADOW_IDLE = '0 20px 16px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08)'
+const HOVER_SHADOW_ACTIVE = '0 40px 40px rgba(0,0,0,0.22), 0 6px 16px rgba(0,0,0,0.12)'
 
 const IFRAME_SCALE = 0.25
 

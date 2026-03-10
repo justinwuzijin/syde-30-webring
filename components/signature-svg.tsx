@@ -91,17 +91,13 @@ export function SignatureSVG({ memberId, isHovered, className }: SignatureSVGPro
     setLengths(measured)
   }, [memberId])
 
-  // Trigger draw animation on hover
+  // Trigger draw animation on hover — once drawn, stays permanently
   useEffect(() => {
     if (isHovered && !hasDrawnOnce.current) {
       setShouldDraw(true)
       hasDrawnOnce.current = true
     }
-    if (!isHovered) {
-      // Reset so it re-draws on next hover
-      hasDrawnOnce.current = false
-      setShouldDraw(false)
-    }
+    // Never reset — signature stays after first hover
   }, [isHovered])
 
   // Calculate cumulative delay for sequential stroke drawing
