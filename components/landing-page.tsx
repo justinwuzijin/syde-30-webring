@@ -1,33 +1,79 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { useEffect, useRef, useState } from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
-import Lenis from 'lenis'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
+import { MOCK_MEMBERS } from '@/lib/mock-data'
+import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import { PhotoFolder } from './photo-folder'
 
+const CARD_GAP = 50
+const GRID_PADDING = 50
+
 const GooseViewer = dynamic(() => import('./goose-viewer'), { ssr: false })
-const WebringPortal = dynamic(
-  () => import('./webring-portal').then(m => m.WebringPortal),
-  { ssr: false }
-)
 const DotGrid = dynamic(() => import('./dot-grid'), { ssr: false })
 
+type Phase = 'splash' | 'transitioning' | 'expanded'
+
+// Transition timing
+const EXPAND_DURATION = 900
+const SPLASH_FADE_DURATION = 400
+const EXPANDED_DELAY = EXPAND_DURATION + 50
+
+// Pan/zoom limits
+const MIN_ZOOM = 0.3
+const MAX_ZOOM = 2.5
+const ZOOM_SENSITIVITY = 0.002
+
+function computeGridPositions(members: typeof MOCK_MEMBERS) {
+  const n = members.length
+  const cols = Math.max(2, Math.ceil(Math.sqrt(n)))
+  const rows = Math.ceil(n / cols)
+  const innerW = cols * (POLAROID_WIDTH + CARD_GAP) - CARD_GAP
+  const innerH = rows * (POLAROID_HEIGHT + CARD_GAP) - CARD_GAP
+  const canvasW = innerW + GRID_PADDING * 2
+  const canvasH = innerH + GRID_PADDING * 2
+
+  const positions = new Map<string, { x: number; y: number }>()
+  members.forEach((m, i) => {
+    positions.set(m.id, {
+      x: GRID_PADDING + (i % cols) * (POLAROID_WIDTH + CARD_GAP),
+      y: GRID_PADDING + Math.floor(i / cols) * (POLAROID_HEIGHT + CARD_GAP),
+    })
+  })
+  return { positions, canvasW, canvasH }
+}
+
 export function LandingPage() {
-  const targetRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
+  const router = useRouter()
   const { user, logout } = useAuth()
-  const [heavyMountKey] = useState(() => Date.now())
-  // Remount goose when returning to home (fixes 300x150 fallback after client-side nav)
+  const [phase, setPhase] = useState<Phase>('splash')
+  const circleRef = useRef<HTMLDivElement>(null)
+
+  const { positions, canvasW, canvasH } = useMemo(
+    () => computeGridPositions(MOCK_MEMBERS),
+    []
+  )
+
+  // Pan/zoom state — only active in expanded phase
+  const [camera, setCamera] = useState({ x: 0, y: 0, k: 1 })
+  const [isDragging, setIsDragging] = useState(false)
+  const lastPos = useRef({ x: 0, y: 0 })
+
+  // Remount goose when returning to home
   const prevPathname = useRef<string | null>(null)
   const [gooseKey, setGooseKey] = useState(0)
   useEffect(() => {
     if (pathname === '/') {
       if (prevPathname.current !== null && prevPathname.current !== '/') {
         setGooseKey(k => k + 1)
+        // Reset to splash when navigating back
+        setPhase('splash')
+        setCamera({ x: 0, y: 0, k: 1 })
       }
       prevPathname.current = '/'
     } else {
@@ -35,61 +81,240 @@ export function LandingPage() {
     }
   }, [pathname])
 
-  // Initialize Lenis for smooth scrolling physics
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 0.8,
-      easing: (t) => 1 - Math.pow(1 - t, 3),
-      smoothWheel: true,
-      wheelMultiplier: 0.8,
-      touchMultiplier: 1.5,
-      infinite: false,
-    })
+  // Click the circle → expand
+  const handleEnterWebring = useCallback(() => {
+    if (phase !== 'splash') return
+    setPhase('transitioning')
+    setTimeout(() => setPhase('expanded'), EXPANDED_DELAY)
+  }, [phase])
 
-    function raf(time: number) {
-      lenis.raf(time)
-      requestAnimationFrame(raf)
-    }
-    requestAnimationFrame(raf)
-
-    return () => lenis.destroy()
+  // Back to splash
+  const handleBack = useCallback(() => {
+    setPhase('splash')
+    setCamera({ x: 0, y: 0, k: 1 })
   }, [])
 
-  // Track scroll progress of the target element through viewport
-  const { scrollYProgress } = useScroll({
-    target: targetRef,
-    offset: ["start start", "end end"]
-  })
+  // ── Wheel → zoom centered (expanded only) ──
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (phase !== 'expanded') return
+    e.stopPropagation()
+    setCamera(prev => {
+      const delta = -e.deltaY * ZOOM_SENSITIVITY
+      const newK = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.k * (1 + delta)))
+      const ratio = newK / prev.k
+      // Scale pan offset proportionally so the visual center stays fixed
+      return {
+        x: prev.x * ratio,
+        y: prev.y * ratio,
+        k: newK,
+      }
+    })
+  }, [phase])
 
-  // Transform scroll progress to animation values - opacity only, no Y movement
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0])
-  const elementsOpacity = useTransform(scrollYProgress, [0, 0.25], [1, 0])
-  const gooseOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0])
+  // ── Drag → pan (expanded only) ──
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (phase !== 'expanded') return
+    if ((e.target as HTMLElement).closest('.polaroid-frame, button, a')) return
+    setIsDragging(true)
+    lastPos.current = { x: e.clientX, y: e.clientY }
+    e.preventDefault()
+  }, [phase])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging) return
+    const dx = e.clientX - lastPos.current.x
+    const dy = e.clientY - lastPos.current.y
+    setCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
+    lastPos.current = { x: e.clientX, y: e.clientY }
+  }, [isDragging])
+
+  const handleMouseUp = useCallback(() => setIsDragging(false), [])
+
+  // Click polaroid → profile (expanded only)
+  const handleCardClick = useCallback((memberId: string) => {
+    if (phase !== 'expanded') return
+    router.push(`/profile/${memberId}`)
+  }, [phase, router])
+
+  const isExpanded = phase === 'expanded'
+  const isTransitioning = phase === 'transitioning'
+  const isSplash = phase === 'splash'
+
+  // In expanded state, the grid is transformed by camera; otherwise centered
+  const gridTransform = isExpanded
+    ? `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
+    : 'translate(-50%, -50%)'
 
   return (
-    <div ref={targetRef} className="relative bg-black" style={{ height: '300vh' }}>
-      {/* Sticky viewport - stays in view while scrolling */}
-      <div className="sticky top-0 h-screen w-full overflow-hidden">
-        
-        {/* Purple dot grid background */}
-        <div className="absolute inset-0 z-0">
-          <DotGrid
-            dotSize={5}
-            gap={15}
-            baseColor="#271E37"
-            activeColor="#5227FF"
-            proximity={120}
-            shockRadius={250}
-            shockStrength={5}
-            resistance={750}
-            returnDuration={1.5}
-          />
+    <div className="relative bg-black h-screen w-full overflow-hidden">
+      {/* Purple dot grid background — fades when leaving splash */}
+      <motion.div
+        className="absolute inset-0 z-0"
+        animate={{ opacity: isSplash ? 1 : 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <DotGrid
+          dotSize={5}
+          gap={15}
+          baseColor="#271E37"
+          activeColor="#5227FF"
+          proximity={120}
+          shockRadius={250}
+          shockStrength={5}
+          resistance={750}
+          returnDuration={1.5}
+        />
+      </motion.div>
+
+      {/* ── The circle — zooms in on click, becomes the canvas ── */}
+      <motion.div
+        ref={circleRef}
+        className="absolute overflow-hidden"
+        style={{
+          left: '50%',
+          top: isSplash ? '50%' : '50%',
+          x: '-50%',
+          y: '-50%',
+          background: '#ffffff',
+          boxShadow: isSplash ? '0 8px 40px rgba(0,0,0,0.15)' : 'none',
+          cursor: isSplash
+            ? 'pointer'
+            : isDragging ? 'grabbing' : isExpanded ? 'grab' : 'default',
+          zIndex: 20,
+          touchAction: 'none',
+        }}
+        animate={isSplash ? {
+          width: '30vw',
+          height: '30vw',
+          borderRadius: '50%',
+        } : {
+          width: '100vw',
+          height: '100vh',
+          borderRadius: '0%',
+        }}
+        transition={{
+          duration: isSplash ? 0.6 : EXPAND_DURATION / 1000,
+          ease: [0.22, 1, 0.36, 1],
+        }}
+        onClick={isSplash ? handleEnterWebring : undefined}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        {/* Polaroid grid — same DOM throughout, opacity + transform change */}
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            width: canvasW,
+            height: canvasH,
+            transform: gridTransform,
+            transformOrigin: '50% 50%',
+            opacity: isSplash ? 0.7 : 1,
+            transition: isSplash
+              ? 'opacity 0.3s ease, transform 0.6s cubic-bezier(0.22,1,0.36,1)'
+              : 'opacity 0.5s ease',
+            pointerEvents: isExpanded ? 'auto' : 'none',
+          }}
+        >
+          {MOCK_MEMBERS.map(m => {
+            const pos = positions.get(m.id)
+            if (!pos) return null
+            return (
+              <PolaroidCard
+                key={m.id}
+                member={m}
+                x={pos.x}
+                y={pos.y}
+                onClick={isExpanded ? () => handleCardClick(m.id) : undefined}
+              />
+            )
+          })}
         </div>
 
-        {/* Hero text container - fade only */}
-        <motion.div 
-          className="absolute top-[2%] left-0 w-full pointer-events-none"
-          style={{ opacity: heroOpacity }}
+        {/* Pulse ring — splash only */}
+        {isSplash && (
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              border: '2px solid rgba(82, 39, 255, 0.3)',
+              animation: 'pulse-ring 2s ease-out infinite',
+            }}
+          />
+        )}
+
+        {/* "click to explore" — fades out */}
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ pointerEvents: 'none', zIndex: 10 }}
+          animate={{ opacity: isSplash ? 1 : 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <span
+            className="text-black/50 text-sm lowercase tracking-[0.15em] font-medium"
+            style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+          >
+            click to explore
+          </span>
+        </motion.div>
+      </motion.div>
+
+      {/* ── Back button — top-left, expanded only ── */}
+      {isExpanded && (
+        <motion.button
+          className="fixed top-6 left-6 z-50 px-4 py-2 text-sm text-black/60 hover:text-black border border-black/15 hover:border-black/30 rounded-full bg-white/80 backdrop-blur-sm transition-colors"
+          style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+          onClick={handleBack}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+        >
+          &larr; back
+        </motion.button>
+      )}
+
+      {/* ── Photo folder — fixed bottom-left in expanded view ── */}
+      {isExpanded && (
+        <motion.div
+          className="fixed z-50"
+          style={{ left: '5%', bottom: '10%' }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <PhotoFolder />
+        </motion.div>
+      )}
+
+      {/* ── Hint — bottom center in expanded view ── */}
+      {isExpanded && (
+        <motion.div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 text-xs uppercase tracking-widest pointer-events-none"
+          style={{ color: 'rgba(0,0,0,0.25)' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5, duration: 0.3 }}
+        >
+          Scroll to zoom · Drag to pan · Click a polaroid to visit
+        </motion.div>
+      )}
+
+      {/* ── Splash elements — staggered fade-in on mount, fade out when leaving splash ── */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        style={{ zIndex: 10 }}
+        animate={{ opacity: isSplash ? 1 : 0 }}
+        transition={{ duration: SPLASH_FADE_DURATION / 1000 }}
+      >
+        {/* Hero text */}
+        <motion.div
+          className="absolute top-[2%] left-0 w-full"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="relative w-full" style={{ paddingTop: '17.2%' }}>
             <img
@@ -100,138 +325,94 @@ export function LandingPage() {
           </div>
         </motion.div>
 
-        {/* 2030 - fade only */}
+        {/* 2030 */}
         <motion.div
-          className="absolute pointer-events-none"
-          style={{
-            left: '0',
-            top: '32%',
-            width: '27%',
-            aspectRatio: '470 / 328',
-            opacity: elementsOpacity,
-          }}
+          className="absolute"
+          style={{ left: '0', top: '32%', width: '27%', aspectRatio: '470 / 328' }}
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
         >
-          <img
-            src="/2030.svg"
-            alt="2030"
-            className="w-full h-full object-contain"
-          />
+          <img src="/2030.svg" alt="2030" className="w-full h-full object-contain" />
         </motion.div>
 
-        {/* Photo folder - bottom-left, vertically centered with goose */}
+        {/* webring text - bottom right */}
         <motion.div
-          className="absolute pointer-events-auto"
-          style={{
-            left: '3%',
-            bottom: '15%',
-            zIndex: 20,
-            opacity: elementsOpacity,
-          }}
+          className="absolute"
+          style={{ right: '0', bottom: '5%', width: '32%', aspectRatio: '553 / 384' }}
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          <PhotoFolder />
+          <img src="/webring.svg" alt="webring" className="w-full h-full object-contain" />
         </motion.div>
 
-        {/* Webring portal - scroll-driven expansion */}
-        <WebringPortal key={`webring-${heavyMountKey}`} scrollYProgress={scrollYProgress} />
-
-        {/* webring text - bottom right, fade only */}
+        {/* Goose 3D */}
         <motion.div
-          className="absolute pointer-events-none"
+          className="absolute"
           style={{
-            right: '0',
-            bottom: '5%',
-            width: '32%',
-            aspectRatio: '553 / 384',
-            opacity: elementsOpacity,
-          }}
-        >
-          <img
-            src="/webring.svg"
-            alt="webring"
-            className="w-full h-full object-contain"
-          />
-        </motion.div>
-
-        {/* Goose 3D - stays longer, fades later; remount on home nav for correct size */}
-        <motion.div
-          className="absolute pointer-events-none"
-          style={{
-            left: '0',
-            bottom: '0',
-            width: '40vw',
-            height: '45vh',
-            minWidth: 320,
-            minHeight: 360,
+            left: '5%', bottom: '0',
+            width: '40vw', height: '45vh',
+            minWidth: 320, minHeight: 360,
             zIndex: 10,
-            opacity: gooseOpacity,
           }}
+          initial={{ y: 40 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.8, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
         >
           <GooseViewer key={`goose-${gooseKey}`} />
         </motion.div>
 
-        {/* Crest and RELEASING MARCH sticker - fade only */}
+        {/* Crest and RELEASING MARCH sticker */}
         <motion.div
-          className="absolute pointer-events-none"
-          style={{
-            right: '8%',
-            top: '32%',
-            width: '20%',
-            zIndex: 10,
-            opacity: elementsOpacity,
-          }}
+          className="absolute"
+          style={{ right: '8%', top: '32%', width: '20%', zIndex: 10 }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
-          <img
-            src="/crest.png"
-            alt="Crest"
-            className="w-[80%] h-auto object-contain"
-          />
-          <div
-            className="absolute"
-            style={{
-              right: '-5%',
-              bottom: '5%',
-              width: '60%',
-            }}
-          >
-            <img
-              src="/releasing-march.png"
-              alt="Releasing March"
-              className="w-full h-auto object-contain"
-            />
+          <img src="/crest.png" alt="Crest" className="w-[80%] h-auto object-contain" />
+          <div className="absolute" style={{ right: '-5%', bottom: '5%', width: '60%' }}>
+            <img src="/releasing-march.png" alt="Releasing March" className="w-full h-auto object-contain" />
           </div>
         </motion.div>
 
-        {/* Footer credits - fade with scroll */}
-        <motion.div 
-          className="absolute bottom-[2%] left-[4%] pointer-events-none"
-          style={{ opacity: elementsOpacity }}
+        {/* Footer credits */}
+        <motion.div
+          className="absolute bottom-[2%] left-[4%]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
         >
-          <span 
-            className="text-white text-[1vw]"
+          <span
+            className="text-white text-[0.8vw]"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             With help from V0, Cursor, Claude Code
           </span>
         </motion.div>
-
-        <motion.div 
-          className="absolute bottom-[2%] right-[4%] pointer-events-none"
-          style={{ opacity: elementsOpacity }}
+        <motion.div
+          className="absolute bottom-[2%] right-[4%]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.55 }}
         >
-          <span 
-            className="text-white text-[1vw]"
+          <span
+            className="text-white text-[0.8vw]"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             Built by Justin Wu &amp; Leo Zhang
           </span>
         </motion.div>
 
-        {/* Goose 3D model attribution */}
-        <motion.div 
+        {/* Goose attribution */}
+        <motion.div
           className="absolute bottom-[0.5%] left-1/2 -translate-x-1/2 pointer-events-auto"
-          style={{ opacity: elementsOpacity }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
         >
-          <span 
+          <span
             className="text-white/80 text-[0.5vw]"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
@@ -242,17 +423,29 @@ export function LandingPage() {
             ).
           </span>
         </motion.div>
+      </motion.div>
 
-        {/* Sign up / Log in - fade with scroll */}
+      {/* Photo folder — bottom-left in splash, vertically centered with goose */}
+      {isSplash && (
+        <motion.div
+          className="absolute"
+          style={{ left: '5%', bottom: '10%', zIndex: 20 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <PhotoFolder />
+        </motion.div>
+      )}
+
+      {/* Sign up / Log in — splash only */}
+      {isSplash && (
         <motion.div
           className="absolute flex items-center gap-3"
-          style={{
-            left: '50%',
-            top: '90%',
-            transform: 'translateX(-50%)',
-            zIndex: 15,
-            opacity: elementsOpacity,
-          }}
+          style={{ left: '50%', top: '85%', x: '-50%', zIndex: 15 }}
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
           {user ? (
             <div className="flex items-center gap-3">
@@ -268,25 +461,25 @@ export function LandingPage() {
             </div>
           ) : (
             <>
-                <Link
-                  href="/join"
-                  className="px-5 py-2 text-white text-sm font-medium lowercase border border-white/30 hover:bg-white/10 transition-colors"
-                  style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
-                >
-                  sign up
-                </Link>
-                <Link
-                  href="/login"
-                  className="px-5 py-2 text-white text-sm font-medium lowercase border border-white/30 hover:bg-white/10 transition-colors"
-                  style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
-                >
-                  log in
-                </Link>
+              <Link
+                href="/join"
+                className="px-5 py-2 text-white text-sm font-medium lowercase border border-white/30 hover:bg-white/10 transition-colors"
+                style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
+              >
+                sign up
+              </Link>
+              <Link
+                href="/login"
+                className="px-5 py-2 text-white text-sm font-medium lowercase border border-white/30 hover:bg-white/10 transition-colors"
+                style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
+              >
+                log in
+              </Link>
             </>
           )}
         </motion.div>
+      )}
 
-      </div>
     </div>
   )
 }

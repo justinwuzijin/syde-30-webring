@@ -28,9 +28,10 @@ interface PolaroidCardProps {
   member: Member
   x: number
   y: number
+  onClick?: () => void
 }
 
-export function PolaroidCard({ member, x, y }: PolaroidCardProps) {
+export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
   const [hovered, setHovered] = useState(false)
   const [showIframe, setShowIframe] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
@@ -81,11 +82,12 @@ export function PolaroidCard({ member, x, y }: PolaroidCardProps) {
         transform: `translate(-50%, -50%) rotate(${tilt.current}deg)`,
         zIndex: hovered ? 100 : 1,
         userSelect: 'none',
-        cursor: 'default',
+        cursor: onClick ? 'pointer' : 'default',
         // Don't transition transform base — only the inner card animates
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClick={onClick}
     >
       {/* ── Frame (the white Polaroid border) ── */}
       <div

@@ -119,6 +119,8 @@ export default function GooseViewer() {
         minWidth: 320,
         minHeight: 360,
         opacity: visible ? 1 : 0,
+        visibility: visible ? ('visible' as const) : ('hidden' as const),
+        transition: visible ? 'opacity 0.6s ease, visibility 0s' : 'none',
       }}
     >
       {dimensionsReady && (
