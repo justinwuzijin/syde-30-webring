@@ -458,18 +458,81 @@ export function LandingPage() {
           <GooseViewer key={`goose-${gooseKey}`} />
         </motion.div>
 
-        {/* Crest and RELEASING MARCH sticker */}
+        {/* MATLAB — left edge, behind "2030" text */}
         <motion.div
           className="absolute"
-          style={{ right: '8%', top: '32%', width: '20%', zIndex: 10 }}
+          style={{ left: '0', top: '25%', width: '18%', zIndex: 2 }}
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <img src="/matlab.png" alt="" className="w-full h-auto" />
+        </motion.div>
+
+        {/* SolidWorks cube — right of "2030", left of circle */}
+        <motion.div
+          className="absolute"
+          style={{ left: '28%', top: '22%', width: '12%', zIndex: 15 }}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <img src="/sw-cube.png" alt="" className="w-full h-auto" />
+        </motion.div>
+
+        {/* C++ — upper right, near "engineering" text */}
+        <motion.div
+          className="absolute"
+          style={{ right: '12%', top: '5%', width: '10%', zIndex: 15 }}
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <img src="/cpp.png" alt="" className="w-full h-auto" />
+        </motion.div>
+
+        {/* Sandwich — top right corner */}
+        <motion.div
+          className="absolute"
+          style={{ right: '3%', top: '12%', width: '14%', zIndex: 15 }}
+          initial={{ opacity: 0, rotate: -10 }}
+          animate={{ opacity: 1, rotate: 0 }}
+          transition={{ duration: 0.6, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <img src="/sandwich.png" alt="" className="w-full h-auto" />
+        </motion.div>
+
+        {/* Crest — right of circle, middle */}
+        <motion.div
+          className="absolute"
+          style={{ right: '5%', top: '42%', width: '10%', zIndex: 15 }}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
-          <img src="/crest.png" alt="Crest" className="w-[80%] h-auto object-contain" />
-          <div className="absolute" style={{ right: '-5%', bottom: '5%', width: '60%' }}>
-            <img src="/releasing-march.png" alt="Releasing March" className="w-full h-auto object-contain" />
-          </div>
+          <img src="/crest.png" alt="Crest" className="w-full h-auto object-contain" />
+        </motion.div>
+
+        {/* Book — bottom, overlapping circle */}
+        <motion.div
+          className="absolute"
+          style={{ left: '28%', bottom: '3%', width: '12%', zIndex: 25 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <img src="/book-river.png" alt="" className="w-full h-auto" />
+        </motion.div>
+
+        {/* RELEASING MARCH sticker — bottom right, near "webring" */}
+        <motion.div
+          className="absolute"
+          style={{ right: '3%', bottom: '12%', width: '14%', zIndex: 15 }}
+          initial={{ opacity: 0, rotate: 5 }}
+          animate={{ opacity: 1, rotate: 0 }}
+          transition={{ duration: 0.6, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <img src="/releasing-march.png" alt="Releasing March" className="w-full h-auto object-contain" />
         </motion.div>
 
         {/* Footer credits */}
