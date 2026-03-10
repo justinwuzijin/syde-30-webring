@@ -52,6 +52,7 @@ export function LandingPage() {
   const router = useRouter()
   const { user, logout } = useAuth()
   const [phase, setPhase] = useState<Phase>('splash')
+  const [pageReady, setPageReady] = useState(false)
   const circleRef = useRef<HTMLDivElement>(null)
 
   const { positions, canvasW, canvasH } = useMemo(
@@ -80,6 +81,12 @@ export function LandingPage() {
       prevPathname.current = pathname
     }
   }, [pathname])
+
+  // Fade out the white intro overlay after a short delay
+  useEffect(() => {
+    const id = setTimeout(() => setPageReady(true), 600)
+    return () => clearTimeout(id)
+  }, [])
 
   // Click the circle → expand
   const handleEnterWebring = useCallback(() => {
@@ -480,6 +487,14 @@ export function LandingPage() {
         </motion.div>
       )}
 
+      {/* White intro overlay — covers everything on mount, fades to reveal the page */}
+      <motion.div
+        className="fixed inset-0 bg-white pointer-events-none"
+        style={{ zIndex: 100 }}
+        initial={{ opacity: 1 }}
+        animate={{ opacity: pageReady ? 0 : 1 }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      />
     </div>
   )
 }
