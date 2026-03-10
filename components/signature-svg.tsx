@@ -55,6 +55,10 @@ const SIGNATURES: Record<string, SignatureData> = {
   },
 }
 
+// Cache of which members have already had their signature fully drawn.
+// Keyed by stable memberId so it survives list filtering and remounts.
+const drawnSignatureCache = new Set<string>()
+
 // ── Fallback: generate a simple scrawl for unknown members ──
 function getFallbackSignature(name: string): SignatureData {
   const charWidth = 22
@@ -82,8 +86,12 @@ export function SignatureSVG({ memberId, isHovered, className }: SignatureSVGPro
   const sig = SIGNATURES[memberId] || getFallbackSignature(memberId)
   const pathRefs = useRef<(SVGPathElement | null)[]>([])
   const [lengths, setLengths] = useState<number[]>([])
-  const [shouldDraw, setShouldDraw] = useState(false)
-  const hasDrawnOnce = useRef(false)
+
+  // Initialize draw state from stable, module-level cache so it persists
+  // even if this component unmounts due to filtering and later remounts.
+  const hasDrawnInitially = drawnSignatureCache.has(memberId)
+  const [shouldDraw, setShouldDraw] = useState(hasDrawnInitially)
+  const hasDrawnOnce = useRef(hasDrawnInitially)
 
   // Measure path lengths on mount
   useEffect(() => {
@@ -91,14 +99,15 @@ export function SignatureSVG({ memberId, isHovered, className }: SignatureSVGPro
     setLengths(measured)
   }, [memberId])
 
-  // Trigger draw animation on hover — once drawn, stays permanently
+  // Trigger draw animation on hover — once drawn, stays permanently (via cache)
   useEffect(() => {
     if (isHovered && !hasDrawnOnce.current) {
       setShouldDraw(true)
       hasDrawnOnce.current = true
+      drawnSignatureCache.add(memberId)
     }
     // Never reset — signature stays after first hover
-  }, [isHovered])
+  }, [isHovered, memberId])
 
   // Calculate cumulative delay for sequential stroke drawing
   const DRAW_SPEED = 0.0045 // ms per path-length unit — controls overall speed
