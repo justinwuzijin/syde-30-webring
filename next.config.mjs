@@ -5,7 +5,9 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    remotePatterns: [
+      { protocol: 'https', hostname: 'api.microlink.io' },
+    ],
   },
   experimental: {
     serverActions: {

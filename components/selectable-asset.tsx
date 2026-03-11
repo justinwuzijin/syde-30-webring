@@ -27,6 +27,7 @@ interface SelectableAssetProps {
   isSelected: boolean
   onSelect: (id: string, addToSelection: boolean) => void
   onTransformChange: (id: string, updates: Partial<AssetTransform>) => void
+  onClickSound?: () => void
 }
 
 export function SelectableAsset({
@@ -36,6 +37,7 @@ export function SelectableAsset({
   isSelected,
   onSelect,
   onTransformChange,
+  onClickSound,
 }: SelectableAssetProps) {
   const elementRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -56,6 +58,7 @@ export function SelectableAsset({
     e.stopPropagation()
 
     const addToSelection = e.shiftKey || e.metaKey || e.ctrlKey
+    onClickSound?.()
     onSelect(config.id, addToSelection)
 
     if (!containerRef.current) return

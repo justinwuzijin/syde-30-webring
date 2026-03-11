@@ -3,14 +3,15 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { SelectableAsset, AssetTransform, AssetConfig } from './selectable-asset'
 import { AssetMarqueeSelect } from './asset-marquee-select'
+import { useSound } from '@/lib/use-sound'
 
 const ASSET_CONFIGS: AssetConfig[] = [
-  { id: 'matlab', src: '/matlab.png', alt: 'MATLAB' },
-  { id: 'sw-cube', src: '/sw-cube.png', alt: 'SolidWorks' },
-  { id: 'cpp', src: '/cpp.png', alt: 'C++' },
-  { id: 'sandwich', src: '/sandwich.png', alt: 'Sandwich' },
-  { id: 'crest', src: '/crest.png', alt: 'Crest' },
-  { id: 'book', src: '/book-river.png', alt: 'Book' },
+  { id: 'matlab', src: '/matlab.webp', alt: 'MATLAB' },
+  { id: 'sw-cube', src: '/sw-cube.webp', alt: 'SolidWorks' },
+  { id: 'cpp', src: '/cpp.webp', alt: 'C++' },
+  { id: 'sandwich', src: '/sandwich.webp', alt: 'Sandwich' },
+  { id: 'crest', src: '/crest.webp', alt: 'Crest' },
+  { id: 'book', src: '/book-river.webp', alt: 'Book' },
   { id: 'releasing-march', src: '/releasing-march.png', alt: 'Releasing March' },
 ]
 
@@ -25,6 +26,7 @@ const INITIAL_TRANSFORMS: AssetTransform[] = [
 ]
 
 export function AssetEditor() {
+  const playClick = useSound('/click.mp3', { volume: 0.4 })
   const containerRef = useRef<HTMLDivElement>(null)
   const [transforms, setTransforms] = useState<AssetTransform[]>(INITIAL_TRANSFORMS)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -167,6 +169,7 @@ export function AssetEditor() {
             isSelected={selectedIds.has(config.id)}
             onSelect={handleSelect}
             onTransformChange={handleTransformChange}
+            onClickSound={playClick}
           />
         )
       })}

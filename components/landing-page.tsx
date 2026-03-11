@@ -82,9 +82,9 @@ export function LandingPage() {
   const { user, logout } = useAuth()
 
   // Sound effects
-  const playClick = useSound('/OhmLab_Mouse-Click-Pop.wav', { volume: 0.4 })
-  const playFolderHover = useSound('/FileFolder 6028_66_1.wav', { volume: 0.4 })
-  const playPageTurn = useSound('/paper_turn_page.wav', { volume: 0.4 })
+  const playClick = useSound('/click.mp3', { volume: 0.4 })
+  const playFolderHover = useSound('/folder-hover.mp3', { volume: 0.4 })
+  const playPageTurn = useSound('/page-turn.mp3', { volume: 0.4 })
 
   // Check if we should start in expanded view (coming back from profile)
   const startExpanded = searchParams.get('view') === 'webring'
@@ -391,7 +391,7 @@ export function LandingPage() {
           transition={{ delay: 0.2, duration: 0.3 }}
         >
           <button
-            onClick={() => setViewMode('scrapbook')}
+            onClick={() => { playClick(); setViewMode('scrapbook') }}
             className="flex items-center gap-1.5 text-sm transition-colors"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
           >
@@ -404,7 +404,7 @@ export function LandingPage() {
             </span>
           </button>
           <button
-            onClick={() => setViewMode('classroom')}
+            onClick={() => { playClick(); setViewMode('classroom') }}
             className="flex items-center gap-1.5 text-sm transition-colors"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
           >
@@ -510,7 +510,7 @@ export function LandingPage() {
 
         {/* Goose 3D */}
         <motion.div
-          className="absolute"
+          className="absolute pointer-events-auto"
           style={{
             left: '5%', bottom: '0',
             width: '40vw', height: '45vh',
@@ -520,6 +520,7 @@ export function LandingPage() {
           initial={{ y: 40 }}
           animate={{ y: 0 }}
           transition={{ duration: 0.8, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          onClick={playClick}
         >
           <GooseViewer key={`goose-${gooseKey}`} />
         </motion.div>
