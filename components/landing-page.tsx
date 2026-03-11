@@ -459,7 +459,7 @@ export function LandingPage() {
           <GooseViewer key={`goose-${gooseKey}`} />
         </motion.div>
 
-l        {/* Footer credits */}
+        {/* Footer credits */}
         <motion.div
           className="absolute bottom-[2%] left-[4%]"
           initial={{ opacity: 0 }}
