@@ -6,8 +6,9 @@ import { use } from 'react'
 import useSWR from 'swr'
 import type { Member } from '@/types/member'
 import { parseSocialLink } from '@/lib/parse-social'
+import { useSound } from '@/lib/use-sound'
 import { normalizeWebsiteUrl } from '@/lib/validate-website-url'
-import { Github, Linkedin, Twitter, Globe2 } from 'lucide-react'
+import { FaGithub, FaLinkedin, FaXTwitter } from 'react-icons/fa6'
 
 interface ProfilePageProps {
   params: Promise<{ id: string }>
@@ -23,6 +24,7 @@ const fetcher = async (url: string) => {
 export default function ProfilePage({ params }: ProfilePageProps) {
   const { id } = use(params)
   const router = useRouter()
+  const playClick = useSound('/click.mp3', { volume: 0.4 })
   const { data: member, error, isLoading } = useSWR<Member>(
     id ? `/api/members/${id}` : null,
     fetcher,
@@ -65,7 +67,10 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-black mb-2">Member not found</h1>
           <button
-            onClick={() => router.push('/?view=webring')}
+            onClick={() => {
+              playClick()
+              router.push('/?view=webring')
+            }}
             className="text-sm text-black/50 hover:text-black underline"
           >
             back
@@ -86,7 +91,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         label: 'GitHub',
         handle: p.username,
         url: p.url,
-        icon: <Github className="w-4 h-4" />,
+        icon: <FaGithub className="w-4 h-4" />,
       })
     }
   }
@@ -98,7 +103,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         label: 'X',
         handle: p.username,
         url: p.url,
-        icon: <Twitter className="w-4 h-4" />,
+        icon: <FaXTwitter className="w-4 h-4" />,
       })
     }
   }
@@ -110,22 +115,8 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         label: 'LinkedIn',
         handle: p.username,
         url: p.url,
-        icon: <Linkedin className="w-4 h-4" />,
+        icon: <FaLinkedin className="w-4 h-4" />,
       })
-    }
-  }
-  if (websiteUrl) {
-    try {
-      const hostname = new URL(websiteUrl).hostname.replace(/^www\./, '')
-      socialEntries.push({
-        key: 'website',
-        label: 'Website',
-        handle: hostname,
-        url: websiteUrl,
-        icon: <Globe2 className="w-4 h-4" />,
-      })
-    } catch {
-      // Should not happen — websiteUrl is already validated
     }
   }
 
@@ -135,6 +126,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
       <div className="fixed top-6 left-6 z-50">
         <button
           onClick={() => {
+            playClick()
             setLeaving(true)
             setTimeout(() => {
               router.push('/?view=webring')
