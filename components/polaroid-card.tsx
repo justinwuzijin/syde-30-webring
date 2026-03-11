@@ -32,6 +32,7 @@ interface PolaroidCardProps {
 export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
   const [hovered, setHovered] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
+  const [imageFailed, setImageFailed] = useState(false)
   const [videoVisible, setVideoVisible] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -52,7 +53,9 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
     member.embedUrl,
   )}&screenshot=true&meta=false&embed=screenshot.url`
 
-  const stillImageSrc = member.polaroid_still_url ?? screenshotUrl
+  const stillImageSrc = (member.polaroid_still_url && !imageFailed)
+    ? member.polaroid_still_url
+    : screenshotUrl
 
   // Computed pixel values
   const photoW = POLAROID_WIDTH * (1 - 2 * FRAME_PADDING_SIDE)
@@ -182,6 +185,7 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
             }}
             draggable={false}
             onLoad={() => setImageLoaded(true)}
+            onError={() => { setImageFailed(true); setImageLoaded(false) }}
           />
 
           {/* Live Photo video — plays once on hover */}

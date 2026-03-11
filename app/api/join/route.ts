@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import heicConvert from 'heic-convert'
 import { supabaseAdmin } from '@/lib/supabase'
 import { signToken } from '@/lib/token'
 import { sendVerificationCodeEmail } from '@/lib/email'
@@ -61,10 +62,10 @@ export async function POST(request: Request) {
     if (!polaroidStill || !(polaroidStill instanceof File) || polaroidStill.size === 0) {
       errors.polaroidStill = 'Polaroid still photo is required'
     } else {
-      const stillExt = polaroidStill.name.split('.').pop()?.toLowerCase() || 'heic'
-      const allowedStill = ['heic', 'heif', 'jpg', 'jpeg', 'png']
+      const stillExt = polaroidStill.name.split('.').pop()?.toLowerCase() || ''
+      const allowedStill = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif']
       if (!allowedStill.includes(stillExt)) {
-        errors.polaroidStill = 'Invalid still image format (use HEIC or JPG/PNG)'
+        errors.polaroidStill = 'Invalid format — please use JPG, PNG, or HEIC'
       }
     }
 
@@ -105,11 +106,23 @@ export async function POST(request: Request) {
     let uploadedStillPath: string | null = null
     let uploadedLivePath: string | null = null
 
-    const stillExt = polaroidStill!.name.split('.').pop()?.toLowerCase() || 'heic'
+    // Convert HEIC/HEIF to JPEG; pass through other formats as-is
+    const stillExtRaw = polaroidStill!.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const isHeic = ['heic', 'heif'].includes(stillExtRaw)
+    let stillUploadData: Blob | Buffer = polaroidStill!
+    let stillContentType = polaroidStill!.type
+    let stillExt = stillExtRaw
+    if (isHeic) {
+      const inputBuffer = await polaroidStill!.arrayBuffer()
+      const jpegBuffer = await heicConvert({ buffer: inputBuffer as ArrayBuffer, format: 'JPEG', quality: 0.9 })
+      stillUploadData = Buffer.from(jpegBuffer)
+      stillContentType = 'image/jpeg'
+      stillExt = 'jpg'
+    }
     const stillFileName = `${Date.now()}-still-${Math.random().toString(36).slice(2)}.${stillExt}`
     const { data: stillUpload, error: stillErr } = await supabaseAdmin.storage
       .from('profile-website-pictures')
-      .upload(stillFileName, polaroidStill!, { contentType: polaroidStill!.type, upsert: false })
+      .upload(stillFileName, stillUploadData, { contentType: stillContentType, upsert: false })
     if (stillErr) {
       return NextResponse.json({ errors: { polaroidStill: 'Failed to upload still image' } }, { status: 500 })
     }

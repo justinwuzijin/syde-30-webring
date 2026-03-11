@@ -78,7 +78,7 @@ export function LandingPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, logout } = useAuth()
-  
+
   // Check if we should start in expanded view (coming back from profile)
   const startExpanded = searchParams.get('view') === 'webring'
   const [phase, setPhase] = useState<Phase>(startExpanded ? 'expanded' : 'splash')
@@ -87,19 +87,34 @@ export function LandingPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [navigatingToProfile, setNavigatingToProfile] = useState(false)
 
+  // Fetch real members from Supabase, fall back to mock data
+  const [members, setMembers] = useState<typeof MOCK_MEMBERS>(MOCK_MEMBERS)
+  useEffect(() => {
+    fetch('/api/members')
+      .then(r => r.json())
+      .then(data => {
+        if (data.members && data.members.length > 0) {
+          setMembers(data.members)
+        }
+      })
+      .catch(() => {
+        // Keep mock data on failure
+      })
+  }, [])
+
   const { positions, canvasW, canvasH } = useMemo(
-    () => computeGridPositions(MOCK_MEMBERS),
-    []
+    () => computeGridPositions(members),
+    [members]
   )
 
   const filteredMembers = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
-    if (!query) return MOCK_MEMBERS
-    return MOCK_MEMBERS.filter(m => {
+    if (!query) return members
+    return members.filter(m => {
       const firstName = m.name.split(' ')[0] ?? ''
       return firstName.toLowerCase().startsWith(query)
     })
-  }, [searchTerm])
+  }, [searchTerm, members])
 
   // Pan/zoom state — only active in expanded phase
   const [camera, setCamera] = useState({ x: 0, y: 0, k: 1 })
