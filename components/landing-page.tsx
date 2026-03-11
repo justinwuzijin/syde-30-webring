@@ -458,43 +458,43 @@ export function LandingPage() {
           <GooseViewer key={`goose-${gooseKey}`} />
         </motion.div>
 
-        {/* MATLAB — left edge, behind "2030" text */}
+        {/* MATLAB — beneath "2030", overlapping with the 0 */}
         <motion.div
           className="absolute"
-          style={{ left: '0', top: '25%', width: '18%', zIndex: 2 }}
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
+          style={{ left: '55%', top: '60%', width: '20%', zIndex: 1 }}
+          initial={{ opacity: 0, x: -15 }}
+          animate={{ opacity: 1, x: -15 }}
           transition={{ duration: 0.7, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
         >
           <img src="/matlab.png" alt="" className="w-full h-auto" />
         </motion.div>
 
-        {/* SolidWorks cube — right of "2030", left of circle */}
+        {/* SolidWorks cube — right of "2030", overlapping circle */}
         <motion.div
           className="absolute"
-          style={{ left: '28%', top: '22%', width: '12%', zIndex: 15 }}
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
+          style={{ left: '20%', top: '20%', width: '18%', zIndex: 15 }}
+          initial={{ opacity: 0, scale: 0.8, rotate: 20 }}
+          animate={{ opacity: 1, scale: 1, rotate: 20 }}
           transition={{ duration: 0.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
           <img src="/sw-cube.png" alt="" className="w-full h-auto" />
         </motion.div>
 
-        {/* C++ — upper right, near "engineering" text */}
+        {/* C++ — right side, below "engineering", near circle */}
         <motion.div
           className="absolute"
-          style={{ right: '12%', top: '5%', width: '10%', zIndex: 15 }}
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
+          style={{ right: '20%', top: '23%', width: '8%', zIndex: 15 }}
+          initial={{ opacity: 0, y: -20, rotate: 20 }}
+          animate={{ opacity: 1, y: 0, rotate: 20 }}
           transition={{ duration: 0.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
           <img src="/cpp.png" alt="" className="w-full h-auto" />
         </motion.div>
 
-        {/* Sandwich — top right corner */}
+        {/* Sandwich — right side, midway height */}
         <motion.div
           className="absolute"
-          style={{ right: '3%', top: '12%', width: '14%', zIndex: 15 }}
+          style={{ right: '3%', top: '24%', width: '14%', zIndex: 15 }}
           initial={{ opacity: 0, rotate: -10 }}
           animate={{ opacity: 1, rotate: 0 }}
           transition={{ duration: 0.6, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -502,32 +502,32 @@ export function LandingPage() {
           <img src="/sandwich.png" alt="" className="w-full h-auto" />
         </motion.div>
 
-        {/* Crest — right of circle, middle */}
+        {/* Crest — larger, tilted, almost touching circle */}
         <motion.div
           className="absolute"
-          style={{ right: '5%', top: '42%', width: '10%', zIndex: 15 }}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
+          style={{ right: '20%', top: '35%', width: '18%', zIndex: 15 }}
+          initial={{ opacity: 0, scale: 0.9, rotate: -20 }}
+          animate={{ opacity: 1, scale: 1, rotate: -20 }}
           transition={{ duration: 0.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
           <img src="/crest.png" alt="Crest" className="w-full h-auto object-contain" />
         </motion.div>
 
-        {/* Book — bottom, overlapping circle */}
+        {/* Book — higher, rotated 35 degrees clockwise */}
         <motion.div
           className="absolute"
-          style={{ left: '28%', bottom: '3%', width: '12%', zIndex: 25 }}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          style={{ left: '26%', bottom: '30%', width: '12%', zIndex: 0 }}
+          initial={{ opacity: 0, y: 20, rotate: 15 }}
+          animate={{ opacity: 1, y: 0, rotate: 15 }}
           transition={{ duration: 0.6, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
           <img src="/book-river.png" alt="" className="w-full h-auto" />
         </motion.div>
 
-        {/* RELEASING MARCH sticker — bottom right, near "webring" */}
+        {/* RELEASING MARCH sticker — smaller, higher, more right */}
         <motion.div
           className="absolute"
-          style={{ right: '3%', bottom: '12%', width: '14%', zIndex: 15 }}
+          style={{ right: '2%', bottom: '38%', width: '12%', zIndex: 0 }}
           initial={{ opacity: 0, rotate: 5 }}
           animate={{ opacity: 1, rotate: 0 }}
           transition={{ duration: 0.6, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
