@@ -5,9 +5,12 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 interface FolderProps {
   photos: string[]
   size?: number
+  onHover?: () => void
+  onPhotoChange?: () => void
+  onPhotoHover?: () => void
 }
 
-export function Folder({ photos, size = 154 }: FolderProps) {
+export function Folder({ photos, size = 154, onHover, onPhotoChange, onPhotoHover }: FolderProps) {
   const [hovered, setHovered] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -66,9 +69,11 @@ export function Folder({ photos, size = 154 }: FolderProps) {
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault()
         goNext()
+        onPhotoChange?.()
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault()
         goPrev()
+        onPhotoChange?.()
       }
     }
 
@@ -88,7 +93,7 @@ export function Folder({ photos, size = 154 }: FolderProps) {
         cursor: 'pointer',
         outline: 'none',
       }}
-      onMouseEnter={() => setHovered(true)}
+      onMouseEnter={() => { setHovered(true); onHover?.() }}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Photos — small peek when collapsed, large fan when hovered */}
@@ -114,8 +119,10 @@ export function Folder({ photos, size = 154 }: FolderProps) {
               const originalIndex = photos.indexOf(src)
               if (originalIndex !== -1) {
                 setActiveIndex(originalIndex)
+                onPhotoChange?.()
               }
             }}
+            onMouseEnter={() => onPhotoHover?.()}
             style={{
               position: 'absolute',
               left: hovered ? largeLeft : smallLeft,

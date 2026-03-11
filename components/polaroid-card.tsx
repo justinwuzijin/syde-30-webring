@@ -27,9 +27,11 @@ interface PolaroidCardProps {
   x: number
   y: number
   onClick?: () => void
+  noTilt?: boolean
+  onHover?: () => void
 }
 
-export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
+export function PolaroidCard({ member, x, y, onClick, noTilt, onHover }: PolaroidCardProps) {
   const [hovered, setHovered] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageFailed, setImageFailed] = useState(false)
@@ -66,6 +68,7 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
 
   const handleMouseEnter = useCallback(() => {
     setHovered(true)
+    onHover?.()
     if (hasUploadedLive) {
       setVideoVisible(true)
       if (videoRef.current) {
@@ -95,7 +98,7 @@ export function PolaroidCard({ member, x, y, onClick }: PolaroidCardProps) {
         top: y + POLAROID_HEIGHT / 2,
         width: POLAROID_WIDTH,
         height: POLAROID_HEIGHT,
-        transform: `translate(-50%, -50%) rotate(${tilt.current}deg)`,
+        transform: `translate(-50%, -50%) rotate(${noTilt ? 0 : tilt.current}deg)`,
         zIndex: hovered ? 100 : 1,
         userSelect: 'none',
         cursor: onClick ? 'pointer' : 'default',

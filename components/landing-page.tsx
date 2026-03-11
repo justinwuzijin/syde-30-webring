@@ -11,6 +11,7 @@ import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import { PhotoFolder } from './photo-folder'
 import { Input } from './ui/input'
 import { AssetEditor } from './asset-editor'
+import { useSound } from '@/lib/use-sound'
 
 const CARD_GAP = 50
 const GRID_PADDING = 50
@@ -19,6 +20,7 @@ const GooseViewer = dynamic(() => import('./goose-viewer'), { ssr: false })
 const DotGrid = dynamic(() => import('./dot-grid'), { ssr: false })
 
 type Phase = 'splash' | 'transitioning' | 'expanded'
+type ViewMode = 'scrapbook' | 'classroom'
 
 // Transition timing
 const EXPAND_DURATION = 900
@@ -30,7 +32,7 @@ const MIN_ZOOM = 0.3
 const MAX_ZOOM = 2.5
 const ZOOM_SENSITIVITY = 0.002
 
-function computeGridPositions(members: Member[]) {
+function computeGridPositions(members: Member[], mode: ViewMode) {
   const n = members.length
   const cols = Math.max(2, Math.ceil(Math.sqrt(n)))
   const rows = Math.ceil(n / cols)
@@ -47,8 +49,8 @@ function computeGridPositions(members: Member[]) {
     })
   })
 
-  // Bias the newest member (last in the array) toward the center of the grid
-  if (members.length > 0) {
+  // Bias the newest member toward center only in scrapbook mode
+  if (mode === 'scrapbook' && members.length > 0) {
     const centerCol = Math.floor(cols / 2)
     const centerRow = Math.floor(rows / 2)
     const centerX = GRID_PADDING + centerCol * (POLAROID_WIDTH + CARD_GAP)
@@ -79,12 +81,18 @@ export function LandingPage() {
   const searchParams = useSearchParams()
   const { user, logout } = useAuth()
 
+  // Sound effects
+  const playClick = useSound('/OhmLab_Mouse-Click-Pop.wav', { volume: 0.4 })
+  const playFolderHover = useSound('/FileFolder 6028_66_1.wav', { volume: 0.4 })
+  const playPageTurn = useSound('/paper_turn_page.wav', { volume: 0.4 })
+
   // Check if we should start in expanded view (coming back from profile)
   const startExpanded = searchParams.get('view') === 'webring'
   const [phase, setPhase] = useState<Phase>(startExpanded ? 'expanded' : 'splash')
   const [pageReady, setPageReady] = useState(false)
   const circleRef = useRef<HTMLDivElement>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [viewMode, setViewMode] = useState<ViewMode>('scrapbook')
   const [navigatingToProfile, setNavigatingToProfile] = useState(false)
 
   // Fetch real members from Supabase, fall back to mock data
@@ -99,8 +107,8 @@ export function LandingPage() {
   }, [])
 
   const { positions, canvasW, canvasH } = useMemo(
-    () => computeGridPositions(members),
-    [members]
+    () => computeGridPositions(members, viewMode),
+    [members, viewMode]
   )
 
   const filteredMembers = useMemo(() => {
@@ -148,17 +156,19 @@ export function LandingPage() {
   // Click the circle → expand
   const handleEnterWebring = useCallback(() => {
     if (phase !== 'splash') return
+    playClick()
     setPhase('transitioning')
     setTimeout(() => setPhase('expanded'), EXPANDED_DELAY)
-  }, [phase])
+  }, [phase, playClick])
 
   // Back to splash - also clear URL param so reload stays on splash
   const handleBack = useCallback(() => {
+    playClick()
     setPhase('splash')
     setCamera({ x: 0, y: 0, k: 1 })
     // Clear the ?view=webring param from URL without triggering navigation
     window.history.replaceState({}, '', '/')
-  }, [])
+  }, [playClick])
 
   // ── Wheel → zoom centered (expanded only) ──
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -199,20 +209,25 @@ export function LandingPage() {
   // Click polaroid → profile (expanded only)
   const handleCardClick = useCallback((memberId: string) => {
     if (phase !== 'expanded') return
+    playClick()
     // Fade out the canvas before navigating to profile
     setNavigatingToProfile(true)
     setTimeout(() => {
       router.push(`/profile/${memberId}`)
     }, 220)
-  }, [phase, router])
+  }, [phase, router, playClick])
 
   const isExpanded = phase === 'expanded'
   const isTransitioning = phase === 'transitioning'
   const isSplash = phase === 'splash'
 
   // In expanded state, the grid is transformed by camera; otherwise centered
+  // Classroom mode anchors grid to top-left (aligned with photo folder at 5%, below toggles at ~6rem)
+  const isClassroom = isExpanded && viewMode === 'classroom'
   const gridTransform = isExpanded
-    ? `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
+    ? isClassroom
+      ? `translate(${camera.x}px, ${camera.y}px) scale(${camera.k})`
+      : `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
     : 'translate(-50%, -50%)'
 
   return (
@@ -277,16 +292,16 @@ export function LandingPage() {
         <div
           style={{
             position: 'absolute',
-            left: '50%',
-            top: '50%',
+            left: isClassroom ? '5%' : '50%',
+            top: isClassroom ? '6.5rem' : '50%',
             width: canvasW,
             height: canvasH,
             transform: gridTransform,
-            transformOrigin: '50% 50%',
+            transformOrigin: isClassroom ? '0 0' : '50% 50%',
             opacity: isSplash ? 0.7 : 1,
             transition: isSplash
               ? 'opacity 0.3s ease, transform 0.6s cubic-bezier(0.22,1,0.36,1)'
-              : 'opacity 0.5s ease',
+              : 'opacity 0.5s ease, left 0.4s ease, top 0.4s ease',
             pointerEvents: isExpanded ? 'auto' : 'none',
           }}
         >
@@ -311,6 +326,8 @@ export function LandingPage() {
                 x={pos.x}
                 y={pos.y}
                 onClick={isExpanded ? () => handleCardClick(m.id) : undefined}
+                noTilt={viewMode === 'classroom'}
+                onHover={playPageTurn}
               />
             )
           })}
@@ -364,6 +381,43 @@ export function LandingPage() {
         </motion.div>
       )}
 
+
+      {/* ── View toggle — below search bar, expanded only ── */}
+      {isExpanded && (
+        <motion.div
+          className="fixed top-[4.5rem] left-1/2 z-50 -translate-x-1/2 flex items-center gap-4"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+        >
+          <button
+            onClick={() => setViewMode('scrapbook')}
+            className="flex items-center gap-1.5 text-sm transition-colors"
+            style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+          >
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-full transition-colors"
+              style={{ backgroundColor: viewMode === 'scrapbook' ? '#171717' : '#d4d4d4' }}
+            />
+            <span style={{ color: viewMode === 'scrapbook' ? '#171717' : '#a3a3a3' }}>
+              scrapbook
+            </span>
+          </button>
+          <button
+            onClick={() => setViewMode('classroom')}
+            className="flex items-center gap-1.5 text-sm transition-colors"
+            style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+          >
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-full transition-colors"
+              style={{ backgroundColor: viewMode === 'classroom' ? '#171717' : '#d4d4d4' }}
+            />
+            <span style={{ color: viewMode === 'classroom' ? '#171717' : '#a3a3a3' }}>
+              classroom
+            </span>
+          </button>
+        </motion.div>
+      )}
       {/* ── Back button — top-left, expanded only ── */}
       {isExpanded && (
         <motion.button
@@ -392,7 +446,7 @@ export function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          <PhotoFolder />
+          <PhotoFolder onHover={playFolderHover} onPhotoChange={playClick} onPhotoHover={playPageTurn} />
         </motion.div>
       )}
 
@@ -527,7 +581,7 @@ export function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          <PhotoFolder />
+          <PhotoFolder onHover={playFolderHover} onPhotoChange={playClick} onPhotoHover={playPageTurn} />
         </motion.div>
       )}
 
@@ -546,7 +600,7 @@ export function LandingPage() {
                 Logged in as {user.name}
               </span>
               <button
-                onClick={logout}
+                onClick={() => { playClick(); logout() }}
                 className="px-4 py-2 text-white/70 text-xs font-medium uppercase tracking-wider border border-white/20 hover:bg-white/10 hover:text-white transition-colors"
               >
                 Log out
@@ -556,6 +610,7 @@ export function LandingPage() {
             <>
               <Link
                 href="/join"
+                onClick={playClick}
                 className="px-5 py-2 text-white text-sm font-medium lowercase border border-white/30 hover:bg-white/10 transition-colors"
                 style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
               >
@@ -563,6 +618,7 @@ export function LandingPage() {
               </Link>
               <Link
                 href="/login"
+                onClick={playClick}
                 className="px-5 py-2 text-white text-sm font-medium lowercase border border-white/30 hover:bg-white/10 transition-colors"
                 style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
               >

@@ -15,7 +15,13 @@ function getPhotos(): string[] {
       ]
 }
 
-export function PhotoFolder() {
+interface PhotoFolderProps {
+  onHover?: () => void
+  onPhotoChange?: () => void
+  onPhotoHover?: () => void
+}
+
+export function PhotoFolder({ onHover, onPhotoChange, onPhotoHover }: PhotoFolderProps) {
   const photos = getPhotos()
-  return <Folder photos={photos} size={104} />
+  return <Folder photos={photos} size={104} onHover={onHover} onPhotoChange={onPhotoChange} onPhotoHover={onPhotoHover} />
 }
