@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
-import { MOCK_MEMBERS } from '@/lib/mock-data'
+import type { Member } from '@/types/member'
 import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import { PhotoFolder } from './photo-folder'
 import { Input } from './ui/input'
@@ -30,7 +30,7 @@ const MIN_ZOOM = 0.3
 const MAX_ZOOM = 2.5
 const ZOOM_SENSITIVITY = 0.002
 
-function computeGridPositions(members: typeof MOCK_MEMBERS) {
+function computeGridPositions(members: Member[]) {
   const n = members.length
   const cols = Math.max(2, Math.ceil(Math.sqrt(n)))
   const rows = Math.ceil(n / cols)
@@ -88,18 +88,14 @@ export function LandingPage() {
   const [navigatingToProfile, setNavigatingToProfile] = useState(false)
 
   // Fetch real members from Supabase, fall back to mock data
-  const [members, setMembers] = useState<typeof MOCK_MEMBERS>(MOCK_MEMBERS)
+  const [members, setMembers] = useState<Member[]>([])
   useEffect(() => {
     fetch('/api/members')
       .then(r => r.json())
       .then(data => {
-        if (data.members && data.members.length > 0) {
-          setMembers(data.members)
-        }
+        if (data.members?.length > 0) setMembers(data.members)
       })
-      .catch(() => {
-        // Keep mock data on failure
-      })
+      .catch(() => {})
   }, [])
 
   const { positions, canvasW, canvasH } = useMemo(
