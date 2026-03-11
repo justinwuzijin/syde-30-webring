@@ -158,7 +158,7 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
           x: '-50%',
           y: '-50%',
           borderRadius: useTransform(borderRadius, v => `${v}%`),
-          background: '#ffffff',
+          background: '#6b7280',
           borderWidth: 1.5,
           borderStyle: 'solid',
           borderColor: useTransform(borderOpacity, v => `rgba(0,0,0,${v})`),
@@ -180,12 +180,12 @@ export function WebringPortal({ scrollYProgress }: WebringPortalProps) {
         />
       </motion.div>
 
-      {/* Scroll indicator */}
+      {/* Scroll indicator — between sphere and sign up / log in (sphere bottom ~50%+15vw, buttons at 90%) */}
       <motion.div
         className="absolute flex flex-col items-center gap-2"
         style={{
           left: '50%',
-          top: '72%',
+          top: 'calc(65% + 8vw)',
           x: '-50%',
           opacity: scrollIndicatorOpacity,
           zIndex: 40,

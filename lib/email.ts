@@ -10,6 +10,13 @@ const transporter = nodemailer.createTransport({
   },
 })
 
+const FROM_HEADER = process.env.EMAIL_FROM_HEADER || 'SYDE 30 Webring'
+const fromAddress = process.env.GMAIL_USER || 'noreply@syde30webring.com'
+
+function getFrom() {
+  return `${FROM_HEADER} <${fromAddress}>`
+}
+
 export interface ApprovalMemberInfo {
   name: string
   email: string
@@ -46,7 +53,7 @@ export async function sendApprovalEmail(
   ].filter(Boolean).join('')
 
   await transporter.sendMail({
-    from: process.env.GMAIL_USER,
+    from: getFrom(),
     to: adminEmail,
     subject: `[SYDE 30 Webring] Approve: ${member.name}`,
     html: `
@@ -65,12 +72,64 @@ export async function sendApprovalEmail(
   })
 }
 
+export async function sendVerificationCodeEmail(
+  toEmail: string,
+  name: string,
+  code: string
+): Promise<void> {
+  await transporter.sendMail({
+    from: getFrom(),
+    to: toEmail,
+    subject: 'Your verification code — SYDE 30 Webring',
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify your email</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0a0a0f;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#0a0a0f;">
+    <tr>
+      <td style="padding:48px 24px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:480px;margin:0 auto;">
+          <tr>
+            <td style="padding:0 0 32px;text-align:center;">
+              <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.08em;color:#f0f0f0;">SYDE 30 WEBRING</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:40px 32px;">
+              <p style="margin:0 0 8px;font-size:16px;color:#f0f0f0;">Hi ${escapeHtml(name)},</p>
+              <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.75);line-height:1.5;">Thanks for signing up. Use this code to verify your email address:</p>
+              <div style="text-align:center;margin:0 0 24px;">
+                <span style="display:inline-block;padding:16px 28px;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.2);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:28px;letter-spacing:0.4em;color:#f0f0f0;font-weight:500;">${escapeHtml(code)}</span>
+              </div>
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.5);">This code expires in 5 minutes.</p>
+              <p style="margin:16px 0 0;font-size:12px;color:rgba(255,255,255,0.5);">If you didn&apos;t request this, you can safely ignore this email.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 0 0;text-align:center;">
+              <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.35);">SYDE 2030 · Systems Design Engineering</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+  })
+}
+
 export async function sendPasswordResetEmail(
   toEmail: string,
   resetUrl: string
 ): Promise<void> {
   await transporter.sendMail({
-    from: process.env.GMAIL_USER,
+    from: getFrom(),
     to: toEmail,
     subject: '[SYDE 30 Webring] Reset your password',
     html: `

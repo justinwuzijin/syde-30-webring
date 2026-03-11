@@ -201,6 +201,10 @@ function ProfilePictureField({
     }
   }, [value])
 
+  const acceptsVideo = accept.includes('video')
+  const isVideoFile = (f: File) => f.type.startsWith('video/')
+  const isImageFile = (f: File) => f.type.startsWith('image/')
+
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
   useEffect(() => {
@@ -208,21 +212,24 @@ function ProfilePictureField({
       const target = e.target as HTMLElement
       if (target?.closest('input, textarea, [contenteditable="true"]')) return
       const file = e.clipboardData?.files?.[0]
-      if (file && file.type.startsWith('image/')) {
+      if (!file) return
+      const valid = acceptsVideo ? isVideoFile(file) : isImageFile(file)
+      if (valid) {
         e.preventDefault()
         onChangeRef.current(file)
       }
     }
     document.addEventListener('paste', onPaste)
     return () => document.removeEventListener('paste', onPaste)
-  }, [])
+  }, [acceptsVideo])
 
   const handleFile = (file: File | null) => {
-    if (file && file.type.startsWith('image/')) {
-      onChange(file)
-    } else if (file === null) {
+    if (file === null) {
       onChange(null)
+      return
     }
+    const valid = acceptsVideo ? isVideoFile(file) : isImageFile(file)
+    if (valid) onChange(file)
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -274,7 +281,7 @@ function ProfilePictureField({
         onDragLeave={handleDragLeave}
         tabIndex={0}
         role="button"
-        aria-label="Upload profile picture or paste image"
+        aria-label={acceptsVideo ? 'Upload video clip' : 'Upload profile picture or paste image'}
       >
         <input
           ref={inputRef}
@@ -285,15 +292,30 @@ function ProfilePictureField({
         />
         {previewUrl ? (
           <div className="flex flex-col items-center justify-center w-full h-full min-h-[200px] p-4">
-            <img
-              src={previewUrl}
-              alt="Preview"
-              className="max-w-full max-h-[180px] w-auto h-auto object-contain rounded cursor-zoom-in"
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowEnlarged(true)
-              }}
-            />
+            {value && isVideoFile(value) ? (
+              <video
+                src={previewUrl}
+                className="max-w-full max-h-[180px] w-auto h-auto object-contain rounded cursor-zoom-in"
+                controls
+                muted
+                loop
+                playsInline
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowEnlarged(true)
+                }}
+              />
+            ) : (
+              <img
+                src={previewUrl}
+                alt="Preview"
+                className="max-w-full max-h-[180px] w-auto h-auto object-contain rounded cursor-zoom-in"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowEnlarged(true)
+                }}
+              />
+            )}
             <div className="flex items-center gap-3 mt-2">
               <button
                 type="button"
@@ -319,7 +341,7 @@ function ProfilePictureField({
               </button>
             </div>
             <p className="font-mono text-[10px] italic text-white/50 mt-0.5">
-              click image to enlarge
+              {value && isVideoFile(value) ? 'click video to enlarge' : 'click image to enlarge'}
             </p>
           </div>
         ) : (
@@ -350,12 +372,25 @@ function ProfilePictureField({
           >
             <X className="w-6 h-6" />
           </button>
-          <img
-            src={previewUrl}
-            alt="Preview"
-            className="preview-zoom-in max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded"
-            onClick={(e) => e.stopPropagation()}
-          />
+          {value && isVideoFile(value) ? (
+            <video
+              src={previewUrl}
+              className="preview-zoom-in max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded"
+              controls
+              muted
+              loop
+              playsInline
+              autoPlay
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="preview-zoom-in max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
         </div>
       )}
       {error && (
@@ -409,6 +444,8 @@ export function JoinForm() {
     }
     if (!form.polaroidLive || form.polaroidLive.size === 0) {
       newErrors.polaroidLive = 'Polaroid live clip is required'
+    } else if (form.polaroidLive.size > 50 * 1024 * 1024) {
+      newErrors.polaroidLive = 'Video is too large (max 50MB). Try a shorter clip.'
     }
 
     if (!hasAnySocial) {
@@ -452,6 +489,11 @@ export function JoinForm() {
 
       const res = await fetch('/api/join', { method: 'POST', body: fd })
       if (res.status === 202) {
+        const data = await res.json().catch(() => ({}))
+        if (data.needsVerification && data.email) {
+          router.push(`/verify-email?email=${encodeURIComponent(data.email)}`)
+          return
+        }
         setSubmitted(true)
         router.push('/')
         return

@@ -2,8 +2,14 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabase'
 import { signToken } from '@/lib/token'
-import { sendApprovalEmail } from '@/lib/email'
+import { sendVerificationCodeEmail } from '@/lib/email'
 import { parseSocialLink } from '@/lib/parse-social'
+
+const CODE_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
+
+function generateVerificationCode(): string {
+  return String(Math.floor(100000 + Math.random() * 900000))
+}
 
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 const isValidUrl = (url: string) => {
@@ -54,16 +60,34 @@ export async function POST(request: Request) {
 
     if (!polaroidStill || !(polaroidStill instanceof File) || polaroidStill.size === 0) {
       errors.polaroidStill = 'Polaroid still photo is required'
+    } else {
+      const stillExt = polaroidStill.name.split('.').pop()?.toLowerCase() || 'heic'
+      const allowedStill = ['heic', 'heif', 'jpg', 'jpeg', 'png']
+      if (!allowedStill.includes(stillExt)) {
+        errors.polaroidStill = 'Invalid still image format (use HEIC or JPG/PNG)'
+      }
     }
+
+    const MAX_VIDEO_BYTES = 50 * 1024 * 1024 // 50MB
     if (!polaroidLive || !(polaroidLive instanceof File) || polaroidLive.size === 0) {
       errors.polaroidLive = 'Polaroid live clip is required'
+    } else {
+      if (polaroidLive.size > MAX_VIDEO_BYTES) {
+        errors.polaroidLive = 'Video is too large (max 50MB). Try a shorter clip.'
+      } else {
+        const liveExt = polaroidLive.name.split('.').pop()?.toLowerCase() || 'mov'
+        const allowedLive = ['mov', 'mp4']
+        if (!allowedLive.includes(liveExt)) {
+          errors.polaroidLive = 'Invalid live clip format (use MOV or MP4)'
+        }
+      }
     }
 
     if (Object.keys(errors).length > 0) {
       return NextResponse.json({ errors }, { status: 400 })
     }
 
-    // Check if email already exists
+    // All validation passed — check if email already exists
     const { data: existing } = await supabaseAdmin
       .from('members')
       .select('id')
@@ -75,46 +99,48 @@ export async function POST(request: Request) {
 
     const password_hash = await bcrypt.hash(password, 10)
 
+    // All validation passed — upload to storage (no DB writes in this route)
     let polaroid_still_url: string | null = null
     let polaroid_live_url: string | null = null
+    let uploadedStillPath: string | null = null
+    let uploadedLivePath: string | null = null
 
-    if (polaroidStill && polaroidStill.size > 0) {
-      const ext = polaroidStill.name.split('.').pop()?.toLowerCase() || 'heic'
-      const allowedStill = ['heic', 'heif', 'jpg', 'jpeg', 'png']
-      if (!allowedStill.includes(ext)) {
-        return NextResponse.json({ errors: { polaroidStill: 'Invalid still image format (use HEIC or JPG/PNG)' } }, { status: 400 })
-      }
-      const fileName = `${Date.now()}-still-${Math.random().toString(36).slice(2)}.${ext}`
-      const { data: upload, error: uploadErr } = await supabaseAdmin.storage
-        .from('profile-website-pictures')
-        .upload(fileName, polaroidStill, { contentType: polaroidStill.type, upsert: false })
-      if (uploadErr) {
-        return NextResponse.json({ errors: { polaroidStill: 'Failed to upload still image' } }, { status: 500 })
-      }
-      const { data: publicUrl } = supabaseAdmin.storage
-        .from('profile-website-pictures')
-        .getPublicUrl(upload.path)
-      polaroid_still_url = publicUrl.publicUrl
+    const stillExt = polaroidStill!.name.split('.').pop()?.toLowerCase() || 'heic'
+    const stillFileName = `${Date.now()}-still-${Math.random().toString(36).slice(2)}.${stillExt}`
+    const { data: stillUpload, error: stillErr } = await supabaseAdmin.storage
+      .from('profile-website-pictures')
+      .upload(stillFileName, polaroidStill!, { contentType: polaroidStill!.type, upsert: false })
+    if (stillErr) {
+      return NextResponse.json({ errors: { polaroidStill: 'Failed to upload still image' } }, { status: 500 })
     }
+    uploadedStillPath = stillUpload.path
+    const { data: stillUrlData } = supabaseAdmin.storage
+      .from('profile-website-pictures')
+      .getPublicUrl(stillUpload.path)
+    polaroid_still_url = stillUrlData.publicUrl
 
-    if (polaroidLive && polaroidLive.size > 0) {
-      const ext = polaroidLive.name.split('.').pop()?.toLowerCase() || 'mov'
-      const allowedLive = ['mov', 'mp4']
-      if (!allowedLive.includes(ext)) {
-        return NextResponse.json({ errors: { polaroidLive: 'Invalid live clip format (use MOV or MP4)' } }, { status: 400 })
-      }
-      const fileName = `${Date.now()}-live-${Math.random().toString(36).slice(2)}.${ext}`
-      const { data: upload, error: uploadErr } = await supabaseAdmin.storage
-        .from('profile-website-pictures')
-        .upload(fileName, polaroidLive, { contentType: polaroidLive.type, upsert: false })
-      if (uploadErr) {
-        return NextResponse.json({ errors: { polaroidLive: 'Failed to upload live clip' } }, { status: 500 })
-      }
-      const { data: publicUrl } = supabaseAdmin.storage
-        .from('profile-website-pictures')
-        .getPublicUrl(upload.path)
-      polaroid_live_url = publicUrl.publicUrl
+    const liveExt = polaroidLive!.name.split('.').pop()?.toLowerCase() || 'mov'
+    const liveFileName = `${Date.now()}-live-${Math.random().toString(36).slice(2)}.${liveExt}`
+    const { data: liveUpload, error: liveErr } = await supabaseAdmin.storage
+      .from('profile-website-pictures')
+      .upload(liveFileName, polaroidLive!, { contentType: polaroidLive!.type, upsert: false })
+    if (liveErr) {
+      await supabaseAdmin.storage.from('profile-website-pictures').remove([uploadedStillPath!])
+      console.error('Supabase live clip upload error:', liveErr)
+      const msg = liveErr.message?.includes('Payload too large') || liveErr.message?.includes('Entity too large')
+        ? 'Video file is too large (max 50MB). Try a shorter clip.'
+        : `Failed to upload live clip: ${liveErr.message || 'Unknown error'}`
+      return NextResponse.json({ errors: { polaroidLive: msg } }, { status: 500 })
     }
+    if (!liveUpload?.path) {
+      await supabaseAdmin.storage.from('profile-website-pictures').remove([uploadedStillPath!])
+      return NextResponse.json({ errors: { polaroidLive: 'Upload succeeded but no path returned' } }, { status: 500 })
+    }
+    uploadedLivePath = liveUpload.path
+    const { data: liveUrlData } = supabaseAdmin.storage
+      .from('profile-website-pictures')
+      .getPublicUrl(liveUpload.path)
+    polaroid_live_url = liveUrlData.publicUrl
 
     const li = parseSocialLink('linkedin', linkedin)
     const tw = parseSocialLink('twitter', twitter)
@@ -135,32 +161,44 @@ export async function POST(request: Request) {
       github_handle,
     }
 
-    const token = signToken(payload)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-    const approveUrl = `${baseUrl}/api/approve?token=${token}`
+    const code = generateVerificationCode()
+    const codeExpiresAt = new Date(Date.now() + CODE_EXPIRY_MS).toISOString()
 
-    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER
-    if (!adminEmail) {
-      return NextResponse.json({ errors: { _: 'Server misconfiguration: ADMIN_EMAIL missing' } }, { status: 500 })
+    const { error: insertErr } = await supabaseAdmin.from('pending_signups').insert({
+      email,
+      payload,
+      code,
+      code_expires_at: codeExpiresAt,
+      polaroid_still_path: uploadedStillPath,
+      polaroid_live_path: uploadedLivePath,
+    })
+
+    if (insertErr) {
+      await supabaseAdmin.storage.from('profile-website-pictures').remove([uploadedStillPath!, uploadedLivePath!])
+      console.error('pending_signups insert error:', insertErr)
+      return NextResponse.json({ errors: { _: 'Failed to save signup. Please try again.' } }, { status: 500 })
     }
-    await sendApprovalEmail(
-      adminEmail,
-      {
-        name,
-        email,
-        website_link: websiteLink || null,
-        polaroid_still_url,
-        polaroid_live_url,
-        linkedin_handle,
-        twitter_handle,
-        github_handle,
-      },
-      approveUrl,
-    )
 
-    return new NextResponse(null, { status: 202 })
+    try {
+      await sendVerificationCodeEmail(email, name, code)
+    } catch (emailErr) {
+      await supabaseAdmin.from('pending_signups').delete().eq('email', email)
+      await supabaseAdmin.storage.from('profile-website-pictures').remove([uploadedStillPath!, uploadedLivePath!])
+      throw emailErr
+    }
+
+    return NextResponse.json(
+      { needsVerification: true, email },
+      { status: 202 }
+    )
   } catch (err) {
-    console.error('Join API error:', err)
-    return NextResponse.json({ errors: { _: 'Something went wrong' } }, { status: 500 })
+    const message = err instanceof Error ? err.message : String(err)
+    const stack = err instanceof Error ? err.stack : undefined
+    console.error('Join API error:', message, stack)
+    const isDev = process.env.NODE_ENV === 'development'
+    const userMsg = isDev && message
+      ? `Something went wrong: ${message}`
+      : 'Something went wrong. Please try again.'
+    return NextResponse.json({ errors: { _: userMsg } }, { status: 500 })
   }
 }

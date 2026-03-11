@@ -52,6 +52,7 @@ export async function GET(request: Request) {
     password_hash,
     program: 'SYDE 2030',
     website_link: website_link || null,
+    profile_picture_url: polaroid_still_url || null,
     polaroid_still_url: polaroid_still_url || null,
     polaroid_live_url: polaroid_live_url || null,
     linkedin_handle: linkedin_handle || null,
