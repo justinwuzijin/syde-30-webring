@@ -19,7 +19,10 @@ export async function GET() {
 
     if (error) {
       console.error('Failed to fetch members:', error)
-      return NextResponse.json({ members: [] }, { status: 500 })
+      return NextResponse.json({ members: [] }, {
+        status: 500,
+        headers: { 'Cache-Control': 'no-store' },
+      })
     }
 
     const members: Member[] = (data ?? []).map((row) => ({
@@ -39,9 +42,16 @@ export async function GET() {
       joinedAt: row.joined_at || row.created_at || new Date().toISOString(),
     }))
 
-    return NextResponse.json({ members })
+    return NextResponse.json({ members }, {
+      headers: {
+        'Cache-Control': 's-maxage=60, stale-while-revalidate=300',
+      },
+    })
   } catch (err) {
     console.error('Members API error:', err)
-    return NextResponse.json({ members: [] }, { status: 500 })
+    return NextResponse.json({ members: [] }, {
+      status: 500,
+      headers: { 'Cache-Control': 'no-store' },
+    })
   }
 }
