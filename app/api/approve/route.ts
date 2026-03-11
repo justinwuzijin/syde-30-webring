@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/token'
 import { supabaseAdmin } from '@/lib/supabase'
+import { sendApprovalConfirmationEmail } from '@/lib/email'
 
 interface TokenPayload {
   name: string
@@ -74,6 +75,11 @@ export async function GET(request: Request) {
       { status: 500, headers: { 'Content-Type': 'text/html' } }
     )
   }
+
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+  sendApprovalConfirmationEmail(email, name, baseUrl).catch((err) =>
+    console.error('Failed to send approval confirmation email:', err)
+  )
 
   return new NextResponse(
     `<!DOCTYPE html>

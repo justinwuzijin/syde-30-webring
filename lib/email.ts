@@ -124,6 +124,57 @@ export async function sendVerificationCodeEmail(
   })
 }
 
+export async function sendApprovalConfirmationEmail(
+  toEmail: string,
+  name: string,
+  siteUrl: string
+): Promise<void> {
+  await transporter.sendMail({
+    from: getFrom(),
+    to: toEmail,
+    subject: "You're in! — SYDE 30 Webring",
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're approved</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0a0a0f;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#0a0a0f;">
+    <tr>
+      <td style="padding:48px 24px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:480px;margin:0 auto;">
+          <tr>
+            <td style="padding:0 0 32px;text-align:center;">
+              <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.08em;color:#f0f0f0;">SYDE 30 WEBRING</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:40px 32px;">
+              <p style="margin:0 0 8px;font-size:16px;color:#f0f0f0;">Hi ${escapeHtml(name)},</p>
+              <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.75);line-height:1.5;">You&apos;re in! Your membership to the SYDE 30 webring has been approved.</p>
+              <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.75);line-height:1.5;">Log in to see your polaroid on the web and explore your cohort&apos;s sites.</p>
+              <p style="margin:0;text-align:center;">
+                <a href="${escapeHtml(siteUrl)}" style="display:inline-block;padding:12px 24px;background:#E8251A;color:#fff;text-decoration:none;font-weight:600;font-size:14px;border-radius:6px;">Check out the webring</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 0 0;text-align:center;">
+              <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.35);">SYDE 2030 · Systems Design Engineering</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+  })
+}
+
 export async function sendPasswordResetEmail(
   toEmail: string,
   resetUrl: string
