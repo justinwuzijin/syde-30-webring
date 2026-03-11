@@ -1,1 +1,1 @@
-# syde-30-webring
+#a webring by justin wu and leo zhang
