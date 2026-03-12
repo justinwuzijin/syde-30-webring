@@ -461,7 +461,7 @@ export function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          <PhotoFolder onHover={playFolderHover} onPhotoChange={playClick} onPhotoHover={playPageTurn} />
+          <PhotoFolder onHover={playFolderHover} onPhotoChange={playPageTurn} onPhotoHover={playPageTurn} />
         </motion.div>
       )}
 
@@ -535,7 +535,6 @@ export function LandingPage() {
           initial={{ y: 40 }}
           animate={{ y: 0 }}
           transition={{ duration: 0.8, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          onClick={playClick}
         >
           <GooseViewer key={`goose-${gooseKey}`} />
         </motion.div>
@@ -597,7 +596,7 @@ export function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          <PhotoFolder onHover={playFolderHover} onPhotoChange={playClick} onPhotoHover={playPageTurn} />
+          <PhotoFolder onHover={playFolderHover} onPhotoChange={playPageTurn} onPhotoHover={playPageTurn} />
         </motion.div>
       )}
 
