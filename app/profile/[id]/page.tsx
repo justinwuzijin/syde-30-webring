@@ -1,12 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState, useEffect, useMemo } from 'react'
+import { type ReactElement, useState, useEffect, useMemo } from 'react'
 import { use } from 'react'
 import useSWR from 'swr'
 import type { Member } from '@/types/member'
 import { parseSocialLink } from '@/lib/parse-social'
 import { useSound } from '@/lib/use-sound'
+import { usePageTransition } from '@/components/page-transition'
 import { normalizeWebsiteUrl } from '@/lib/validate-website-url'
 import { FaGithub, FaLinkedin, FaXTwitter } from 'react-icons/fa6'
 
@@ -25,6 +26,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
   const { id } = use(params)
   const router = useRouter()
   const playClick = useSound('/click.mp3', { volume: 0.4 })
+  const { startTransition } = usePageTransition()
   const { data: member, error, isLoading } = useSWR<Member>(
     id ? `/api/members/${id}` : null,
     fetcher,
@@ -69,6 +71,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           <button
             onClick={() => {
               playClick()
+              startTransition()
               router.push('/?view=webring')
             }}
             className="text-sm text-black/50 hover:text-black underline"
@@ -81,7 +84,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
   }
 
   // Normalize socials into icons + handle + URL (using the same parsing logic as signup)
-  const socialEntries: { key: string; label: string; handle: string; url: string; icon: JSX.Element }[] = []
+  const socialEntries: { key: string; label: string; handle: string; url: string; icon: ReactElement }[] = []
 
   if (member.socials.github) {
     const p = parseSocialLink('github', member.socials.github)
@@ -127,6 +130,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         <button
           onClick={() => {
             playClick()
+            startTransition()
             setLeaving(true)
             setTimeout(() => {
               router.push('/?view=webring')

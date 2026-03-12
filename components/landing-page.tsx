@@ -13,6 +13,7 @@ import { PhotoFolder } from './photo-folder'
 import { Input } from './ui/input'
 import { AssetEditor } from './asset-editor'
 import { useSound } from '@/lib/use-sound'
+import { usePageTransition } from './page-transition'
 
 const CARD_GAP = 50
 const GRID_PADDING = 50
@@ -81,6 +82,7 @@ export function LandingPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, logout } = useAuth()
+  const { startTransition } = usePageTransition()
 
   // Sound effects
   const playClick = useSound('/click.mp3', { volume: 0.4 })
@@ -209,7 +211,8 @@ export function LandingPage() {
   const handleCardClick = useCallback((memberId: string) => {
     if (phase !== 'expanded') return
     playClick()
-    // Fade out the canvas before navigating to profile
+    // Show loading spinner, then navigate
+    startTransition()
     setNavigatingToProfile(true)
     setTimeout(() => {
       router.push(`/profile/${memberId}`)

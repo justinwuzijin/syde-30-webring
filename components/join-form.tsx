@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowUpRight, Eye, EyeOff, Trash2, Upload, X } from 'lucide-react'
 import { parseSocialLink } from '@/lib/parse-social'
+import { AuthCelebration } from './auth-celebration'
 
 interface FormData {
   name: string
@@ -404,6 +406,15 @@ export function JoinForm() {
   const router = useRouter()
   const [form, setForm] = useState<FormData>(initialForm)
   const [submitted, setSubmitted] = useState(false)
+  const [showCelebration, setShowCelebration] = useState(false)
+  const [pendingRedirect, setPendingRedirect] = useState<string | null>(null)
+
+  const handleCelebrationComplete = useCallback(() => {
+    setShowCelebration(false)
+    if (pendingRedirect) {
+      router.push(pendingRedirect)
+    }
+  }, [pendingRedirect, router])
   const [errors, setErrors] = useState<
     Partial<Record<keyof FormData | 'socials' | '_', string>>
   >({})
@@ -495,7 +506,8 @@ export function JoinForm() {
           return
         }
         setSubmitted(true)
-        router.push('/')
+        setPendingRedirect('/')
+        setShowCelebration(true)
         return
       }
       const data = await res.json().catch(() => ({}))
@@ -537,6 +549,12 @@ export function JoinForm() {
 
   if (submitted) {
     return (
+      <>
+      <AnimatePresence>
+        {showCelebration && (
+          <AuthCelebration type="signup" onComplete={handleCelebrationComplete} />
+        )}
+      </AnimatePresence>
       <div
         className="h-screen overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center px-6 scrollbar-blend"
         style={{ background: 'var(--bg)' }}
@@ -583,6 +601,7 @@ export function JoinForm() {
           back to the web
         </a>
       </div>
+      </>
     )
   }
 
