@@ -71,11 +71,35 @@ function GooseMesh({ onReady }: { onReady: () => void }) {
 
 useGLTF.preload('/goose.glb')
 
+function useQuackSound() {
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const lastPlayRef = useRef(0)
+
+  useEffect(() => {
+    audioRef.current = new Audio('/Cartoon Duck Quack.mp3')
+    audioRef.current.volume = 0.5
+  }, [])
+
+  const play = useCallback((throttleMs = 0) => {
+    const now = Date.now()
+    if (now - lastPlayRef.current < throttleMs) return
+    lastPlayRef.current = now
+    if (audioRef.current) {
+      const sound = audioRef.current.cloneNode() as HTMLAudioElement
+      sound.volume = 0.5
+      sound.play().catch(() => {})
+    }
+  }, [])
+
+  return play
+}
+
 export default function GooseViewer() {
   const containerRef = useRef<HTMLDivElement>(null)
   const [dimensionsReady, setDimensionsReady] = useState(false)
   const [visible, setVisible] = useState(false)
   const handleReady = useCallback(() => setVisible(true), [])
+  const playQuack = useQuackSound()
 
   // Defer Canvas mount until container has valid dimensions (prevents 300x150 fallback on client-side nav)
   useEffect(() => {
@@ -113,6 +137,7 @@ export default function GooseViewer() {
   return (
     <div
       ref={containerRef}
+      onMouseDown={() => playQuack()}
       style={{
         width: '100%',
         height: '100%',
@@ -121,6 +146,7 @@ export default function GooseViewer() {
         opacity: visible ? 1 : 0,
         visibility: visible ? ('visible' as const) : ('hidden' as const),
         transition: visible ? 'opacity 0.6s ease, visibility 0s' : 'none',
+        cursor: 'pointer',
       }}
     >
       {dimensionsReady && (
