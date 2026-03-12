@@ -1,1 +1,1 @@
-#a syde class of 2030 webring by justin wu and leo zhang
+#a cool webring by justin wu and leo zhang
