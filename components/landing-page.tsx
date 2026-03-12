@@ -212,7 +212,7 @@ export function LandingPage() {
     if (phase !== 'expanded') return
     playClick()
     // Show loading spinner, then navigate
-    startTransition()
+    startTransition({ waitForManualEnd: true })
     setNavigatingToProfile(true)
     setTimeout(() => {
       router.push(`/profile/${memberId}`)
@@ -628,7 +628,7 @@ export function LandingPage() {
             <>
               <Link
                 href="/join"
-                onClick={playClick}
+                onClick={() => { playClick(); startTransition() }}
                 className="px-5 py-2 text-white text-sm font-medium lowercase border border-white/30 hover:bg-white/10 transition-colors"
                 style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
               >
@@ -636,7 +636,7 @@ export function LandingPage() {
               </Link>
               <Link
                 href="/login"
-                onClick={playClick}
+                onClick={() => { playClick(); startTransition() }}
                 className="px-5 py-2 text-white text-sm font-medium lowercase border border-white/30 hover:bg-white/10 transition-colors"
                 style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
               >

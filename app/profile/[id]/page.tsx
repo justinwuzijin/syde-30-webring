@@ -26,7 +26,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
   const { id } = use(params)
   const router = useRouter()
   const playClick = useSound('/click.mp3', { volume: 0.4 })
-  const { startTransition } = usePageTransition()
+  const { startTransition, endTransition } = usePageTransition()
   const { data: member, error, isLoading } = useSWR<Member>(
     id ? `/api/members/${id}` : null,
     fetcher,
@@ -43,6 +43,22 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     return normalizeWebsiteUrl(raw)
   }, [member?.embedUrl, member?.socials?.website])
   const hasValidWebsite = !!websiteUrl
+
+  // Signal page ready when iframe loads or when member has no website
+  useEffect(() => {
+    if (!member) return
+    const url = member.embedUrl || member.socials.website
+    const hasWebsite = !!normalizeWebsiteUrl(url)
+    if (!hasWebsite) {
+      endTransition()
+    }
+  }, [member?.id, endTransition])
+
+  useEffect(() => {
+    if (iframeLoaded) {
+      endTransition()
+    }
+  }, [iframeLoaded, endTransition])
 
   // Must run unconditionally (Rules of Hooks) — only applies when member exists
   useEffect(() => {
@@ -130,7 +146,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         <button
           onClick={() => {
             playClick()
-            startTransition()
             setLeaving(true)
             setTimeout(() => {
               router.push('/?view=webring')

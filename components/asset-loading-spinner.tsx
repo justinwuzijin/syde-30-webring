@@ -13,12 +13,12 @@ const ASSETS = [
   { src: '/releasing-march.png', alt: 'Releasing March' },
 ]
 
-const RADIUS = 80
-const ITEM_SIZE = 44
-const STAGGER_DELAY = 0.12
+const RADIUS = 52
+const ITEM_SIZE = 32
+const STAGGER_DELAY = 0.1
 const SPIN_DURATION = 3
 
-export function AssetLoadingSpinner() {
+export function AssetLoadingSpinner({ variant = 'default' }: { variant?: 'initial' | 'default' }) {
   const [visibleCount, setVisibleCount] = useState(0)
 
   useEffect(() => {
@@ -30,7 +30,12 @@ export function AssetLoadingSpinner() {
   }, [visibleCount])
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0a0a0f]">
+    <div
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
+      style={{
+        backgroundColor: variant === 'initial' ? '#0a0a0f' : '#ffffff',
+      }}
+    >
       <motion.div
         className="relative"
         style={{ width: RADIUS * 2 + ITEM_SIZE, height: RADIUS * 2 + ITEM_SIZE }}
@@ -68,7 +73,7 @@ export function AssetLoadingSpinner() {
                   <motion.img
                     src={asset.src}
                     alt={asset.alt}
-                    className="w-full h-full object-contain drop-shadow-lg"
+                    className="w-full h-full object-contain drop-shadow-md"
                     animate={{ rotate: -360 }}
                     transition={{
                       duration: SPIN_DURATION,
@@ -83,6 +88,24 @@ export function AssetLoadingSpinner() {
           )
         })}
       </motion.div>
+      <p
+        className="mt-6 text-xs tracking-[0.15em] lowercase"
+        style={{
+          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif',
+          color: variant === 'initial' ? 'rgba(255,255,255,0.35)' : '#a3a3a3',
+        }}
+      >
+        loading site...
+      </p>
+      {variant === 'initial' && (
+        <div
+          className="pointer-events-none fixed inset-0"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px)',
+            backgroundSize: '16px 16px',
+          }}
+        />
+      )}
     </div>
   )
 }
