@@ -21,7 +21,7 @@ const INITIAL_TRANSFORMS: AssetTransform[] = [
   { id: 'cpp', x: 72, y: 23, width: 8, rotation: 20, zIndex: 5 },
   { id: 'sandwich', x: 83, y: 24, width: 14, rotation: 0, zIndex: 5 },
   { id: 'crest', x: 62, y: 35, width: 18, rotation: -20, zIndex: 5 },
-  { id: 'book', x: 26, y: 55, width: 12, rotation: 15, zIndex: 1 },
+  { id: 'book', x: 24, y: 40, width: 12, rotation: 15, zIndex: 1 },
   { id: 'releasing-march', x: 86, y: 50, width: 12, rotation: 0, zIndex: 2 },
 ]
 
