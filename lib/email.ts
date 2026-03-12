@@ -41,9 +41,10 @@ export function getAdminApprovalEmailHtml(
   member: ApprovalMemberInfo,
   approveUrl: string
 ): string {
+  const fontStack = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"
   const row = (label: string, value: string | null) =>
     value
-      ? `<tr><td style="padding:6px 12px 6px 0;color:#888;font-size:13px;">${escapeHtml(label)}</td><td style="padding:6px 0;font-size:14px;">${escapeHtml(value)}</td></tr>`
+      ? `<tr><td style="padding:6px 12px 6px 0;color:#888;font-size:13px;font-family:${fontStack}">${escapeHtml(label)}</td><td style="padding:6px 0;font-size:14px;font-family:${fontStack}">${escapeHtml(value)}</td></tr>`
       : ''
 
   const socialRows = [
@@ -53,8 +54,8 @@ export function getAdminApprovalEmailHtml(
   ].filter(Boolean).join('')
 
   return `
-    <p style="font-family:sans-serif;font-size:14px;color:#333;">A new member has requested to join the SYDE 30 webring.</p>
-    <table style="border-collapse:collapse;margin:16px 0;font-family:sans-serif;">
+    <p style="font-family:${fontStack};font-size:14px;color:#333;">A new member has requested to join the SYDE 30 webring.</p>
+    <table style="border-collapse:collapse;margin:16px 0;font-family:${fontStack};">
       ${row('Name', member.name)}
       ${row('Email', member.email)}
       ${row('Website', member.website_link)}
@@ -62,8 +63,8 @@ export function getAdminApprovalEmailHtml(
       ${row('Polaroid live clip', member.polaroid_live_url)}
       ${socialRows}
     </table>
-    <p style="margin-top:20px;"><a href="${escapeHtml(approveUrl)}" style="display:inline-block;padding:10px 20px;background:#E8251A;color:#fff;text-decoration:none;font-weight:600;border-radius:4px;">Approve member</a></p>
-    <p style="font-size:12px;color:#666;margin-top:16px;">This link expires in 7 days.</p>
+    <p style="margin-top:20px;"><a href="${escapeHtml(approveUrl)}" style="display:inline-block;padding:10px 20px;background:#E8251A;color:#fff;text-decoration:none;font-weight:600;border-radius:4px;font-family:${fontStack}">Approve member</a></p>
+    <p style="font-size:12px;color:#666;margin-top:16px;font-family:${fontStack}">This link expires in 7 days.</p>
   `
 }
 
@@ -90,30 +91,30 @@ export function getVerificationCodeEmailHtml(name: string, code: string): string
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Verify your email</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0a0a0f;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#0a0a0f;">
+<body style="margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
     <tr>
       <td style="padding:48px 24px;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:480px;margin:0 auto;">
           <tr>
             <td style="padding:0 0 32px;text-align:center;">
-              <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.08em;color:#f0f0f0;">SYDE 30 WEBRING</span>
+              <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.08em;color:#333;">SYDE 30 WEBRING</span>
             </td>
           </tr>
           <tr>
-            <td style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:40px 32px;">
-              <p style="margin:0 0 8px;font-size:16px;color:#f0f0f0;">Hi ${escapeHtml(name)},</p>
-              <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.75);line-height:1.5;">Thanks for signing up. Use this code to verify your email address:</p>
+            <td style="border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:40px 32px;">
+              <p style="margin:0 0 8px;font-size:16px;color:#333;">Hi ${escapeHtml(name)},</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#666;line-height:1.5;">Thanks for signing up. Use this code to verify your email address:</p>
               <div style="text-align:center;margin:0 0 24px;">
-                <span style="display:inline-block;padding:16px 28px;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.2);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:28px;letter-spacing:0.4em;color:#f0f0f0;font-weight:500;">${escapeHtml(code)}</span>
+                <span style="display:inline-block;padding:16px 28px;border:2px solid rgba(0,0,0,0.2);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:28px;letter-spacing:0.4em;color:#333;font-weight:500;">${escapeHtml(code)}</span>
               </div>
-              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.5);">This code expires in 5 minutes.</p>
-              <p style="margin:16px 0 0;font-size:12px;color:rgba(255,255,255,0.5);">If you didn&apos;t request this, you can safely ignore this email.</p>
+              <p style="margin:0;font-size:12px;color:#888;">This code expires in 5 minutes.</p>
+              <p style="margin:16px 0 0;font-size:12px;color:#888;">If you didn&apos;t request this, you can safely ignore this email.</p>
             </td>
           </tr>
           <tr>
             <td style="padding:24px 0 0;text-align:center;">
-              <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.35);">SYDE 2030 · Systems Design Engineering</p>
+              <p style="margin:0;font-size:11px;color:#999;">SYDE 2030 · Systems Design Engineering</p>
             </td>
           </tr>
         </table>
@@ -150,29 +151,29 @@ export function getApprovalConfirmationEmailHtml(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>You're approved</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0a0a0f;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#0a0a0f;">
+<body style="margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
     <tr>
       <td style="padding:48px 24px;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:480px;margin:0 auto;">
           <tr>
             <td style="padding:0 0 32px;text-align:center;">
-              <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.08em;color:#f0f0f0;">SYDE 30 WEBRING</span>
+              <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.08em;color:#333;">SYDE 30 WEBRING</span>
             </td>
           </tr>
           <tr>
-            <td style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:40px 32px;">
-              <p style="margin:0 0 8px;font-size:16px;color:#f0f0f0;">Hi ${escapeHtml(name)},</p>
-              <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.75);line-height:1.5;">You&apos;re in! Your membership to the SYDE 30 webring has been approved.</p>
-              <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.75);line-height:1.5;">Log in to see your polaroid on the web and explore your cohort&apos;s sites.</p>
+            <td style="border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:40px 32px;">
+              <p style="margin:0 0 8px;font-size:16px;color:#333;">Hi ${escapeHtml(name)},</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#666;line-height:1.5;">You&apos;re in! Your membership to the SYDE 30 webring has been approved.</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#666;line-height:1.5;">Log in to see your polaroid on the web and explore your cohort&apos;s sites.</p>
               <p style="margin:0;text-align:center;">
-                <a href="${escapeHtml(siteUrl)}" style="display:inline-block;padding:12px 24px;background:#E8251A;color:#fff;text-decoration:none;font-weight:600;font-size:14px;border-radius:6px;">Check out the webring</a>
+                <a href="${escapeHtml(siteUrl)}" style="color:#333;text-decoration:underline;font-weight:600;font-size:14px;">Check out the webring</a>
               </p>
             </td>
           </tr>
           <tr>
             <td style="padding:24px 0 0;text-align:center;">
-              <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.35);">SYDE 2030 · Systems Design Engineering</p>
+              <p style="margin:0;font-size:11px;color:#999;">SYDE 2030 · Systems Design Engineering</p>
             </td>
           </tr>
         </table>
@@ -206,29 +207,29 @@ export function getPasswordResetEmailHtml(resetUrl: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reset your password</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0a0a0f;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#0a0a0f;">
+<body style="margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
     <tr>
       <td style="padding:48px 24px;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:480px;margin:0 auto;">
           <tr>
             <td style="padding:0 0 32px;text-align:center;">
-              <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.08em;color:#f0f0f0;">SYDE 30 WEBRING</span>
+              <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.08em;color:#333;">SYDE 30 WEBRING</span>
             </td>
           </tr>
           <tr>
-            <td style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:40px 32px;">
-              <p style="margin:0 0 8px;font-size:16px;color:#f0f0f0;">Reset your password</p>
-              <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.75);line-height:1.5;">You requested to reset your password for the SYDE 30 webring. Click the button below to set a new password.</p>
+            <td style="border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:40px 32px;">
+              <p style="margin:0 0 8px;font-size:16px;color:#333;">Reset your password</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#666;line-height:1.5;">You requested to reset your password for the SYDE 30 webring. Click the link below to set a new password.</p>
               <p style="margin:0;text-align:center;">
-                <a href="${escapeHtml(resetUrl)}" style="display:inline-block;padding:12px 24px;background:#E8251A;color:#fff;text-decoration:none;font-weight:600;font-size:14px;border-radius:6px;">Reset password</a>
+                <a href="${escapeHtml(resetUrl)}" style="color:#333;text-decoration:underline;font-weight:600;font-size:14px;">Reset password</a>
               </p>
-              <p style="margin:24px 0 0;font-size:12px;color:rgba(255,255,255,0.5);">This link expires in 1 hour. If you didn&apos;t request this, you can safely ignore this email.</p>
+              <p style="margin:24px 0 0;font-size:12px;color:#888;">This link expires in 1 hour. If you didn&apos;t request this, you can safely ignore this email.</p>
             </td>
           </tr>
           <tr>
             <td style="padding:24px 0 0;text-align:center;">
-              <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.35);">SYDE 2030 · Systems Design Engineering</p>
+              <p style="margin:0;font-size:11px;color:#999;">SYDE 2030 · Systems Design Engineering</p>
             </td>
           </tr>
         </table>
