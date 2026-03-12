@@ -47,25 +47,25 @@ export function getAdminApprovalEmailHtml(
       : ''
 
   const socialRows = [
-    member.linkedin_handle ? row('LinkedIn', `https://linkedin.com/in/${member.linkedin_handle}`) : '',
-    member.twitter_handle ? row('Twitter', `https://x.com/${member.twitter_handle}`) : '',
-    member.github_handle ? row('GitHub', `https://github.com/${member.github_handle}`) : '',
+    member.linkedin_handle ? row('linkedin', `https://linkedin.com/in/${member.linkedin_handle}`) : '',
+    member.twitter_handle ? row('twitter', `https://x.com/${member.twitter_handle}`) : '',
+    member.github_handle ? row('github', `https://github.com/${member.github_handle}`) : '',
   ].filter(Boolean).join('')
 
-  return emailShell('New member request', `
-              <p style="margin:0 0 20px;font-size:14px;color:#666;">A new member has requested to join the SYDE 30 webring.</p>
+  return emailShell('new member request', `
+              <p style="margin:0 0 20px;font-size:14px;color:#666;">someone wants to join the SYDE 30 webring. review below and approve if it looks good.</p>
               <table style="border-collapse:collapse;margin:0 0 24px;width:100%;">
-                ${row('Name', member.name)}
-                ${row('Email', member.email)}
-                ${row('Website', member.website_link)}
-                ${row('Polaroid still', member.polaroid_still_url)}
-                ${row('Polaroid live clip', member.polaroid_live_url)}
+                ${row('name', member.name)}
+                ${row('email', member.email)}
+                ${row('website', member.website_link)}
+                ${row('polaroid still', member.polaroid_still_url)}
+                ${row('polaroid live clip', member.polaroid_live_url)}
                 ${socialRows}
               </table>
               <div style="text-align:center;margin:0 0 20px;">
-                <a href="${escapeHtml(approveUrl)}" style="display:inline-block;padding:12px 28px;background:#333;color:#fff;text-decoration:none;font-weight:600;font-size:14px;border-radius:6px;">Approve member</a>
+                <a href="${escapeHtml(approveUrl)}" style="display:inline-block;padding:12px 28px;background:#333;color:#fff;text-decoration:none;font-weight:600;font-size:14px;border-radius:6px;">approve member</a>
               </div>
-              <p style="margin:0;font-size:12px;color:#aaa;">This link expires in 7 days.</p>`)
+              <p style="margin:0;font-size:12px;color:#aaa;">this link expires in 7 days.</p>`)
 }
 
 export async function sendApprovalEmail(
@@ -76,7 +76,7 @@ export async function sendApprovalEmail(
   await transporter.sendMail({
     from: getFrom(),
     to: adminEmail,
-    subject: `[SYDE 30 Webring] Approve: ${member.name}`,
+    subject: `[SYDE 30 webring] approve: ${member.name}`,
     html: getAdminApprovalEmailHtml(member, approveUrl),
   })
 }
@@ -125,14 +125,14 @@ ${bodyContent}
 
 /** Returns the HTML for the verification code email (for preview or sending) */
 export function getVerificationCodeEmailHtml(name: string, code: string): string {
-  return emailShell('Verify your email', `
-              <p style="margin:0 0 8px;font-size:16px;color:#333;">Hi ${escapeHtml(name)},</p>
-              <p style="margin:0 0 28px;font-size:14px;color:#666;line-height:1.6;">Thanks for signing up. Use this code to verify your email address:</p>
+  return emailShell('verify your email', `
+              <p style="margin:0 0 8px;font-size:16px;color:#333;">hi ${escapeHtml(name)},</p>
+              <p style="margin:0 0 28px;font-size:14px;color:#666;line-height:1.6;">enter this code to verify your email:</p>
               <div style="text-align:center;margin:0 0 28px;">
                 <span style="display:inline-block;padding:18px 32px;background:#f7f7f7;border:1px solid #e5e5e5;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:32px;letter-spacing:0.5em;color:#333;font-weight:600;">${escapeHtml(code)}</span>
               </div>
-              <p style="margin:0;font-size:12px;color:#aaa;">This code expires in 5 minutes.</p>
-              <p style="margin:12px 0 0;font-size:12px;color:#aaa;">If you didn&apos;t request this, you can safely ignore this email.</p>`)
+              <p style="margin:0;font-size:12px;color:#aaa;">code expires in 5 minutes.</p>
+              <p style="margin:12px 0 0;font-size:12px;color:#aaa;">if you didn&apos;t request this, you can ignore this email.</p>`)
 }
 
 export async function sendVerificationCodeEmail(
@@ -143,7 +143,7 @@ export async function sendVerificationCodeEmail(
   await transporter.sendMail({
     from: getFrom(),
     to: toEmail,
-    subject: 'Your verification code — SYDE 30 Webring',
+    subject: 'your verification code — SYDE 30 webring',
     html: getVerificationCodeEmailHtml(name, code),
   })
 }
@@ -153,12 +153,12 @@ export function getApprovalConfirmationEmailHtml(
   name: string,
   siteUrl: string
 ): string {
-  return emailShell("You're approved", `
-              <p style="margin:0 0 8px;font-size:16px;color:#333;">Hi ${escapeHtml(name)},</p>
-              <p style="margin:0 0 24px;font-size:14px;color:#666;line-height:1.6;">You&apos;re in! Your membership to the SYDE 30 webring has been approved.</p>
-              <p style="margin:0 0 28px;font-size:14px;color:#666;line-height:1.6;">Log in to see your polaroid on the web and explore your cohort&apos;s sites.</p>
+  return emailShell("you're approved", `
+              <p style="margin:0 0 8px;font-size:16px;color:#333;">hi ${escapeHtml(name)},</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#666;line-height:1.6;">you&apos;re in! your membership to the SYDE 30 webring is approved.</p>
+              <p style="margin:0 0 28px;font-size:14px;color:#666;line-height:1.6;">log in to see your polaroid and explore your cohort&apos;s sites.</p>
               <div style="text-align:center;">
-                <a href="${escapeHtml(siteUrl)}" style="display:inline-block;padding:12px 28px;background:#333;color:#fff;text-decoration:none;font-weight:600;font-size:14px;border-radius:6px;">Check out the webring</a>
+                <a href="${escapeHtml(siteUrl)}" style="display:inline-block;padding:12px 28px;background:#333;color:#fff;text-decoration:none;font-weight:600;font-size:14px;border-radius:6px;">view the webring</a>
               </div>`)
 }
 
@@ -170,20 +170,20 @@ export async function sendApprovalConfirmationEmail(
   await transporter.sendMail({
     from: getFrom(),
     to: toEmail,
-    subject: "You're in! — SYDE 30 Webring",
+    subject: "you're in! — SYDE 30 webring",
     html: getApprovalConfirmationEmailHtml(name, siteUrl),
   })
 }
 
 /** Returns the HTML for the password reset email (for preview or sending) */
 export function getPasswordResetEmailHtml(resetUrl: string): string {
-  return emailShell('Reset your password', `
-              <p style="margin:0 0 8px;font-size:16px;color:#333;">Reset your password</p>
-              <p style="margin:0 0 28px;font-size:14px;color:#666;line-height:1.6;">You requested to reset your password for the SYDE 30 webring. Click the button below to set a new one.</p>
+  return emailShell('reset your password', `
+              <p style="margin:0 0 8px;font-size:16px;color:#333;">reset your password</p>
+              <p style="margin:0 0 28px;font-size:14px;color:#666;line-height:1.6;">you asked to reset your password. click below to set a new one.</p>
               <div style="text-align:center;margin:0 0 28px;">
-                <a href="${escapeHtml(resetUrl)}" style="display:inline-block;padding:12px 28px;background:#333;color:#fff;text-decoration:none;font-weight:600;font-size:14px;border-radius:6px;">Reset password</a>
+                <a href="${escapeHtml(resetUrl)}" style="display:inline-block;padding:12px 28px;background:#333;color:#fff;text-decoration:none;font-weight:600;font-size:14px;border-radius:6px;">reset password</a>
               </div>
-              <p style="margin:0;font-size:12px;color:#aaa;">This link expires in 1 hour. If you didn&apos;t request this, you can safely ignore this email.</p>`)
+              <p style="margin:0;font-size:12px;color:#aaa;">link expires in 1 hour. if you didn&apos;t request this, you can ignore this email.</p>`)
 }
 
 export async function sendPasswordResetEmail(
@@ -193,7 +193,7 @@ export async function sendPasswordResetEmail(
   await transporter.sendMail({
     from: getFrom(),
     to: toEmail,
-    subject: '[SYDE 30 Webring] Reset your password',
+    subject: '[SYDE 30 webring] reset your password',
     html: getPasswordResetEmailHtml(resetUrl),
   })
 }

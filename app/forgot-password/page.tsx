@@ -24,10 +24,10 @@ export default function ForgotPasswordPage() {
       if (res.ok) {
         setSuccess(true)
       } else {
-        setError(data.error || 'Something went wrong')
+        setError(data.error || 'something went wrong')
       }
     } catch {
-      setError('Something went wrong')
+      setError('something went wrong')
     } finally {
       setLoading(false)
     }
@@ -42,26 +42,26 @@ export default function ForgotPasswordPage() {
         <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider uppercase transition-opacity hover:opacity-80 mb-8 text-white/70"
+            className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
           >
             <ArrowLeft className="w-3 h-3" />
-            Back to Log in
+            back to log in
           </Link>
           <h1
-            className="leading-none text-white"
+            className="leading-none text-white lowercase"
             style={{
-              fontFamily: "'Bebas Neue', sans-serif",
+              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
               fontSize: 'clamp(2rem, 6vw, 3rem)',
               letterSpacing: '0.02em',
             }}
           >
-            CHECK YOUR EMAIL
+            check your email
           </h1>
           <p className="font-sans mt-4 text-white/80">
-            If an account exists with that email, we&apos;ve sent a link to reset your password. The link expires in 1 hour.
+            if we have an account for that email, we&apos;ve sent a reset link. it expires in 1 hour.
           </p>
           <Link href="/login" className="font-mono text-xs text-white/70 hover:text-white mt-6">
-            Back to Log in
+            back to log in
           </Link>
         </div>
       </div>
@@ -76,24 +76,24 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
         <Link
           href="/login"
-          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider uppercase transition-opacity hover:opacity-80 mb-8 text-white/70"
+          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
         >
           <ArrowLeft className="w-3 h-3" />
-          Back to Log in
+          back to log in
         </Link>
 
         <h1
-          className="leading-none text-white"
+          className="leading-none text-white lowercase"
           style={{
-            fontFamily: "'Bebas Neue', sans-serif",
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
             fontSize: 'clamp(2.5rem, 8vw, 4rem)',
             letterSpacing: '0.02em',
           }}
         >
-          FORGOT PASSWORD
+          forgot password
         </h1>
         <p className="font-sans mt-4 text-white/80" style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}>
-          Enter your email and we&apos;ll send you a link to reset your password.
+          enter your email and we&apos;ll send you a reset link
         </p>
 
         <div
@@ -104,7 +104,7 @@ export default function ForgotPasswordPage() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
             <label htmlFor="email" className="font-mono text-xs text-white/70">
-              Email
+              email
             </label>
             <input
               id="email"
@@ -125,7 +125,7 @@ export default function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={loading}
-            className="group flex items-center justify-center gap-2.5 px-6 py-3.5 font-sans text-xs sm:text-sm font-medium uppercase tracking-widest transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+            className="group flex items-center justify-center gap-2.5 px-6 py-3.5 font-sans text-xs sm:text-sm font-medium lowercase transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             style={{
               background: 'var(--accent-red)',
               color: '#fff',
@@ -133,14 +133,14 @@ export default function ForgotPasswordPage() {
               border: 'none',
             }}
           >
-            {loading ? 'Sending…' : 'Send reset link'}
+            {loading ? 'sending…' : 'send reset link'}
           </button>
         </form>
 
         <p className="font-mono text-xs text-white/50 mt-6">
-          Don&apos;t have an account?{' '}
+          don&apos;t have an account?{' '}
           <Link href="/join" className="text-white/80 hover:text-white transition-colors">
-            Sign up
+            sign up
           </Link>
         </p>
       </div>

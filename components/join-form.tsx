@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence } from 'framer-motion'
-import { ArrowLeft, ArrowUpRight, Eye, EyeOff, Trash2, Upload, X } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, ChevronDown, Eye, EyeOff, Trash2, Upload, X } from 'lucide-react'
 import { parseSocialLink } from '@/lib/parse-social'
 import { AuthCelebration } from './auth-celebration'
 
@@ -424,25 +424,25 @@ export function JoinForm() {
 
     const nameTrimmed = form.name.trim()
     if (nameTrimmed.length < 2) {
-      newErrors.name = 'Name must be at least 2 characters'
+      newErrors.name = 'name needs at least 2 characters'
     } else if (!/^[a-zA-Z\s']+$/.test(nameTrimmed)) {
-      newErrors.name = 'Name can only contain letters, spaces, and apostrophes'
+      newErrors.name = 'name can only have letters, spaces, and apostrophes'
     }
 
     if (!form.email.trim()) {
-      newErrors.email = 'Please enter your email address'
+      newErrors.email = 'enter your email'
     } else if (!isValidEmail(form.email)) {
-      newErrors.email = 'Please enter a valid email address'
+      newErrors.email = 'enter a valid email address'
     }
 
     if (!form.password) {
-      newErrors.password = 'Password is required'
+      newErrors.password = 'password is required'
     } else if (form.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters'
+      newErrors.password = 'password needs at least 8 characters'
     }
 
     if (form.websiteLink.trim() && !isValidUrl(form.websiteLink)) {
-      newErrors.websiteLink = 'Enter a valid URL (e.g. https://example.com)'
+      newErrors.websiteLink = 'enter a valid URL (e.g. https://example.com)'
     }
 
     const hasLinkedIn = form.linkedin.trim().length > 0
@@ -451,25 +451,25 @@ export function JoinForm() {
     const hasAnySocial = hasLinkedIn || hasTwitter || hasGithub
 
     if (!form.polaroidStill || form.polaroidStill.size === 0) {
-      newErrors.polaroidStill = 'Polaroid still photo is required'
+      newErrors.polaroidStill = 'polaroid still photo is required'
     }
     if (!form.polaroidLive || form.polaroidLive.size === 0) {
-      newErrors.polaroidLive = 'Polaroid live clip is required'
+      newErrors.polaroidLive = 'polaroid live clip is required'
     } else if (form.polaroidLive.size > 50 * 1024 * 1024) {
-      newErrors.polaroidLive = 'Video is too large (max 50MB). Try a shorter clip.'
+      newErrors.polaroidLive = 'video too large (max 50MB). try a shorter clip.'
     }
 
     if (!hasAnySocial) {
-      newErrors.socials = 'At least one social link is required'
+      newErrors.socials = 'add at least one social link'
     } else {
       if (hasLinkedIn && !isValidSocial(form.linkedin)) {
-        newErrors.linkedin = 'Enter handle (e.g. username) or full URL'
+        newErrors.linkedin = 'enter handle or full URL'
       }
       if (hasTwitter && !isValidSocial(form.twitter)) {
-        newErrors.twitter = 'Enter handle (e.g. username) or full URL'
+        newErrors.twitter = 'enter handle or full URL'
       }
       if (hasGithub && !isValidSocial(form.github)) {
-        newErrors.github = 'Enter handle (e.g. username) or full URL'
+        newErrors.github = 'enter handle or full URL'
       }
     }
 
@@ -514,10 +514,10 @@ export function JoinForm() {
       if (data.errors && typeof data.errors === 'object') {
         setErrors((prev) => ({ ...prev, ...data.errors }))
       } else {
-        setErrors({ _: 'Something went wrong. Please try again.' })
+        setErrors({ _: 'something went wrong. try again.' })
       }
     } catch {
-      setErrors({ _: 'Something went wrong. Please try again.' })
+      setErrors({ _: 'something went wrong. try again.' })
     } finally {
       setSubmitting(false)
     }
@@ -578,7 +578,7 @@ export function JoinForm() {
           }}
         >
           {
-            "your request is in the spider's web. you'll hear back once an admin approves your membership."
+            "your request is in. we&apos;ll email you once an admin approves."
           }
         </p>
         <div
@@ -635,7 +635,7 @@ export function JoinForm() {
           className="font-sans mt-4 leading-relaxed text-white/80 md:whitespace-nowrap"
           style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}
         >
-          Join the SYDE 2030 webring. Share your personal site and connect with your cohort.
+          join the SYDE 2030 webring — share your site and connect with your cohort
         </p>
 
         {/* Divider */}
@@ -690,8 +690,7 @@ export function JoinForm() {
                 error={errors.websiteLink}
               />
               <p className="font-mono text-[10px] italic -mt-2 text-white/50">
-                we will automatically capture a screenshot of your website&apos;s
-                landing page
+                we&apos;ll capture a screenshot of your site&apos;s landing page
               </p>
             </div>
           </div>
@@ -780,10 +779,44 @@ export function JoinForm() {
             )}
           </div>
 
+          <details className="group">
+            <summary
+              className="cursor-pointer list-none flex items-center gap-2 py-2 text-xs text-white/80 lowercase select-none [&::-webkit-details-marker]:hidden"
+              style={sfPro}
+            >
+              <ChevronDown className="w-4 h-4 shrink-0 transition-transform duration-200 group-open:rotate-180" />
+              using an iPhone Live Photo? extract the still and video as separate files first
+            </summary>
+            <div className="pl-6 pb-2 pt-1 text-xs text-white/60 space-y-4" style={sfPro}>
+              <p>
+                Live Photos bundle a still image and a short video. we need both uploaded separately below.
+              </p>
+              <div>
+                <p className="font-medium text-white/80 mb-2">step 1 — get the still image</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>open Photos → tap your Live Photo</li>
+                  <li>tap ⋯ → Duplicate → Duplicate as Still Photo</li>
+                  <li>upload the new still as &quot;polaroid still&quot;</li>
+                </ol>
+              </div>
+              <div>
+                <p className="font-medium text-white/80 mb-2">step 2 — get the live video</p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>open the same Live Photo in Photos</li>
+                  <li>tap ⋯ → Save as Video</li>
+                  <li>upload the saved video as &quot;polaroid live clip&quot;</li>
+                </ol>
+              </div>
+              <p className="text-white/50 italic">
+                tip: if you used Loop, Bounce, or Long Exposure, remove the effect first so &quot;Save as Video&quot; shows.
+              </p>
+            </div>
+          </details>
+
           <ProfilePictureField
             label="polaroid still (photo)"
             requiredNote="heic, jpg, jpeg, png"
-            helperText="this will be your static polaroid image"
+            helperText="static image shown on your polaroid"
             value={form.polaroidStill}
             onChange={updatePolaroidStill}
             error={errors.polaroidStill}
@@ -793,7 +826,7 @@ export function JoinForm() {
           <ProfilePictureField
             label="polaroid live clip"
             requiredNote="mov or mp4"
-            helperText="short video shown when others hover your polaroid"
+            helperText="short clip that plays when others hover your polaroid"
             value={form.polaroidLive}
             onChange={updatePolaroidLive}
             error={errors.polaroidLive}

@@ -43,10 +43,10 @@ function VerifyEmailContent() {
         setSuccess(true)
         setTimeout(() => router.push('/'), 2000)
       } else {
-        setError(data.error || 'Verification failed')
+        setError(data.error || 'verification failed')
       }
     } catch {
-      setError('Something went wrong')
+      setError('something went wrong')
     } finally {
       setLoading(false)
     }
@@ -66,10 +66,10 @@ function VerifyEmailContent() {
       if (res.ok) {
         setResendCooldown(60)
       } else {
-        setError(data.error || 'Failed to resend')
+        setError(data.error || 'failed to resend')
       }
     } catch {
-      setError('Something went wrong')
+      setError('something went wrong')
     } finally {
       setResendLoading(false)
     }
@@ -88,19 +88,19 @@ function VerifyEmailContent() {
       >
         <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
           <h1
-            className="leading-none text-white"
+            className="leading-none text-white lowercase"
             style={{
-              fontFamily: "'Bebas Neue', sans-serif",
+              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
               fontSize: 'clamp(2.5rem, 8vw, 4rem)',
               letterSpacing: '0.02em',
             }}
           >
-            EMAIL VERIFIED
+            email verified
           </h1>
           <p className="font-sans mt-4 text-white/80">
-            Your request is in the spider&apos;s web. You&apos;ll hear back once an admin approves your membership.
+            your request is in. we&apos;ll email you once an admin approves.
           </p>
-          <p className="font-mono text-xs text-white/50 mt-4">Redirecting you home…</p>
+          <p className="font-mono text-xs text-white/50 mt-4">redirecting you home…</p>
           <Link href="/" className="inline-flex items-center gap-1.5 font-mono text-xs text-white/70 hover:text-white mt-6">
             <ArrowLeft className="w-3 h-3" />
             back to the web
@@ -135,7 +135,7 @@ function VerifyEmailContent() {
           verify your email
         </h1>
         <p className="font-sans mt-4 text-white/80" style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}>
-          We sent a 6-digit code to your email. Enter it below. Codes expire in 5 minutes.
+          we sent a 6-digit code to your email. enter it below. codes expire in 5 minutes.
         </p>
 
         <div
@@ -201,7 +201,7 @@ function VerifyEmailContent() {
         </form>
 
         <div className="mt-6 pt-6 border-t border-white/10">
-          <p className="font-mono text-xs text-white/50 mb-2">Didn&apos;t get the code?</p>
+          <p className="font-mono text-xs text-white/50 mb-2">didn&apos;t get the code?</p>
           <button
             type="button"
             onClick={handleResend}
@@ -209,10 +209,10 @@ function VerifyEmailContent() {
             className="font-mono text-xs text-white/70 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {resendCooldown > 0
-              ? `Resend in ${resendCooldown}s`
+              ? `resend in ${resendCooldown}s`
               : resendLoading
-                ? 'Sending…'
-                : 'Send another code'}
+                ? 'sending…'
+                : 'send another code'}
           </button>
         </div>
       </div>

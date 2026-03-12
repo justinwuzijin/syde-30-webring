@@ -34,13 +34,13 @@ export default function LoginPage() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(data.error || 'Login failed')
+        setError(data.error || 'log in failed')
         return
       }
       login(data.token)
       setShowCelebration(true)
     } catch {
-      setError('Something went wrong')
+      setError('something went wrong')
     } finally {
       setLoading(false)
     }
@@ -77,7 +77,7 @@ export default function LoginPage() {
           log in
         </h1>
         <p className="font-sans mt-4 text-white/80" style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}>
-          Sign in with your approved webring account.
+          sign in with the email and password you used when joining
         </p>
 
         <div
@@ -136,7 +136,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setShowPassword((p) => !p)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-white/60 hover:text-white transition-colors"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? 'hide password' : 'show password'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -159,7 +159,7 @@ export default function LoginPage() {
         </form>
 
         <p className="font-mono text-xs text-white/50 mt-6">
-          Don&apos;t have an account?{' '}
+          don&apos;t have an account?{' '}
           <Link href="/join" className="text-white/80 hover:text-white transition-colors">
             sign up
           </Link>
