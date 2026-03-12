@@ -26,11 +26,20 @@ const DEFAULT_PARAMS: Record<string, string> = {
   approveUrl: 'https://syde30webring.vercel.app/api/approve?token=sample',
 }
 
+type PreviewBg = 'light' | 'dark' | 'default'
+
+const BG_OPTIONS: { value: PreviewBg; label: string; className: string }[] = [
+  { value: 'light', label: 'light', className: 'bg-[#f7f7f7]' },
+  { value: 'dark', label: 'dark', className: 'bg-[#1a1a1a]' },
+  { value: 'default', label: 'default', className: 'bg-[var(--bg)]' },
+]
+
 export default function EmailPreviewPage() {
   const [template, setTemplate] = useState<string>('verification-code')
   const [params, setParams] = useState<Record<string, string>>({})
   const [html, setHtml] = useState('')
   const [loading, setLoading] = useState(true)
+  const [previewBg, setPreviewBg] = useState<PreviewBg>('default')
 
   const currentTemplate = TEMPLATES.find((t) => t.id === template)
 
@@ -109,11 +118,32 @@ export default function EmailPreviewPage() {
         </div>
 
         <div className="flex-1 min-w-0 flex flex-col">
-          <div className="font-mono text-xs text-white/50 mb-2">
-            Preview · {currentTemplate?.label}
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-mono text-xs text-white/50">
+              Preview · {currentTemplate?.label}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs text-white/50">background</span>
+              <div className="flex rounded overflow-hidden border border-white/10">
+                {BG_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPreviewBg(opt.value)}
+                    className={`px-3 py-1.5 font-mono text-[10px] transition-colors ${
+                      previewBg === opt.value
+                        ? 'bg-white/20 text-white'
+                        : 'bg-white/5 text-white/60 hover:text-white/80'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <div
-            className="flex-1 rounded-lg overflow-hidden border border-white/10 bg-white"
+            className={`flex-1 rounded-lg overflow-hidden border border-white/10 ${BG_OPTIONS.find((o) => o.value === previewBg)?.className ?? 'bg-white'}`}
             style={{ minHeight: 400 }}
           >
             {loading ? (

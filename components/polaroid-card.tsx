@@ -28,10 +28,12 @@ interface PolaroidCardProps {
   y: number
   onClick?: () => void
   noTilt?: boolean
+  /** Override rotation when noTilt is false (e.g. from placement logic) */
+  rotation?: number
   onHover?: () => void
 }
 
-export function PolaroidCard({ member, x, y, onClick, noTilt, onHover }: PolaroidCardProps) {
+export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover }: PolaroidCardProps) {
   const [hovered, setHovered] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageFailed, setImageFailed] = useState(false)
@@ -42,13 +44,17 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, onHover }: Polaroi
   const hasUploadedStill = !!member.polaroid_still_url
   const hasUploadedLive = !!member.polaroid_live_url
 
-  // Slight random tilt per card (deterministic from id)
+  // Slight tilt: use rotation prop if provided, else deterministic from id
   const tilt = useRef(0)
   useEffect(() => {
-    let h = 5381
-    for (const c of member.id) h = ((h << 5) + h) ^ c.charCodeAt(0)
-    tilt.current = ((h % 11) - 5) * 0.8 // -4° to +4°
-  }, [member.id])
+    if (typeof rotation === 'number') {
+      tilt.current = rotation
+    } else {
+      let h = 5381
+      for (const c of member.id) h = ((h << 5) + h) ^ c.charCodeAt(0)
+      tilt.current = ((h % 11) - 5) * 0.8 // -4° to +4°
+    }
+  }, [member.id, rotation])
 
   // Fallback to Microlink screenshot if no uploaded still
   const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(

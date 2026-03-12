@@ -16,6 +16,7 @@ export async function GET() {
       .select('*')
       .eq('approved', true)
       .order('joined_at', { ascending: true })
+    // Note: ordering is overridden client-side (Leo, Justin first) via getSortedMembers
 
     if (error) {
       console.error('Failed to fetch members:', error)
