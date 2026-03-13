@@ -70,7 +70,7 @@ class AnimationController {
     private setupTimeline() {
         this.timeline.to(this, {
             time: 1,
-            duration: 15,
+            duration: 10,
             repeat: -1,
             ease: 'none',
             onUpdate: () => this.render(),
@@ -231,9 +231,9 @@ class Star {
 
     constructor(cameraZ: number, cameraTravelDistance: number) {
         this.angle = Math.random() * Math.PI * 2
-        this.distance = 60 * Math.random() + 30
+        this.distance = 100 * Math.random() + 50
         this.rotationDirection = Math.random() > 0.5 ? 1 : -1
-        this.expansionRate = 1.2 + Math.random() * 0.8
+        this.expansionRate = 2.0 + Math.random() * 1.5
         this.finalScale = 0.7 + Math.random() * 0.6
 
         this.dx = this.distance * Math.cos(this.angle)

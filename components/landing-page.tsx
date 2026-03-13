@@ -422,20 +422,37 @@ export function LandingPage() {
           })}
         </div>
 
-        {/* Pulse ring — splash only */}
+        {/* Concentric pulsing circles — splash only */}
         {isSplash && (
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              border: '2px solid rgba(0, 0, 0, 0.15)',
-              animation: 'pulse-ring 2s ease-out infinite',
-            }}
-          />
+          <>
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                className="absolute inset-0 rounded-full"
+                style={{
+                  border: `2px solid rgba(160,195,220,${0.6 - i * 0.15})`,
+                  background: i === 0
+                    ? 'radial-gradient(ellipse at center, rgba(160,195,220,0.08) 0%, transparent 70%)'
+                    : 'none',
+                }}
+                animate={{
+                  rotate: 360,
+                  scale: [1, 1.05 + i * 0.05, 1],
+                  opacity: [0.8, 1, 0.8],
+                }}
+                transition={{
+                  duration: 5,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+              />
+            ))}
+          </>
         )}
 
         {/* "click to explore" — bottom of circle, fades out */}
         <motion.div
-          className="absolute inset-x-0 bottom-0 flex justify-center pb-[12%]"
+          className="absolute inset-0 flex items-center justify-center"
           style={{ pointerEvents: 'none', zIndex: 10 }}
           animate={{ opacity: isSplash ? 1 : 0 }}
           transition={{ duration: 0.25 }}
