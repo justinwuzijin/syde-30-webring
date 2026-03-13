@@ -55,19 +55,19 @@ export default function LoginPage() {
     </AnimatePresence>
     <div
       className="min-h-screen flex flex-col px-4 sm:px-6 md:px-8 lg:px-12 py-8 sm:py-16 md:py-24"
-      style={{ background: 'var(--bg)' }}
+      style={{ background: '#ffffff' }}
     >
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
         <a
           href="/"
-          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
+          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-black/50"
         >
           <ArrowLeft className="w-3 h-3" />
           back
         </a>
 
         <h1
-          className="leading-none text-white lowercase"
+          className="leading-none text-black lowercase"
           style={{
             fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
             fontSize: 'clamp(2.5rem, 8vw, 4rem)',
@@ -76,18 +76,18 @@ export default function LoginPage() {
         >
           log in
         </h1>
-        <p className="font-sans mt-4 text-white/80" style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}>
+        <p className="font-sans mt-4 text-black/60" style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}>
           sign in with the email and password you used when joining
         </p>
 
         <div
           className="mt-6 sm:mt-8 mb-8"
-          style={{ width: '32px', height: '1px', backgroundColor: 'var(--border)' }}
+          style={{ width: '32px', height: '1px', backgroundColor: 'rgba(0,0,0,0.15)' }}
         />
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <label htmlFor="email" className="text-xs text-white/70 lowercase" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}>
+            <label htmlFor="email" className="text-xs text-black/50 lowercase" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}>
               email
             </label>
             <input
@@ -97,22 +97,22 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="e.g. example@gmail.com"
               required
-              className="font-sans text-sm px-4 py-3 outline-none text-white placeholder:text-white/50 w-full"
+              className="font-sans text-sm px-4 py-3 outline-none text-black placeholder:text-black/40 w-full"
               style={{
-                background: 'var(--surface)',
-                border: `1px solid ${error ? '#ef4444' : 'var(--border)'}`,
+                background: '#f7f7f7',
+                border: `1px solid ${error ? '#ef4444' : 'rgba(0,0,0,0.1)'}`,
                 borderRadius: 'var(--radius)',
               }}
             />
           </div>
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <label htmlFor="password" className="text-xs text-white/70 lowercase" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}>
+              <label htmlFor="password" className="text-xs text-black/50 lowercase" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}>
                 password
               </label>
               <Link
                 href="/forgot-password"
-                className="font-mono text-xs text-white/50 hover:text-white/80 transition-colors"
+                className="font-mono text-xs text-black/40 hover:text-black/70 transition-colors"
               >
                 forgot password?
               </Link>
@@ -125,17 +125,17 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="font-sans text-sm px-4 py-3 pr-12 outline-none text-white placeholder:text-white/50 w-full"
+                className="font-sans text-sm px-4 py-3 pr-12 outline-none text-black placeholder:text-black/40 w-full"
                 style={{
-                  background: 'var(--surface)',
-                  border: `1px solid ${error ? '#ef4444' : 'var(--border)'}`,
+                  background: '#f7f7f7',
+                  border: `1px solid ${error ? '#ef4444' : 'rgba(0,0,0,0.1)'}`,
                   borderRadius: 'var(--radius)',
                 }}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((p) => !p)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-white/60 hover:text-white transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-black/40 hover:text-black/70 transition-colors"
                 aria-label={showPassword ? 'hide password' : 'show password'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -148,7 +148,7 @@ export default function LoginPage() {
             disabled={loading}
             className="group flex items-center justify-center gap-2.5 px-6 py-3.5 font-sans text-xs sm:text-sm font-medium lowercase transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             style={{
-              background: 'var(--accent-red)',
+              background: '#333',
               color: '#fff',
               borderRadius: 'var(--radius)',
               border: 'none',
@@ -158,9 +158,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="font-mono text-xs text-white/50 mt-6">
+        <p className="font-mono text-xs text-black/40 mt-6">
           don&apos;t have an account?{' '}
-          <Link href="/join" className="text-white/80 hover:text-white transition-colors">
+          <Link href="/join" className="text-black/70 hover:text-black transition-colors">
             sign up
           </Link>
         </p>

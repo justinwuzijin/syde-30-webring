@@ -18,7 +18,7 @@ const ITEM_SIZE = 32
 const STAGGER_DELAY = 0.1
 const SPIN_DURATION = 3
 
-export function AssetLoadingSpinner({ variant = 'default' }: { variant?: 'initial' | 'default' }) {
+export function AssetLoadingSpinner() {
   const [visibleCount, setVisibleCount] = useState(0)
 
   useEffect(() => {
@@ -32,9 +32,7 @@ export function AssetLoadingSpinner({ variant = 'default' }: { variant?: 'initia
   return (
     <div
       className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
-      style={{
-        backgroundColor: variant === 'initial' ? '#0a0a0f' : '#ffffff',
-      }}
+      style={{ backgroundColor: '#ffffff' }}
     >
       <motion.div
         className="relative"
@@ -89,23 +87,11 @@ export function AssetLoadingSpinner({ variant = 'default' }: { variant?: 'initia
         })}
       </motion.div>
       <p
-        className="mt-6 text-xs tracking-[0.15em] lowercase"
-        style={{
-          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif',
-          color: variant === 'initial' ? 'rgba(255,255,255,0.35)' : '#a3a3a3',
-        }}
+        className="mt-8 text-sm text-neutral-400 lowercase tracking-[0.15em]"
+        style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
       >
         loading site...
       </p>
-      {variant === 'initial' && (
-        <div
-          className="pointer-events-none fixed inset-0"
-          style={{
-            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px)',
-            backgroundSize: '16px 16px',
-          }}
-        />
-      )}
     </div>
   )
 }

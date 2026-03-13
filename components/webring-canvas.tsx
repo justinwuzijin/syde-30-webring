@@ -87,7 +87,10 @@ export function WebringCanvas() {
       ref={containerRef}
       className="fixed inset-0 overflow-hidden"
       style={{
-        background: '#ffffff',
+        backgroundImage: 'url(/cork-texture.png)',
+        backgroundSize: '400px 400px',
+        backgroundRepeat: 'repeat',
+        backgroundColor: '#c4a272',
         cursor: isDragging ? 'grabbing' : 'grab',
         touchAction: 'none',
       }}

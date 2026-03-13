@@ -89,6 +89,7 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, onHover }: Polaroi
     }
   }, [])
 
+
   return (
     <div
       ref={cardRef}

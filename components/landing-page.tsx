@@ -19,7 +19,7 @@ const CARD_GAP = 50
 const GRID_PADDING = 50
 
 const GooseViewer = dynamic(() => import('./goose-viewer'), { ssr: false })
-const DotGrid = dynamic(() => import('./dot-grid'), { ssr: false })
+const SpiralAnimation = dynamic(() => import('./spiral-animation'), { ssr: false })
 
 type Phase = 'splash' | 'transitioning' | 'expanded'
 type ViewMode = 'scrapbook' | 'classroom'
@@ -233,42 +233,29 @@ export function LandingPage() {
     : 'translate(-50%, -50%)'
 
   return (
-    <div className="relative bg-black h-screen w-full overflow-hidden">
-      {/* Purple dot grid background — fades when leaving splash */}
-      <motion.div
-        className="absolute inset-0 z-0"
-        animate={{ opacity: isSplash ? 1 : 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <DotGrid
-          dotSize={5}
-          gap={15}
-          baseColor="#271E37"
-          activeColor="#5227FF"
-          proximity={120}
-          shockRadius={250}
-          shockStrength={5}
-          resistance={750}
-          returnDuration={1.5}
-        />
-      </motion.div>
+    <div className="relative bg-white h-screen w-full overflow-hidden">
+      {/* Spiral animation background texture — always visible */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <SpiralAnimation />
+      </div>
 
-      {/* ── The circle — zooms in on click, becomes the canvas ── */}
+      {/* ── Static graph paper grid — same shape as circle but no scale animation ── */}
       <motion.div
-        ref={circleRef}
-        className="absolute overflow-hidden"
+        className="absolute pointer-events-none"
         style={{
           left: '50%',
-          top: isSplash ? '50%' : '50%',
+          top: '50%',
           x: '-50%',
           y: '-50%',
-          background: '#ffffff',
-          boxShadow: isSplash ? '0 8px 40px rgba(0,0,0,0.15)' : 'none',
-          cursor: isSplash
-            ? 'pointer'
-            : isDragging ? 'grabbing' : isExpanded ? 'grab' : 'default',
-          zIndex: 20,
-          touchAction: 'none',
+          zIndex: 19,
+          background: '#f6f8fb',
+          backgroundImage: [
+            'linear-gradient(rgba(160,195,220,0.25) 1px, transparent 1px)',
+            'linear-gradient(90deg, rgba(160,195,220,0.25) 1px, transparent 1px)',
+            'linear-gradient(rgba(160,195,220,0.10) 1px, transparent 1px)',
+            'linear-gradient(90deg, rgba(160,195,220,0.10) 1px, transparent 1px)',
+          ].join(', '),
+          backgroundSize: '80px 80px, 80px 80px, 16px 16px, 16px 16px',
         }}
         animate={isSplash ? {
           width: '30vw',
@@ -283,6 +270,49 @@ export function LandingPage() {
           duration: isSplash ? 0.6 : EXPAND_DURATION / 1000,
           ease: [0.22, 1, 0.36, 1],
         }}
+      />
+
+      {/* ── The circle — zooms in on click, becomes the canvas ── */}
+      <motion.div
+        ref={circleRef}
+        className="absolute overflow-hidden"
+        style={{
+          left: '50%',
+          top: isSplash ? '50%' : '50%',
+          x: '-50%',
+          y: '-50%',
+          background: 'transparent',
+          overflow: 'hidden',
+          boxShadow: isSplash ? '0 8px 40px rgba(0,0,0,0.15)' : 'none',
+          cursor: isSplash
+            ? 'pointer'
+            : isDragging ? 'grabbing' : isExpanded ? 'grab' : 'default',
+          zIndex: 20,
+          touchAction: 'none',
+        }}
+        animate={isSplash ? {
+          width: '30vw',
+          height: '30vw',
+          borderRadius: '50%',
+          scale: [1, 1.04, 1],
+        } : {
+          width: '100vw',
+          height: '100vh',
+          borderRadius: '0%',
+          scale: 1,
+        }}
+        transition={isSplash ? {
+          duration: 0.6,
+          ease: [0.22, 1, 0.36, 1],
+          scale: {
+            duration: 4,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
+        } : {
+          duration: EXPAND_DURATION / 1000,
+          ease: [0.22, 1, 0.36, 1],
+        }}
         onClick={isSplash ? handleEnterWebring : undefined}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
@@ -290,6 +320,8 @@ export function LandingPage() {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
+{/* Grid is rendered outside circle as a sibling */}
+
         {/* Polaroid grid — same DOM throughout, opacity + transform change */}
         <div
           style={{
@@ -340,7 +372,7 @@ export function LandingPage() {
           <div
             className="absolute inset-0 rounded-full"
             style={{
-              border: '2px solid rgba(82, 39, 255, 0.3)',
+              border: '2px solid rgba(0, 0, 0, 0.15)',
               animation: 'pulse-ring 2s ease-out infinite',
             }}
           />
@@ -550,7 +582,7 @@ export function LandingPage() {
           transition={{ duration: 0.6, delay: 0.5 }}
         >
           <span
-            className="text-white text-[0.8vw]"
+            className="text-black text-[0.8vw]"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             With help from V0, Cursor, Claude Code
@@ -563,7 +595,7 @@ export function LandingPage() {
           transition={{ duration: 0.6, delay: 0.55 }}
         >
           <span
-            className="text-white text-[0.8vw]"
+            className="text-black text-[0.8vw]"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             Built by Justin Wu &amp; Leo Zhang
@@ -578,13 +610,13 @@ export function LandingPage() {
           transition={{ duration: 0.6, delay: 0.6 }}
         >
           <span
-            className="text-white/80 text-[0.5vw]"
+            className="text-black/80 text-[0.5vw]"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             &quot;Goose&quot; (
-            <a href="https://skfb.ly/oJtwy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/90">https://skfb.ly/oJtwy</a>
+            <a href="https://skfb.ly/oJtwy" target="_blank" rel="noopener noreferrer" className="underline hover:text-black/90">https://skfb.ly/oJtwy</a>
             ) by OlegPopka is licensed under Creative Commons Attribution (
-            <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/90">http://creativecommons.org/licenses/by/4.0/</a>
+            <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline hover:text-black/90">http://creativecommons.org/licenses/by/4.0/</a>
             ).
           </span>
         </motion.div>
@@ -614,12 +646,12 @@ export function LandingPage() {
         >
           {user ? (
             <div className="flex items-center gap-3">
-              <span className="text-white text-sm font-medium uppercase tracking-wider">
+              <span className="text-black text-sm font-medium uppercase tracking-wider">
                 Logged in as {user.name}
               </span>
               <button
                 onClick={() => { playClick(); logout() }}
-                className="px-4 py-2 text-white/70 text-xs font-medium uppercase tracking-wider border border-white/20 hover:bg-white/10 hover:text-white transition-colors"
+                className="px-4 py-2 text-black/70 text-xs font-medium uppercase tracking-wider border border-black/20 hover:bg-black/10 hover:text-black transition-colors"
               >
                 Log out
               </button>
@@ -629,7 +661,7 @@ export function LandingPage() {
               <Link
                 href="/join"
                 onClick={() => { playClick(); startTransition() }}
-                className="px-5 py-2 text-white text-sm font-medium lowercase border border-white/30 hover:bg-white/10 transition-colors"
+                className="px-5 py-2 text-black text-sm font-medium lowercase border border-black/30 hover:bg-black/10 transition-colors"
                 style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
               >
                 sign up
@@ -637,7 +669,7 @@ export function LandingPage() {
               <Link
                 href="/login"
                 onClick={() => { playClick(); startTransition() }}
-                className="px-5 py-2 text-white text-sm font-medium lowercase border border-white/30 hover:bg-white/10 transition-colors"
+                className="px-5 py-2 text-black text-sm font-medium lowercase border border-black/30 hover:bg-black/10 transition-colors"
                 style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
               >
                 log in

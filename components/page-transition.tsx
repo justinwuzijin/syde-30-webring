@@ -73,7 +73,7 @@ export function PageTransitionProvider({ children }: { children: React.ReactNode
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
           >
-            <AssetLoadingSpinner variant={isInitialRef.current ? 'initial' : 'default'} />
+            <AssetLoadingSpinner />
           </motion.div>
         )}
       </AnimatePresence>

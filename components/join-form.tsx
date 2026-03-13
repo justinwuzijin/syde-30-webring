@@ -82,7 +82,7 @@ function InputField({
     <div className="flex flex-col gap-2">
       <label
         htmlFor={id}
-        className="text-xs font-medium text-white lowercase"
+        className="text-xs font-medium text-black lowercase"
         style={sfPro}
       >
         {label}
@@ -94,10 +94,10 @@ function InputField({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={`${mono ? 'font-mono' : 'font-sans'} w-full text-xs sm:text-sm px-4 py-3 outline-none transition-all duration-200 text-white placeholder:text-white/50`}
+        className={`${mono ? 'font-mono' : 'font-sans'} w-full text-xs sm:text-sm px-4 py-3 outline-none transition-all duration-200 text-black placeholder:text-black/40`}
         style={{
-          background: 'var(--surface)',
-          border: `1px solid ${error ? '#ef4444' : 'var(--border)'}`,
+          background: '#f7f7f7',
+          border: `1px solid ${error ? '#ef4444' : 'rgba(0,0,0,0.1)'}`,
           borderRadius: 'var(--radius)',
         }}
       />
@@ -131,7 +131,7 @@ function PasswordField({
     <div className="flex flex-col gap-2">
       <label
         htmlFor={id}
-        className="text-xs font-medium text-white lowercase"
+        className="text-xs font-medium text-black lowercase"
         style={sfPro}
       >
         {label}
@@ -144,17 +144,17 @@ function PasswordField({
           value={value}
           onChange={onChange}
           placeholder={placeholder}
-          className="font-sans w-full text-xs sm:text-sm px-4 py-3 pr-12 outline-none transition-all duration-200 text-white placeholder:text-white/50"
+          className="font-sans w-full text-xs sm:text-sm px-4 py-3 pr-12 outline-none transition-all duration-200 text-black placeholder:text-black/40"
           style={{
-            background: 'var(--surface)',
-            border: `1px solid ${error ? '#ef4444' : 'var(--border)'}`,
+            background: '#f7f7f7',
+            border: `1px solid ${error ? '#ef4444' : 'rgba(0,0,0,0.1)'}`,
             borderRadius: 'var(--radius)',
           }}
         />
         <button
           type="button"
           onClick={() => setShowPassword((p) => !p)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-white/60 hover:text-white transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-black/50 hover:text-black transition-colors"
           aria-label={showPassword ? 'Hide password' : 'Show password'}
         >
           {showPassword ? (
@@ -262,11 +262,11 @@ function ProfilePictureField({
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="text-xs font-medium text-white lowercase" style={sfPro}>
+      <span className="text-xs font-medium text-black lowercase" style={sfPro}>
         {label}
         <span className="ml-0.5 text-red-400">*</span>
         {requiredNote && (
-          <span className="font-normal normal-case italic ml-1 text-[10px] text-white/70">
+          <span className="font-normal normal-case italic ml-1 text-[10px] text-black/50">
             {requiredNote}
           </span>
         )}
@@ -274,8 +274,8 @@ function ProfilePictureField({
       <div
         className="flex flex-col items-center justify-center w-full min-h-[200px] rounded-lg border-2 border-dashed transition-colors cursor-pointer overflow-hidden relative"
         style={{
-          background: isDragging ? 'rgba(255,255,255,0.05)' : 'var(--surface)',
-          borderColor: error ? '#ef4444' : isDragging ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)',
+          background: isDragging ? 'rgba(0,0,0,0.03)' : '#ffffff',
+          borderColor: error ? '#ef4444' : isDragging ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.15)',
         }}
         onClick={() => !previewUrl && inputRef.current?.click()}
         onDrop={handleDrop}
@@ -325,11 +325,11 @@ function ProfilePictureField({
                   e.stopPropagation()
                   inputRef.current?.click()
                 }}
-                className="font-mono text-xs text-white/70 hover:text-white transition-colors"
+                className="font-mono text-xs text-black/50 hover:text-black transition-colors"
               >
                 replace
               </button>
-              <span className="text-white/30">|</span>
+              <span className="text-black/30">|</span>
               <button
                 type="button"
                 onClick={(e) => {
@@ -342,18 +342,18 @@ function ProfilePictureField({
                 delete
               </button>
             </div>
-            <p className="font-mono text-[10px] italic text-white/50 mt-0.5">
+            <p className="font-mono text-[10px] italic text-black/40 mt-0.5">
               {value && isVideoFile(value) ? 'click video to enlarge' : 'click image to enlarge'}
             </p>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 py-8">
-            <Upload className="w-10 h-10 text-white/40" />
-            <span className="font-mono text-xs text-white/60">
+            <Upload className="w-10 h-10 text-black/30" />
+            <span className="font-mono text-xs text-black/50">
               drag and drop, paste, or click to upload
             </span>
             {helperText && (
-              <p className="font-mono text-[10px] italic text-white/50">
+              <p className="font-mono text-[10px] italic text-black/40">
                 {helperText}
               </p>
             )}
@@ -369,7 +369,7 @@ function ProfilePictureField({
           <button
             type="button"
             onClick={() => setShowEnlarged(false)}
-            className="absolute top-4 right-4 p-2 text-white/70 hover:text-white transition-colors"
+            className="absolute top-4 right-4 p-2 text-black/50 hover:text-black transition-colors"
             aria-label="Close preview"
           >
             <X className="w-6 h-6" />
@@ -557,10 +557,10 @@ export function JoinForm() {
       </AnimatePresence>
       <div
         className="h-screen overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center px-6 scrollbar-blend"
-        style={{ background: 'var(--bg)' }}
+        style={{ background: '#ffffff' }}
       >
         <h1
-          className="text-center leading-none text-white"
+          className="text-center leading-none text-black"
           style={{
             fontFamily: "'Bebas Neue', sans-serif",
             fontSize: 'clamp(3rem, 10vw, 8rem)',
@@ -571,7 +571,7 @@ export function JoinForm() {
           web incoming
         </h1>
         <p
-          className="font-sans mt-6 text-center max-w-sm leading-relaxed text-white/80"
+          className="font-sans mt-6 text-center max-w-sm leading-relaxed text-black/60"
           style={{
             fontSize: 'clamp(12px, 2vw, 1rem)',
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both',
@@ -586,13 +586,13 @@ export function JoinForm() {
           style={{
             width: '32px',
             height: '1px',
-            backgroundColor: 'rgba(255,255,255,0.3)',
+            backgroundColor: 'rgba(0,0,0,0.15)',
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both',
           }}
         />
         <a
           href="/"
-          className="font-mono text-xs flex items-center gap-2 transition-opacity hover:opacity-80 text-white/70"
+          className="font-mono text-xs flex items-center gap-2 transition-opacity hover:opacity-80 text-black/50"
           style={{
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both',
           }}
@@ -608,13 +608,13 @@ export function JoinForm() {
   return (
     <div
       className="h-screen overflow-y-auto overflow-x-hidden flex flex-col px-4 sm:px-6 md:px-8 lg:px-12 py-8 sm:py-16 md:py-24 scrollbar-blend"
-      style={{ background: 'var(--bg)' }}
+      style={{ background: '#ffffff' }}
     >
       <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto flex-1">
         {/* Back */}
         <a
           href="/"
-          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 sm:mb-12 text-white/70"
+          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 sm:mb-12 text-black/50"
         >
           <ArrowLeft className="w-3 h-3" />
           back
@@ -622,7 +622,7 @@ export function JoinForm() {
 
         {/* Heading */}
         <h1
-          className="leading-none text-white lowercase"
+          className="leading-none text-black lowercase"
           style={{
             fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
             fontSize: 'clamp(2.5rem, 8vw, 5.5rem)',
@@ -632,7 +632,7 @@ export function JoinForm() {
           sign up
         </h1>
         <p
-          className="font-sans mt-4 leading-relaxed text-white/80 md:whitespace-nowrap"
+          className="font-sans mt-4 leading-relaxed text-black/60 md:whitespace-nowrap"
           style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}
         >
           join the SYDE 2030 webring — share your site and connect with your cohort
@@ -641,7 +641,7 @@ export function JoinForm() {
         {/* Divider */}
         <div
           className="mt-6 sm:mt-8 mb-8 sm:mb-10"
-          style={{ width: '32px', height: '1px', backgroundColor: 'var(--border)' }}
+          style={{ width: '32px', height: '1px', backgroundColor: 'rgba(0,0,0,0.1)' }}
         />
 
         {/* Form */}
@@ -689,7 +689,7 @@ export function JoinForm() {
                 mono
                 error={errors.websiteLink}
               />
-              <p className="font-mono text-[10px] italic -mt-2 text-white/50">
+              <p className="font-mono text-[10px] italic -mt-2 text-black/40">
                 we&apos;ll capture a screenshot of your site&apos;s landing page
               </p>
             </div>
@@ -697,10 +697,10 @@ export function JoinForm() {
 
           {/* Social links */}
           <div className="flex flex-col gap-3">
-            <span className="text-xs font-medium text-white lowercase" style={sfPro}>
+            <span className="text-xs font-medium text-black lowercase" style={sfPro}>
               social links
               <span className="ml-0.5 text-red-400">*</span>
-              <span className="font-normal normal-case italic ml-1 text-[10px] text-white/70">
+              <span className="font-normal normal-case italic ml-1 text-[10px] text-black/50">
                 (at least one)
               </span>
             </span>
@@ -708,7 +708,7 @@ export function JoinForm() {
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor="linkedin"
-                  className="text-xs text-white/70 lowercase"
+                  className="text-xs text-black/50 lowercase"
                   style={sfPro}
                 >
                   linkedin
@@ -719,10 +719,10 @@ export function JoinForm() {
                   value={form.linkedin}
                   onChange={update('linkedin')}
                   placeholder="username or URL"
-                  className="font-mono text-xs sm:text-sm px-3 py-2.5 outline-none transition-all duration-200 text-white placeholder:text-white/50 w-full"
+                  className="font-mono text-xs sm:text-sm px-3 py-2.5 outline-none transition-all duration-200 text-black placeholder:text-black/40 w-full"
                   style={{
-                    background: 'var(--surface)',
-                    border: `1px solid ${errors.linkedin || errors.socials ? '#ef4444' : 'var(--border)'}`,
+                    background: '#f7f7f7',
+                    border: `1px solid ${errors.linkedin || errors.socials ? '#ef4444' : 'rgba(0,0,0,0.1)'}`,
                     borderRadius: 'var(--radius)',
                   }}
                 />
@@ -730,7 +730,7 @@ export function JoinForm() {
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor="twitter"
-                  className="text-xs text-white/70 lowercase"
+                  className="text-xs text-black/50 lowercase"
                   style={sfPro}
                 >
                   twitter
@@ -741,10 +741,10 @@ export function JoinForm() {
                   value={form.twitter}
                   onChange={update('twitter')}
                   placeholder="username or URL"
-                  className="font-mono text-xs sm:text-sm px-3 py-2.5 outline-none transition-all duration-200 text-white placeholder:text-white/50 w-full"
+                  className="font-mono text-xs sm:text-sm px-3 py-2.5 outline-none transition-all duration-200 text-black placeholder:text-black/40 w-full"
                   style={{
-                    background: 'var(--surface)',
-                    border: `1px solid ${errors.twitter || errors.socials ? '#ef4444' : 'var(--border)'}`,
+                    background: '#f7f7f7',
+                    border: `1px solid ${errors.twitter || errors.socials ? '#ef4444' : 'rgba(0,0,0,0.1)'}`,
                     borderRadius: 'var(--radius)',
                   }}
                 />
@@ -752,7 +752,7 @@ export function JoinForm() {
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor="github"
-                  className="text-xs text-white/70 lowercase"
+                  className="text-xs text-black/50 lowercase"
                   style={sfPro}
                 >
                   github
@@ -763,10 +763,10 @@ export function JoinForm() {
                   value={form.github}
                   onChange={update('github')}
                   placeholder="username or URL"
-                  className="font-mono text-xs sm:text-sm px-3 py-2.5 outline-none transition-all duration-200 text-white placeholder:text-white/50 w-full"
+                  className="font-mono text-xs sm:text-sm px-3 py-2.5 outline-none transition-all duration-200 text-black placeholder:text-black/40 w-full"
                   style={{
-                    background: 'var(--surface)',
-                    border: `1px solid ${errors.github || errors.socials ? '#ef4444' : 'var(--border)'}`,
+                    background: '#f7f7f7',
+                    border: `1px solid ${errors.github || errors.socials ? '#ef4444' : 'rgba(0,0,0,0.1)'}`,
                     borderRadius: 'var(--radius)',
                   }}
                 />
@@ -781,18 +781,18 @@ export function JoinForm() {
 
           <details className="group">
             <summary
-              className="cursor-pointer list-none flex items-center gap-2 py-2 text-xs text-white/80 lowercase select-none [&::-webkit-details-marker]:hidden"
+              className="cursor-pointer list-none flex items-center gap-2 py-2 text-xs text-black/60 lowercase select-none [&::-webkit-details-marker]:hidden"
               style={sfPro}
             >
               <ChevronDown className="w-4 h-4 shrink-0 transition-transform duration-200 group-open:rotate-180" />
               using an iPhone Live Photo? extract the still and video as separate files first
             </summary>
-            <div className="pl-6 pb-2 pt-1 text-xs text-white/60 space-y-4" style={sfPro}>
+            <div className="pl-6 pb-2 pt-1 text-xs text-black/50 space-y-4" style={sfPro}>
               <p>
                 Live Photos bundle a still image and a short video. we need both uploaded separately below.
               </p>
               <div>
-                <p className="font-medium text-white/80 mb-2">step 1 — get the still image</p>
+                <p className="font-medium text-black/60 mb-2">step 1 — get the still image</p>
                 <ol className="list-decimal list-inside space-y-1">
                   <li>open Photos → tap your Live Photo</li>
                   <li>tap ⋯ → Duplicate → Duplicate as Still Photo</li>
@@ -800,14 +800,14 @@ export function JoinForm() {
                 </ol>
               </div>
               <div>
-                <p className="font-medium text-white/80 mb-2">step 2 — get the live video</p>
+                <p className="font-medium text-black/60 mb-2">step 2 — get the live video</p>
                 <ol className="list-decimal list-inside space-y-1">
                   <li>open the same Live Photo in Photos</li>
                   <li>tap ⋯ → Save as Video</li>
                   <li>upload the saved video as &quot;polaroid live clip&quot;</li>
                 </ol>
               </div>
-              <p className="text-white/50 italic">
+              <p className="text-black/40 italic">
                 tip: if you used Loop, Bounce, or Long Exposure, remove the effect first so &quot;Save as Video&quot; shows.
               </p>
             </div>
@@ -842,7 +842,7 @@ export function JoinForm() {
             disabled={submitting}
             className="group flex items-center justify-center gap-2.5 px-6 py-3.5 font-sans text-xs sm:text-sm font-medium lowercase transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-[0.98] mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
-              background: 'var(--accent-red)',
+              background: '#333',
               color: '#fff',
               borderRadius: 'var(--radius)',
               border: 'none',

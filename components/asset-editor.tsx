@@ -19,10 +19,10 @@ const INITIAL_TRANSFORMS: AssetTransform[] = [
   { id: 'matlab', x: 55, y: 60, width: 20, rotation: 0, zIndex: 5 },
   { id: 'sw-cube', x: 20, y: 20, width: 18, rotation: 20, zIndex: 5 },
   { id: 'cpp', x: 72, y: 23, width: 8, rotation: 20, zIndex: 5 },
-  { id: 'sandwich', x: 83, y: 24, width: 14, rotation: 0, zIndex: 5 },
+  { id: 'sandwich', x: 80, y: 24, width: 14, rotation: 0, zIndex: 5 },
   { id: 'crest', x: 62, y: 35, width: 18, rotation: -20, zIndex: 5 },
   { id: 'book', x: 24, y: 40, width: 12, rotation: 15, zIndex: 1 },
-  { id: 'releasing-march', x: 86, y: 50, width: 12, rotation: 0, zIndex: 2 },
+  { id: 'releasing-march', x: 86, y: 40, width: 12, rotation: 0, zIndex: 2 },
 ]
 
 export function AssetEditor() {
