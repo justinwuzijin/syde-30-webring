@@ -7,16 +7,22 @@ import useSWR from 'swr'
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
+import { JoinStampAnimation } from './join-stamp-animation'
 import type { Member } from '@/types/member'
 import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
+import {
+  getSortedMembers,
+  isCreator,
+  computeScrapbookPositions,
+  computeClassroomPositions,
+  CARD_GAP,
+  GRID_PADDING,
+} from '@/lib/placement'
 import { PhotoFolder } from './photo-folder'
 import { Input } from './ui/input'
 import { AssetEditor } from './asset-editor'
 import { useSound } from '@/lib/use-sound'
 import { usePageTransition } from './page-transition'
-
-const CARD_GAP = 50
-const GRID_PADDING = 50
 
 const GooseViewer = dynamic(() => import('./goose-viewer'), { ssr: false })
 const SpiralAnimation = dynamic(() => import('./spiral-animation'), { ssr: false })
@@ -34,32 +40,29 @@ const MIN_ZOOM = 0.3
 const MAX_ZOOM = 2.5
 const ZOOM_SENSITIVITY = 0.002
 
-function computeGridPositions(members: Member[], mode: ViewMode) {
-  const n = members.length
-  const cols = Math.max(2, Math.ceil(Math.sqrt(n)))
-  const rows = Math.ceil(n / cols)
-  const innerW = cols * (POLAROID_WIDTH + CARD_GAP) - CARD_GAP
-  const innerH = rows * (POLAROID_HEIGHT + CARD_GAP) - CARD_GAP
-  const canvasW = innerW + GRID_PADDING * 2
-  const canvasH = innerH + GRID_PADDING * 2
+/** Splash preview offset — polaroids shifted up/left for visual centering. Must match camera on expand. */
+const PREVIEW_OFFSET_X = 72
+const PREVIEW_OFFSET_Y = 88
 
-  const positions = new Map<string, { x: number; y: number }>()
-  members.forEach((m, i) => {
-    positions.set(m.id, {
-      x: GRID_PADDING + (i % cols) * (POLAROID_WIDTH + CARD_GAP),
-      y: GRID_PADDING + Math.floor(i / cols) * (POLAROID_HEIGHT + CARD_GAP),
-    })
-  })
+/** Landing preview: only Leo and Justin */
+function getLandingPreviewMembers(members: Member[]): Member[] {
+  return members.filter(isCreator)
+}
 
-  // Bias the newest member toward center only in scrapbook mode
-  if (mode === 'scrapbook' && members.length > 0) {
-    const centerCol = Math.floor(cols / 2)
-    const centerRow = Math.floor(rows / 2)
-    const centerX = GRID_PADDING + centerCol * (POLAROID_WIDTH + CARD_GAP)
-    const centerY = GRID_PADDING + centerRow * (POLAROID_HEIGHT + CARD_GAP)
-    const newest = members[members.length - 1]
-    positions.set(newest.id, { x: centerX, y: centerY })
+/** Compute positions for scrapbook (center-out, tilt) or classroom (rigid grid) */
+function computePositions(
+  members: Member[],
+  mode: ViewMode
+): {
+  positions: Map<string, { x: number; y: number; rotation?: number }>
+  canvasW: number
+  canvasH: number
+} {
+  if (mode === 'classroom') {
+    const { positions, canvasW, canvasH } = computeClassroomPositions(members)
+    return { positions, canvasW, canvasH }
   }
+  const { positions, canvasW, canvasH } = computeScrapbookPositions(members)
   return { positions, canvasW, canvasH }
 }
 
@@ -81,7 +84,7 @@ export function LandingPage() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, logout } = useAuth()
+  const { user, logout, setUserFromToken } = useAuth()
   const { startTransition } = usePageTransition()
 
   // Sound effects
@@ -97,32 +100,39 @@ export function LandingPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('scrapbook')
   const [navigatingToProfile, setNavigatingToProfile] = useState(false)
+  const [showStampAnimation, setShowStampAnimation] = useState(false)
 
   // Fetch members from Supabase with SWR (cached, deduped)
-  const { data: membersData } = useSWR<{ members: Member[] }>('/api/members', (url) =>
-    fetch(url).then((r) => r.json())
-  , {
-    revalidateOnFocus: false,
-    dedupingInterval: 60_000, // 1 min — no duplicate requests
-  })
+  const { data: membersData, isLoading: membersLoading } = useSWR<{ members: Member[] }>(
+    '/api/members',
+    (url) => fetch(url).then((r) => r.json()),
+    { revalidateOnFocus: false, dedupingInterval: 60_000 }
+  )
   const members = membersData?.members ?? []
+  const isSplash = phase === 'splash'
+  const isExpanded = phase === 'expanded'
 
+  // Splash (landing preview): only Leo and Justin. Expanded: all members.
+  const displayMembers = isSplash ? getLandingPreviewMembers(members) : members
+  const placementMode = isSplash ? 'scrapbook' : viewMode
   const { positions, canvasW, canvasH } = useMemo(
-    () => computeGridPositions(members, viewMode),
-    [members, viewMode]
+    () => computePositions(displayMembers, placementMode),
+    [displayMembers, placementMode]
   )
 
   const filteredMembers = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
-    if (!query) return members
-    return members.filter(m => {
+    if (!query) return displayMembers
+    return displayMembers.filter((m) => {
       const firstName = m.name.split(' ')[0] ?? ''
       return firstName.toLowerCase().startsWith(query)
     })
-  }, [searchTerm, members])
+  }, [searchTerm, displayMembers])
 
-  // Pan/zoom state — only active in expanded phase
-  const [camera, setCamera] = useState({ x: 0, y: 0, k: 1 })
+  // Pan/zoom state — initial offset matches splash so no jump when expanding
+  const [camera, setCamera] = useState(() =>
+    startExpanded ? { x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 } : { x: 0, y: 0, k: 1 }
+  )
   const [isDragging, setIsDragging] = useState(false)
   const lastPos = useRef({ x: 0, y: 0 })
 
@@ -148,26 +158,48 @@ export function LandingPage() {
     }
   }, [pathname, searchParams])
 
+  // Show stamp animation when landing directly on ?view=webring (e.g. from approval email)
+  useEffect(() => {
+    if (
+      phase === 'expanded' &&
+      user &&
+      !user.has_seen_join_stamp_animation &&
+      members.length > 0 &&
+      !showStampAnimation
+    ) {
+      const viewParam = searchParams.get('view')
+      if (viewParam === 'webring') {
+        setShowStampAnimation(true)
+      }
+    }
+  }, [phase, user, members.length, searchParams, showStampAnimation])
+
   // Fade out the white intro overlay after a short delay
   useEffect(() => {
     const id = setTimeout(() => setPageReady(true), 600)
     return () => clearTimeout(id)
   }, [])
 
-  // Click the circle → expand
+  // Click the circle → expand (camera offset matches splash so no jump)
   const handleEnterWebring = useCallback(() => {
     if (phase !== 'splash') return
     playClick()
     setPhase('transitioning')
-    setTimeout(() => setPhase('expanded'), EXPANDED_DELAY)
-  }, [phase, playClick])
+    setTimeout(() => {
+      setCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 })
+      setPhase('expanded')
+      if (user && !user.has_seen_join_stamp_animation && members.length > 0) {
+        setShowStampAnimation(true)
+      }
+    }, EXPANDED_DELAY)
+  }, [phase, playClick, user, members.length])
 
-  // Back to splash - also clear URL param so reload stays on splash
+  // Back to splash — reset camera to match preview offset so Leo & Justin stay centered
   const handleBack = useCallback(() => {
     playClick()
     setPhase('splash')
-    setCamera({ x: 0, y: 0, k: 1 })
-    // Clear the ?view=webring param from URL without triggering navigation
+    setCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 })
+    setViewMode('scrapbook')
     window.history.replaceState({}, '', '/')
   }, [playClick])
 
@@ -208,6 +240,19 @@ export function LandingPage() {
   const handleMouseUp = useCallback(() => setIsDragging(false), [])
 
   // Click polaroid → profile (expanded only)
+  const handleStampComplete = useCallback(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('syde30_auth_token') : null
+    if (token) {
+      fetch('/api/me/mark-stamp-seen', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(() => {
+        setUserFromToken(token)
+      })
+    }
+    setShowStampAnimation(false)
+  }, [setUserFromToken])
+
   const handleCardClick = useCallback((memberId: string) => {
     if (phase !== 'expanded') return
     playClick()
@@ -219,9 +264,7 @@ export function LandingPage() {
     }, 220)
   }, [phase, router, playClick])
 
-  const isExpanded = phase === 'expanded'
   const isTransitioning = phase === 'transitioning'
-  const isSplash = phase === 'splash'
 
   // In expanded state, the grid is transformed by camera; otherwise centered
   // Classroom mode anchors grid to top-left (aligned with photo folder at 5%, below toggles at ~6rem)
@@ -230,7 +273,7 @@ export function LandingPage() {
     ? isClassroom
       ? `translate(${camera.x}px, ${camera.y}px) scale(${camera.k})`
       : `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
-    : 'translate(-50%, -50%)'
+    : `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px))`
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden">
@@ -339,7 +382,17 @@ export function LandingPage() {
             pointerEvents: isExpanded ? 'auto' : 'none',
           }}
         >
-          {filteredMembers.length === 0 && searchTerm.trim() && (
+          {membersLoading && displayMembers.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <p
+                className="text-black/40 text-xs lowercase tracking-[0.2em]"
+                style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+              >
+                loading polaroids…
+              </p>
+            </div>
+          )}
+          {filteredMembers.length === 0 && searchTerm.trim() && !membersLoading && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className={'px-6 py-3 ' + GLASS_CHROME}>
                 <div className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
@@ -350,9 +403,10 @@ export function LandingPage() {
             </div>
           )}
 
-          {filteredMembers.map(m => {
+          {filteredMembers.map((m) => {
             const pos = positions.get(m.id)
             if (!pos) return null
+            const hasRotation = 'rotation' in pos && typeof pos.rotation === 'number'
             return (
               <PolaroidCard
                 key={m.id}
@@ -360,7 +414,8 @@ export function LandingPage() {
                 x={pos.x}
                 y={pos.y}
                 onClick={isExpanded ? () => handleCardClick(m.id) : undefined}
-                noTilt={viewMode === 'classroom'}
+                noTilt={placementMode === 'classroom'}
+                rotation={hasRotation ? pos.rotation : undefined}
                 onHover={playPageTurn}
               />
             )
@@ -378,9 +433,9 @@ export function LandingPage() {
           />
         )}
 
-        {/* "click to explore" — fades out */}
+        {/* "click to explore" — bottom of circle, fades out */}
         <motion.div
-          className="absolute inset-0 flex items-center justify-center"
+          className="absolute inset-x-0 bottom-0 flex justify-center pb-[12%]"
           style={{ pointerEvents: 'none', zIndex: 10 }}
           animate={{ opacity: isSplash ? 1 : 0 }}
           transition={{ duration: 0.25 }}
@@ -699,6 +754,15 @@ export function LandingPage() {
           transition: 'opacity 220ms ease',
         }}
       />
+
+      {/* First-login stamp animation — one-time after approval */}
+      {showStampAnimation && user && (
+        <JoinStampAnimation
+          user={user}
+          members={members}
+          onComplete={handleStampComplete}
+        />
+      )}
     </div>
   )
 }
