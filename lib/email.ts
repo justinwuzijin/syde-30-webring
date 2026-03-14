@@ -88,7 +88,7 @@ export async function sendApprovalEmail(
   })
 }
 
-/** Shared email wrapper — transparent, theme-aware text. No backgrounds. */
+/** Shared email wrapper — white background + clean SF system typography. */
 function emailShell(title: string, bodyContent: string): string {
   return `
 <!DOCTYPE html>
@@ -96,32 +96,23 @@ function emailShell(title: string, bodyContent: string): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="light dark">
   <title>${escapeHtml(title)}</title>
   <style>
-    /* Light mode (default): dark text */
-    .em-text { color: #333 !important; }
-    .em-text-secondary { color: #555 !important; }
-    .em-text-muted { color: #888 !important; }
-    .em-link { color: #333 !important; text-decoration: underline !important; }
-    .em-code { color: #333 !important; border-color: #ccc !important; }
-    @media (prefers-color-scheme: dark) {
-      .em-text { color: #e5e5e5 !important; }
-      .em-text-secondary { color: #b0b0b0 !important; }
-      .em-text-muted { color: #888 !important; }
-      .em-link { color: #7eb8ff !important; }
-      .em-code { color: #e5e5e5 !important; border-color: #555 !important; }
-    }
+    .em-text { color: #111111 !important; }
+    .em-text-secondary { color: #444444 !important; }
+    .em-text-muted { color: #8c8c8c !important; }
+    .em-link { color: #111111 !important; text-decoration: underline !important; }
+    .em-code { color: #111111 !important; border-color: #d4d4d4 !important; background-color:#f9f9f9 !important; }
   </style>
 </head>
-<body style="margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<body style="margin:0;padding:0;background-color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Segoe UI',system-ui,sans-serif;">
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
     <tr>
-      <td style="padding:48px 24px;">
+      <td style="padding:48px 24px;background-color:#ffffff;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:480px;margin:0 auto;">
           <tr>
             <td style="padding:0 0 32px;text-align:center;">
-              <span class="em-text-muted" style="font-size:11px;font-weight:600;letter-spacing:0.25em;text-transform:uppercase;">SYDE 30 webring</span>
+              <span class="em-text-muted" style="font-size:11px;font-weight:600;letter-spacing:0.25em;text-transform:uppercase;">syde 30 webring</span>
             </td>
           </tr>
           <tr>
