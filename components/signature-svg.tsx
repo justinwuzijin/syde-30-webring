@@ -55,22 +55,39 @@ const SIGNATURES: Record<string, SignatureData> = {
   },
 }
 
+export function hasCustomSignature(memberId: string): boolean {
+  return Boolean(SIGNATURES[memberId])
+}
+
 // Cache of which members have already had their signature fully drawn.
 // Keyed by stable memberId so it survives list filtering and remounts.
 const drawnSignatureCache = new Set<string>()
 
 // ── Fallback: generate a simple scrawl for unknown members ──
 function getFallbackSignature(name: string): SignatureData {
+  const trimmed = name.trim() || 'friend'
+  const first = trimmed.split(/\s+/)[0]?.toLowerCase() || trimmed.toLowerCase()
   const charWidth = 22
-  const totalW = Math.max(80, name.length * charWidth + 20)
-  // Single wobbly underline-ish stroke as placeholder
+  const totalW = Math.max(80, first.length * charWidth + 40)
+
+  const strokes: { d: string }[] = []
+  const baseY = 32
+  let x = 12
+
+  for (let i = 0; i < first.length; i++) {
+    const jitter = (i % 2 === 0 ? 1 : -1) * 2
+    const up = baseY - 10 - (i % 3) * 2
+    const down = baseY + 8 + ((i + 1) % 3) * 2
+    const nextX = x + charWidth
+    strokes.push({
+      d: `M ${x},${baseY} C ${x + 6},${up + jitter} ${nextX - 8},${down - jitter} ${nextX},${baseY}`,
+    })
+    x = nextX - 4
+  }
+
   return {
     viewBox: `0 0 ${totalW} 50`,
-    strokes: [
-      {
-        d: `M 8,30 C ${totalW * 0.25},22 ${totalW * 0.5},38 ${totalW * 0.75},26 C ${totalW * 0.85},22 ${totalW - 10},28 ${totalW - 8},32`,
-      },
-    ],
+    strokes,
   }
 }
 
@@ -83,7 +100,8 @@ interface SignatureSVGProps {
 }
 
 export function SignatureSVG({ memberId, isHovered, className }: SignatureSVGProps) {
-  const sig = SIGNATURES[memberId] || getFallbackSignature(memberId)
+  const sig = SIGNATURES[memberId]
+  if (!sig) return null
   const pathRefs = useRef<(SVGPathElement | null)[]>([])
   const [lengths, setLengths] = useState<number[]>([])
 

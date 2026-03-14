@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Member } from '@/types/member'
-import { SignatureSVG } from './signature-svg'
 
 // ── Instax Mini proportions (real: 54×86mm, photo: 46×62mm) ──────────────
 // Scaled to pixel ratios matching the reference image
@@ -43,6 +42,8 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
 
   const hasUploadedStill = !!member.polaroid_still_url
   const hasUploadedLive = !!member.polaroid_live_url
+
+  const firstName = (member.name || '').trim().split(/\s+/)[0] || ''
 
   // Slight tilt: use rotation prop if provided, else deterministic from id
   const tilt = useRef(0)
@@ -246,18 +247,31 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
             overflow: 'hidden',
           }}
         >
-          {/* Hand-drawn SVG signature — animates on hover */}
           <div
             style={{
               width: '85%',
               height: '70%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               transform: 'rotate(-1.5deg)',
             }}
           >
-            <SignatureSVG
-              memberId={member.id}
-              isHovered={hovered}
-            />
+            <span
+              style={{
+                fontFamily: '"Caveat", system-ui, -apple-system, sans-serif',
+                fontSize: 26,
+                textTransform: 'lowercase',
+                letterSpacing: '0.06em',
+                fontWeight: 500,
+                color: '#111111',
+                whiteSpace: 'nowrap',
+                // Slight vertical wobble / softness to feel more handwritten
+                textShadow: '0.4px 0.8px 0 rgba(0,0,0,0.18)',
+              }}
+            >
+              {firstName}
+            </span>
           </div>
         </div>
       </div>

@@ -36,6 +36,13 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
+function firstNameOrFallback(fullName: string, fallback: string = 'there'): string {
+  const trimmed = fullName.trim()
+  if (!trimmed) return fallback
+  const first = trimmed.split(/\s+/)[0]
+  return first || fallback
+}
+
 /** Returns the HTML for the admin approval email (for preview or sending) */
 export function getAdminApprovalEmailHtml(
   member: ApprovalMemberInfo,
@@ -138,8 +145,9 @@ ${bodyContent}
 
 /** Returns the HTML for the verification code email (for preview or sending) */
 export function getVerificationCodeEmailHtml(name: string, code: string): string {
+  const firstName = firstNameOrFallback(name)
   return emailShell('verify your email', `
-              <p class="em-text" style="margin:0 0 8px;font-size:16px;">hi ${escapeHtml(name)},</p>
+              <p class="em-text" style="margin:0 0 8px;font-size:16px;">hi ${escapeHtml(firstName)},</p>
               <p class="em-text-secondary" style="margin:0 0 28px;font-size:14px;line-height:1.6;">enter this code to verify your email:</p>
               <div style="text-align:center;margin:0 0 28px;">
                 <span class="em-code" style="display:inline-block;padding:18px 32px;border:1px solid;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:32px;letter-spacing:0.5em;font-weight:600;">${escapeHtml(code)}</span>
@@ -166,8 +174,9 @@ export function getApprovalConfirmationEmailHtml(
   name: string,
   siteUrl: string
 ): string {
+  const firstName = firstNameOrFallback(name)
   return emailShell("You're approved", `
-              <p class="em-text" style="margin:0 0 8px;font-size:16px;">Hi ${escapeHtml(name)},</p>
+              <p class="em-text" style="margin:0 0 8px;font-size:16px;">Hi ${escapeHtml(firstName)},</p>
               <p class="em-text-secondary" style="margin:0 0 24px;font-size:14px;line-height:1.6;">You&apos;re in! Your membership to the SYDE 30 webring has been approved.</p>
               <p class="em-text-secondary" style="margin:0 0 28px;font-size:14px;line-height:1.6;">Log in to see your polaroid and explore your cohort&apos;s sites.</p>
               <div style="text-align:center;">
