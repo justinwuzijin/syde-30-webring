@@ -45,11 +45,11 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
 
   const firstName = (member.name || '').trim().split(/\s+/)[0] || ''
 
-  // Scale font size so all names fill roughly the same width of the polaroid
+  // Scale font size so all names fill the white area without overflowing
   const targetChars = 6    // This many chars fills the card at baseFontSize
-  const baseFontSize = 26
-  const minFontSize = 10
-  const maxFontSize = 38   // Cap for very short names
+  const baseFontSize = 48  // Large baseline so names fill the signature area
+  const minFontSize = 14
+  const maxFontSize = 62   // Short names fill the card; kept within sig area height
   const nameFontSize = Math.min(
     maxFontSize,
     Math.max(minFontSize, Math.round(baseFontSize * (targetChars / firstName.length)))
@@ -259,8 +259,8 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
         >
           <div
             style={{
-              width: '85%',
-              height: '70%',
+              width: '96%',
+              height: '92%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -271,9 +271,10 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
               style={{
                 fontFamily: 'var(--font-polaroid-name)',
                 fontSize: nameFontSize,
+                lineHeight: 0.95,
                 textTransform: 'lowercase',
                 letterSpacing: '0.06em',
-                fontWeight: 1000,
+                fontWeight: 600,
                 color: '#111111',
                 whiteSpace: 'nowrap',
                 textShadow: '0.4px 0.8px 0 rgba(0,0,0,0.18)',

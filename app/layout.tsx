@@ -28,7 +28,7 @@ const permanentMarker = Permanent_Marker({
 })
 
 const commaTrial = localFont({
-  src: './fonts/FFCommaTrial-Regular.ttf',
+  src: './fonts/Yasmine Nebula.otf',
   variable: '--font-comma',
   display: 'swap',
 })
