@@ -71,6 +71,15 @@
   --radius-xl: calc(var(--radius) + 6px);
 }
 
+@keyframes webringPastelSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;

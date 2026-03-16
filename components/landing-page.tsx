@@ -25,7 +25,6 @@ import { useSound } from '@/lib/use-sound'
 import { usePageTransition } from './page-transition'
 
 const GooseViewer = dynamic(() => import('./goose-viewer'), { ssr: false })
-const SpiralAnimation = dynamic(() => import('./spiral-animation'), { ssr: false })
 
 type Phase = 'splash' | 'transitioning' | 'expanded'
 type ViewMode = 'scrapbook' | 'classroom'
@@ -134,6 +133,7 @@ export function LandingPage() {
     startExpanded ? { x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 } : { x: 0, y: 0, k: 1 }
   )
   const [isDragging, setIsDragging] = useState(false)
+  const [isHoveringPreview, setIsHoveringPreview] = useState(false)
   const lastPos = useRef({ x: 0, y: 0 })
 
   // Remount goose when returning to home
@@ -277,11 +277,6 @@ export function LandingPage() {
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden">
-      {/* Spiral animation background texture — always visible */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <SpiralAnimation />
-      </div>
-
       {/* ── Static graph paper grid — same shape as circle but no scale animation ── */}
       <motion.div
         className="absolute pointer-events-none"
@@ -337,31 +332,27 @@ export function LandingPage() {
           width: '30vw',
           height: '30vw',
           borderRadius: '50%',
-          scale: [1, 1.04, 1],
+          scale: isHoveringPreview ? 1.04 : 1,
         } : {
           width: '100vw',
           height: '100vh',
           borderRadius: '0%',
           scale: 1,
         }}
-        transition={isSplash ? {
-          duration: 0.6,
+        transition={{
+          duration: isSplash ? 0.25 : EXPAND_DURATION / 1000,
           ease: [0.22, 1, 0.36, 1],
-          scale: {
-            duration: 4,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
-        } : {
-          duration: EXPAND_DURATION / 1000,
-          ease: [0.22, 1, 0.36, 1],
+        }}
+        onMouseEnter={() => { if (isSplash) setIsHoveringPreview(true) }}
+        onMouseLeave={(e) => {
+          setIsHoveringPreview(false)
+          handleMouseUp()
         }}
         onClick={isSplash ? handleEnterWebring : undefined}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
       >
 {/* Grid is rendered outside circle as a sibling */}
 
@@ -422,32 +413,32 @@ export function LandingPage() {
           })}
         </div>
 
-        {/* Concentric pulsing circles — splash only */}
+        {/* Frosted glass transition ring — only the outer edge is frosted, center stays clear */}
         {isSplash && (
-          <>
-            {[0, 1, 2].map((i) => (
-              <motion.div
-                key={i}
-                className="absolute inset-0 rounded-full"
-                style={{
-                  border: `2px solid rgba(160,195,220,${0.6 - i * 0.15})`,
-                  background: i === 0
-                    ? 'radial-gradient(ellipse at center, rgba(160,195,220,0.08) 0%, transparent 70%)'
-                    : 'none',
-                }}
-                animate={{
-                  rotate: 360,
-                  scale: [1, 1.05 + i * 0.05, 1],
-                  opacity: [0.8, 1, 0.8],
-                }}
-                transition={{
-                  duration: 5,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
-              />
-            ))}
-          </>
+          <div
+            className="absolute inset-0 rounded-full pointer-events-none"
+            style={{
+              zIndex: 5,
+              // Soft white base in the ring band
+              background:
+                'radial-gradient(circle at center, transparent 60%, rgba(255,255,255,0.16) 74%, rgba(255,255,255,0.08) 82%, transparent 90%)',
+              // Soft white base + single soft blue highlight arc that spins around the ring
+              backgroundImage: [
+                'radial-gradient(circle at center, transparent 60%, rgba(255,255,255,0.16) 74%, rgba(255,255,255,0.08) 82%, transparent 90%)',
+                // Head of arc is darker / more opaque blue, tail is lighter
+                'conic-gradient(from 0deg, rgba(180,210,255,0.5) 0deg, rgba(150,190,255,0.7) 30deg, rgba(120,160,255,0.92) 60deg, transparent 140deg, transparent 360deg)',
+              ].join(','),
+              boxShadow:
+                '0 0 40px rgba(0,0,0,0.10), 0 0 80px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255,255,255,0.30)',
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+              maskImage: 'radial-gradient(circle, transparent 60%, black 72%, black 84%, transparent 92%)',
+              WebkitMaskImage:
+                'radial-gradient(circle, transparent 60%, black 72%, black 84%, transparent 92%)',
+              // Pastel conic highlight rotation (~3.5s per full rotation)
+              animation: 'webringPastelSpin 3.5s linear infinite',
+            }}
+          />
         )}
 
         {/* "click to explore" — bottom of circle, fades out */}
