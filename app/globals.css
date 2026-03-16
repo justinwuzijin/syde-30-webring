@@ -4,6 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Polaroid / profile card name — local FF Comma font with fallbacks */
+  --font-polaroid-name: var(--font-comma), 'Caveat', system-ui, -apple-system, sans-serif;
   --bg: #080808;
   --surface: #111111;
   --border: rgba(255,255,255,0.08);

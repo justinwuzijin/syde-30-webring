@@ -45,6 +45,16 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
 
   const firstName = (member.name || '').trim().split(/\s+/)[0] || ''
 
+  // Scale font size so all names fill roughly the same width of the polaroid
+  const targetChars = 6    // This many chars fills the card at baseFontSize
+  const baseFontSize = 26
+  const minFontSize = 10
+  const maxFontSize = 38   // Cap for very short names
+  const nameFontSize = Math.min(
+    maxFontSize,
+    Math.max(minFontSize, Math.round(baseFontSize * (targetChars / firstName.length)))
+  )
+
   // Slight tilt: use rotation prop if provided, else deterministic from id
   const tilt = useRef(0)
   useEffect(() => {
@@ -259,14 +269,13 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
           >
             <span
               style={{
-                fontFamily: '"Caveat", system-ui, -apple-system, sans-serif',
-                fontSize: 26,
+                fontFamily: 'var(--font-polaroid-name)',
+                fontSize: nameFontSize,
                 textTransform: 'lowercase',
                 letterSpacing: '0.06em',
-                fontWeight: 500,
+                fontWeight: 1000,
                 color: '#111111',
                 whiteSpace: 'nowrap',
-                // Slight vertical wobble / softness to feel more handwritten
                 textShadow: '0.4px 0.8px 0 rgba(0,0,0,0.18)',
               }}
             >

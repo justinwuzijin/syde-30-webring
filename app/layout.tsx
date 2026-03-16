@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono, Caveat, Permanent_Marker } from 'next/font/google'
+import localFont from 'next/font/local'
 import { Analytics } from '@vercel/analytics/next'
 import { Providers } from '@/components/providers'
 import './globals.css'
@@ -26,6 +27,12 @@ const permanentMarker = Permanent_Marker({
   weight: '400',
 })
 
+const commaTrial = localFont({
+  src: './fonts/FFCommaTrial-Regular.ttf',
+  variable: '--font-comma',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'SYDE 30 Webring',
   description: 'A webring for Systems Design Engineering 2030 at the University of Waterloo.',
@@ -43,7 +50,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${caveat.variable} ${permanentMarker.variable}`}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${caveat.variable} ${permanentMarker.variable} ${commaTrial.variable}`}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
