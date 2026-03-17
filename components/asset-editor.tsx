@@ -27,13 +27,13 @@ const DESKTOP_TRANSFORMS: AssetTransform[] = [
 
 // Mobile layout — matches Figma mockup
 const MOBILE_TRANSFORMS: AssetTransform[] = [
-  { id: 'matlab', x: 2, y: 52, width: 26, rotation: 0, zIndex: 5 },
-  { id: 'sw-cube', x: 4, y: 20, width: 26, rotation: 12, zIndex: 5 },
-  { id: 'cpp', x: 70, y: 22, width: 10, rotation: 12, zIndex: 5 },
-  { id: 'sandwich', x: 66, y: 16, widtnh: 20, rotation: 0, zIndex: 5 },
-  { id: 'crest', x: 58, y: 72, width: 20, rotation: -12, zIndex: 5 },
-  { id: 'book', x: 64, y: 52, width: 18, rotation: 8, zIndex: 1 },
-  { id: 'releasing-march', x: 3, y: 80, width: 18, rotation: -5, zIndex: 2 },
+  { id: 'matlab', x: 2, y: 52, width: 38, rotation: 0, zIndex: 5 },
+  { id: 'sw-cube', x: 4, y: 20, width: 38, rotation: 12, zIndex: 5 },
+  { id: 'cpp', x: 70, y: 22, width: 16, rotation: 12, zIndex: 5 },
+  { id: 'sandwich', x: 66, y: 16, width: 30, rotation: 0, zIndex: 5 },
+  { id: 'crest', x: 58, y: 72, width: 30, rotation: -12, zIndex: 5 },
+  { id: 'book', x: 64, y: 52, width: 28, rotation: 8, zIndex: 1 },
+  { id: 'releasing-march', x: 3, y: 80, width: 28, rotation: -5, zIndex: 2 },
 ]
 
 function getInitialTransforms() {
