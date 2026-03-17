@@ -101,6 +101,15 @@ export function LandingPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('scrapbook')
   const [navigatingToProfile, setNavigatingToProfile] = useState(false)
   const [showStampAnimation, setShowStampAnimation] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile viewport (for responsive circle sizing)
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // Fetch members from Supabase with SWR (cached, deduped)
   const { data: membersData, isLoading: membersLoading } = useSWR<{ members: Member[] }>(
@@ -285,11 +294,16 @@ export function LandingPage() {
   // In expanded state, the grid is transformed by camera; otherwise centered
   // Classroom mode anchors grid to top-left (aligned with photo folder at 5%, below toggles at ~6rem)
   const isClassroom = isExpanded && viewMode === 'classroom'
+  // Mobile needs less offset (smaller polaroids relative to larger circle) for better preview
+  const mobileOffsetX = 40
+  const mobileOffsetY = 60
   const gridTransform = isExpanded
     ? isClassroom
       ? `translate(${camera.x}px, ${camera.y}px) scale(${camera.k})`
       : `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
-    : `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px))`
+    : isMobile
+      ? `translate(calc(-50% - ${mobileOffsetX}px), calc(-50% - ${mobileOffsetY}px)) scale(0.8)`
+      : `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px))`
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden">
@@ -324,7 +338,7 @@ export function LandingPage() {
         className="absolute overflow-hidden"
         style={{
           left: '50%',
-          top: isSplash ? '50%' : '50%',
+          top: isSplash ? (isMobile ? '46%' : '50%') : '50%',
           x: '-50%',
           y: '-50%',
           background: 'transparent',
@@ -337,8 +351,8 @@ export function LandingPage() {
           touchAction: 'none',
         }}
         animate={isSplash ? {
-          width: '30vw',
-          height: '30vw',
+          width: isMobile ? '65vw' : '30vw',
+          height: isMobile ? '65vw' : '30vw',
           borderRadius: '50%',
           scale: isHoveringPreview ? 1.04 : 1,
         } : {
@@ -591,7 +605,7 @@ export function LandingPage() {
         animate={{ opacity: isSplash ? 1 : 0 }}
         transition={{ duration: SPLASH_FADE_DURATION / 1000 }}
       >
-        {/* Hero text — desktop: single line, mobile: 3 lines */}
+        {/* Hero text — desktop: single line, mobile: 3 lines stacked */}
         <motion.div
           className="absolute top-[2%] left-0 w-full"
           initial={{ opacity: 0, y: -20 }}
@@ -599,7 +613,7 @@ export function LandingPage() {
           transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
         >
           {/* Desktop single line — original layout */}
-          <div className="relative w-full hidden md:block" style={{ paddingTop: '13%' }}>
+          <div className="relative w-full hidden md:block" style={{ paddingTop: '17%' }}>
             <StretchText
               lines={["systems design engineering"]}
               viewBox="0 0 1728 296"
@@ -607,22 +621,22 @@ export function LandingPage() {
               className="absolute inset-0 w-full h-full"
             />
           </div>
-          {/* Mobile 3 lines */}
-          <div className="relative w-full block md:hidden" style={{ paddingTop: '55%' }}>
+          {/* Mobile — 3 stacked lines */}
+          <div className="relative w-full block md:hidden" style={{ paddingTop: '52%' }}>
             <StretchText
               lines={["systems", "design", "engineering"]}
-              viewBox="0 0 700 600"
-              fontSize={280}
-              lineHeight={210}
+              viewBox="0 0 700 520"
+              fontSize={260}
+              lineHeight={180}
               className="absolute inset-0 w-full h-full"
             />
           </div>
         </motion.div>
 
-        {/* 2030 */}
+        {/* 2030 — desktop only at this position */}
         <motion.div
-          className="absolute left-0 md:top-[32%] md:bottom-auto bottom-[12%] md:w-[27%] w-[45%]"
-          style={{ aspectRatio: '470 / 250' }}
+          className="absolute left-0 top-[32%] w-[27%] hidden md:block"
+          style={{ aspectRatio: '470 / 500' }}
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
@@ -635,10 +649,10 @@ export function LandingPage() {
           />
         </motion.div>
 
-        {/* webring text - bottom right */}
+        {/* webring text — desktop: bottom right */}
         <motion.div
-          className="absolute right-0 bottom-[5%] md:w-[32%] w-[50%]"
-          style={{ aspectRatio: '553 / 290' }}
+          className="absolute right-0 bottom-[5%] w-[32%] hidden md:block"
+          style={{ aspectRatio: '553 / 400' }}
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
@@ -649,6 +663,24 @@ export function LandingPage() {
             fontSize={360}
             className="w-full h-full"
           />
+        </motion.div>
+
+        {/* Mobile bottom text — 2030 and webring stacked, smaller */}
+        <motion.div
+          className="absolute left-0 bottom-[1%] w-full block md:hidden"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="relative w-full" style={{ paddingTop: '22%' }}>
+            <StretchText
+              lines={["2030", "webring"]}
+              viewBox="0 0 700 320"
+              fontSize={220}
+              lineHeight={160}
+              className="absolute inset-0 w-full h-full"
+            />
+          </div>
         </motion.div>
 
         {/* Goose 3D */}
@@ -667,9 +699,9 @@ export function LandingPage() {
           <GooseViewer key={`goose-${gooseKey}`} />
         </motion.div>
 
-        {/* Footer credits */}
+        {/* Footer credits — hidden on mobile to avoid overlap with 2030/webring */}
         <motion.div
-          className="absolute bottom-[2%] left-[4%]"
+          className="absolute bottom-[2%] left-[4%] hidden md:block"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.5 }}
@@ -682,7 +714,7 @@ export function LandingPage() {
           </span>
         </motion.div>
         <motion.div
-          className="absolute bottom-[2%] right-[4%]"
+          className="absolute bottom-[2%] right-[4%] hidden md:block"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.55 }}
@@ -695,7 +727,7 @@ export function LandingPage() {
           </span>
         </motion.div>
 
-        {/* Goose attribution */}
+        {/* Goose attribution — desktop */}
         <motion.div
           className="absolute bottom-[0.5%] left-1/2 -translate-x-1/2 pointer-events-auto hidden md:block"
           initial={{ opacity: 0 }}
@@ -713,12 +745,27 @@ export function LandingPage() {
             ).
           </span>
         </motion.div>
+
+        {/* Goose attribution — mobile (compact) */}
+        <motion.div
+          className="absolute bottom-[0.5%] left-1/2 -translate-x-1/2 pointer-events-auto block md:hidden px-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+        >
+          <span
+            className="text-black/60 text-[8px] text-center block"
+            style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
+          >
+            &quot;Goose&quot; by OlegPopka · CC-BY 4.0
+          </span>
+        </motion.div>
       </motion.div>
 
-      {/* Photo folder — bottom-left in splash, vertically centered with goose */}
+      {/* Photo folder — bottom-left in splash, desktop only */}
       {isSplash && (
         <motion.div
-          className="absolute md:bottom-[10%] bottom-[18%] md:scale-100 scale-75 origin-bottom-left"
+          className="absolute bottom-[10%] origin-bottom-left hidden md:block"
           style={{ left: '5%', zIndex: 20 }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -731,7 +778,7 @@ export function LandingPage() {
       {/* Sign up / Log in — splash only */}
       {isSplash && (
         <motion.div
-          className="absolute flex items-center gap-3 md:top-[85%] top-[78%]"
+          className="absolute flex items-center gap-3 md:top-[85%] top-[68%]"
           style={{ left: '50%', x: '-50%', zIndex: 15 }}
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
