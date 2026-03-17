@@ -19,6 +19,11 @@ export async function POST(request: Request) {
     .eq('id', user.id)
 
   if (error) {
+    // If the column is temporarily missing from the schema cache, log and continue
+    if ((error as any).code === 'PGRST204') {
+      console.warn('has_seen_join_stamp_animation column missing in schema cache; treating as success')
+      return NextResponse.json({ ok: true })
+    }
     console.error('Mark stamp seen error:', error)
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
   }

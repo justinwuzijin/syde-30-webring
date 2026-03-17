@@ -24,11 +24,12 @@ import { Input } from './ui/input'
 import { AssetEditor } from './asset-editor'
 import { useSound } from '@/lib/use-sound'
 import { usePageTransition } from './page-transition'
+import { MePanel } from './me-panel'
 
 const GooseViewer = dynamic(() => import('./goose-viewer'), { ssr: false })
 
 type Phase = 'splash' | 'transitioning' | 'expanded'
-type ViewMode = 'scrapbook' | 'classroom'
+type ViewMode = 'scrapbook' | 'classroom' | 'me'
 
 // Transition timing
 const EXPAND_DURATION = 900
@@ -203,13 +204,11 @@ export function LandingPage() {
     playClick()
     setPhase('transitioning')
     setTimeout(() => {
+      setViewMode('scrapbook')
       setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 })
       setPhase('expanded')
-      if (user && !user.has_seen_join_stamp_animation && members.length > 0) {
-        setShowStampAnimation(true)
-      }
     }, EXPANDED_DELAY)
-  }, [phase, playClick, user, members.length])
+  }, [phase, playClick])
 
   // Back to splash — reset camera to match preview offset so Leo & Justin stay centered
   const handleBack = useCallback(() => {
@@ -224,7 +223,7 @@ export function LandingPage() {
   // ── Wheel → zoom centered (scrapbook only, disabled in classroom) ──
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (phase !== 'expanded') return
-    if (viewMode === 'classroom') return // No zoom in classroom
+    if (viewMode === 'classroom' || viewMode === 'me') return // No zoom in classroom or me
     e.stopPropagation()
     setScrapbookCamera(prev => {
       const delta = -e.deltaY * ZOOM_SENSITIVITY
@@ -241,6 +240,7 @@ export function LandingPage() {
   // ── Drag → pan (expanded only) ──
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (phase !== 'expanded') return
+    if (viewMode === 'me') return
     if ((e.target as HTMLElement).closest('.polaroid-frame, button, a')) return
     setIsDragging(true)
     lastPos.current = { x: e.clientX, y: e.clientY }
@@ -294,6 +294,7 @@ export function LandingPage() {
   // In expanded state, the grid is transformed by camera; otherwise centered
   // Classroom mode anchors grid to top-left (aligned with photo folder at 5%, below toggles at ~6rem)
   const isClassroom = isExpanded && viewMode === 'classroom'
+  const isMe = isExpanded && viewMode === 'me'
   // Mobile needs less offset (smaller polaroids relative to larger circle) for better preview
   const mobileOffsetX = 40
   const mobileOffsetY = 60
@@ -378,62 +379,64 @@ export function LandingPage() {
       >
 {/* Grid is rendered outside circle as a sibling */}
 
-        {/* Polaroid grid — same DOM throughout, opacity + transform change */}
-        <div
-          style={{
-            position: 'absolute',
-            left: isClassroom ? '5%' : '50%',
-            top: isClassroom ? '6.5rem' : '50%',
-            width: canvasW,
-            height: canvasH,
-            transform: gridTransform,
-            transformOrigin: isClassroom ? '0 0' : '50% 50%',
-            opacity: isSplash ? 0.7 : 1,
-            transition: isSplash
-              ? 'opacity 0.3s ease, transform 0.6s cubic-bezier(0.22,1,0.36,1)'
-              : 'opacity 0.5s ease, left 0.4s ease, top 0.4s ease',
-            pointerEvents: isExpanded ? 'auto' : 'none',
-          }}
-        >
-          {membersLoading && displayMembers.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <p
-                className="text-black/40 text-xs lowercase tracking-[0.2em]"
-                style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
-              >
-                loading polaroids…
-              </p>
-            </div>
-          )}
-          {filteredMembers.length === 0 && searchTerm.trim() && !membersLoading && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className={'px-6 py-3 ' + GLASS_CHROME}>
-                <div className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
-                <p className="relative text-xs md:text-sm text-neutral-900 lowercase tracking-[0.16em] text-center">
-                  the user you are searching for does not exist yet, get them to sign up!
+        {/* Polaroid grid — hidden in \"me\" view */}
+        {!isMe && (
+          <div
+            style={{
+              position: 'absolute',
+              left: isClassroom ? '5%' : '50%',
+              top: isClassroom ? '6.5rem' : '50%',
+              width: canvasW,
+              height: canvasH,
+              transform: gridTransform,
+              transformOrigin: isClassroom ? '0 0' : '50% 50%',
+              opacity: isSplash ? 0.7 : 1,
+              transition: isSplash
+                ? 'opacity 0.3s ease, transform 0.6s cubic-bezier(0.22,1,0.36,1)'
+                : 'opacity 0.5s ease, left 0.4s ease, top 0.4s ease',
+              pointerEvents: isExpanded ? 'auto' : 'none',
+            }}
+          >
+            {membersLoading && displayMembers.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <p
+                  className="text-black/40 text-xs lowercase tracking-[0.2em]"
+                  style={{ fontFamily: '-apple-system, BlinkMacSystemFont, \"SF Pro Display\", system-ui, sans-serif' }}
+                >
+                  loading polaroids…
                 </p>
               </div>
-            </div>
-          )}
+            )}
+            {filteredMembers.length === 0 && searchTerm.trim() && !membersLoading && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className={'px-6 py-3 ' + GLASS_CHROME}>
+                  <div className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
+                  <p className="relative text-xs md:text-sm text-neutral-900 lowercase tracking-[0.16em] text-center">
+                    the user you are searching for does not exist yet, get them to sign up!
+                  </p>
+                </div>
+              </div>
+            )}
 
-          {filteredMembers.map((m) => {
-            const pos = positions.get(m.id)
-            if (!pos) return null
-            const hasRotation = 'rotation' in pos && typeof pos.rotation === 'number'
-            return (
-              <PolaroidCard
-                key={m.id}
-                member={m}
-                x={pos.x}
-                y={pos.y}
-                onClick={isExpanded ? () => handleCardClick(m.id) : undefined}
-                noTilt={placementMode === 'classroom'}
-                rotation={hasRotation ? pos.rotation : undefined}
-                onHover={playPageTurn}
-              />
-            )
-          })}
-        </div>
+            {filteredMembers.map((m) => {
+              const pos = positions.get(m.id)
+              if (!pos) return null
+              const hasRotation = 'rotation' in pos && typeof pos.rotation === 'number'
+              return (
+                <PolaroidCard
+                  key={m.id}
+                  member={m}
+                  x={pos.x}
+                  y={pos.y}
+                  onClick={isExpanded ? () => handleCardClick(m.id) : undefined}
+                  noTilt={placementMode === 'classroom'}
+                  rotation={hasRotation ? pos.rotation : undefined}
+                  onHover={playPageTurn}
+                />
+              )
+            })}
+          </div>
+        )}
 
         {/* Frosted glass transition ring — only the outer edge is frosted, center stays clear */}
         {isSplash && (
@@ -480,7 +483,7 @@ export function LandingPage() {
       </motion.div>
 
       {/* ── Search bar — top center, expanded only ── */}
-      {isExpanded && (
+      {isExpanded && !isMe && (
         <motion.div
           className="fixed top-6 left-1/2 z-50 w-full max-w-md -translate-x-1/2 px-4"
           initial={{ opacity: 0, y: -10 }}
@@ -551,6 +554,29 @@ export function LandingPage() {
               </span>
             </button>
           </div>
+          {user && (
+            <div
+              className="flex flex-col items-center"
+              style={{
+                borderBottom: viewMode === 'me' ? '1px solid rgba(0,0,0,0.15)' : '1px solid transparent',
+                paddingBottom: '0.5rem',
+              }}
+            >
+              <button
+                onClick={() => { playClick(); setViewMode('me') }}
+                className="flex items-center gap-1.5 text-sm transition-colors"
+                style={{ fontFamily: '-apple-system, BlinkMacSystemFont, \"SF Pro Display\", system-ui, sans-serif' }}
+              >
+                <span
+                  className="inline-block w-2.5 h-2.5 rounded-full transition-colors"
+                  style={{ backgroundColor: viewMode === 'me' ? '#171717' : '#d4d4d4' }}
+                />
+                <span style={{ color: viewMode === 'me' ? '#171717' : '#a3a3a3' }}>
+                  me
+                </span>
+              </button>
+            </div>
+          )}
         </motion.div>
       )}
       {/* ── Back button — top-left, expanded only ── */}
@@ -573,7 +599,7 @@ export function LandingPage() {
       )}
 
       {/* ── Photo folder — fixed bottom-left in expanded view ── */}
-      {isExpanded && (
+      {isExpanded && !isMe && (
         <motion.div
           className="fixed z-50"
           style={{ left: '5%', bottom: '10%' }}
@@ -586,7 +612,7 @@ export function LandingPage() {
       )}
 
       {/* ── Hint — bottom center in expanded view ── */}
-      {isExpanded && (
+      {isExpanded && !isMe && (
         <motion.div
           className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 text-xs uppercase tracking-widest pointer-events-none"
           style={{ color: 'rgba(0,0,0,0.25)' }}
@@ -847,6 +873,18 @@ export function LandingPage() {
           members={members}
           onComplete={handleStampComplete}
         />
+      )}
+      {/* Signed-in \"me\" panel — expanded view only */}
+      {isExpanded && viewMode === 'me' && (
+        <motion.div
+          className="fixed inset-0 z-40 pointer-events-none bg-white/90"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 12 }}
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <MePanel />
+        </motion.div>
       )}
     </div>
   )

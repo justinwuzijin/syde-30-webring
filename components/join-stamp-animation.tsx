@@ -25,8 +25,8 @@ export function JoinStampAnimation({ user, members, onComplete }: JoinStampAnima
       onComplete()
       return
     }
-    const t1 = setTimeout(() => setPhase('impact'), 180)
-    const t2 = setTimeout(() => setPhase('done'), 450)
+    const t1 = setTimeout(() => setPhase('impact'), 400)
+    const t2 = setTimeout(() => setPhase('done'), 800)
     return () => {
       clearTimeout(t1)
       clearTimeout(t2)
@@ -83,7 +83,7 @@ export function JoinStampAnimation({ user, members, onComplete }: JoinStampAnima
           }
           onAnimationComplete={() => {
             if (phase === 'done') {
-              setTimeout(handleAnimationComplete, 400)
+              setTimeout(handleAnimationComplete, 5000)
             }
           }}
           transition={

@@ -43,11 +43,14 @@ export async function GET() {
       joinedAt: row.joined_at || row.created_at || new Date().toISOString(),
     }))
 
-    return NextResponse.json({ members }, {
-      headers: {
-        'Cache-Control': 's-maxage=60, stale-while-revalidate=300',
-      },
-    })
+    return NextResponse.json(
+      { members },
+      {
+        headers: {
+          'Cache-Control': 's-maxage=5, stale-while-revalidate=60',
+        },
+      }
+    )
   } catch (err) {
     console.error('Members API error:', err)
     return NextResponse.json({ members: [] }, {

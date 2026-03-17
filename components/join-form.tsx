@@ -171,7 +171,7 @@ function PasswordField({
   )
 }
 
-function ProfilePictureField({
+export function ProfilePictureField({
   label,
   requiredNote,
   helperText,
