@@ -128,10 +128,17 @@ export function LandingPage() {
     })
   }, [searchTerm, displayMembers])
 
-  // Pan/zoom state — initial offset matches splash so no jump when expanding
-  const [camera, setCamera] = useState(() =>
+  // Separate camera states for scrapbook and classroom views
+  const [scrapbookCamera, setScrapbookCamera] = useState(() =>
     startExpanded ? { x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 } : { x: 0, y: 0, k: 1 }
   )
+  // Classroom always starts at default position (reset on each switch)
+  const [classroomCamera, setClassroomCamera] = useState({ x: 0, y: 0, k: 1 })
+  
+  // Active camera based on view mode
+  const camera = viewMode === 'classroom' ? classroomCamera : scrapbookCamera
+  const setCamera = viewMode === 'classroom' ? setClassroomCamera : setScrapbookCamera
+  
   const [isDragging, setIsDragging] = useState(false)
   const [isHoveringPreview, setIsHoveringPreview] = useState(false)
   const lastPos = useRef({ x: 0, y: 0 })
@@ -149,7 +156,7 @@ export function LandingPage() {
           setPhase('expanded')
         } else {
           setPhase('splash')
-          setCamera({ x: 0, y: 0, k: 1 })
+          setScrapbookCamera({ x: 0, y: 0, k: 1 })
         }
       }
       prevPathname.current = '/'
@@ -186,7 +193,7 @@ export function LandingPage() {
     playClick()
     setPhase('transitioning')
     setTimeout(() => {
-      setCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 })
+      setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 })
       setPhase('expanded')
       if (user && !user.has_seen_join_stamp_animation && members.length > 0) {
         setShowStampAnimation(true)
@@ -198,27 +205,28 @@ export function LandingPage() {
   const handleBack = useCallback(() => {
     playClick()
     setPhase('splash')
-    setCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 })
+    setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 })
+    setClassroomCamera({ x: 0, y: 0, k: 1 })
     setViewMode('scrapbook')
     window.history.replaceState({}, '', '/')
   }, [playClick])
 
-  // ── Wheel → zoom centered (expanded only) ──
+  // ── Wheel → zoom centered (scrapbook only, disabled in classroom) ──
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (phase !== 'expanded') return
+    if (viewMode === 'classroom') return // No zoom in classroom
     e.stopPropagation()
-    setCamera(prev => {
+    setScrapbookCamera(prev => {
       const delta = -e.deltaY * ZOOM_SENSITIVITY
       const newK = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.k * (1 + delta)))
       const ratio = newK / prev.k
-      // Scale pan offset proportionally so the visual center stays fixed
       return {
         x: prev.x * ratio,
         y: prev.y * ratio,
         k: newK,
       }
     })
-  }, [phase])
+  }, [phase, viewMode])
 
   // ── Drag → pan (expanded only) ──
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -233,9 +241,16 @@ export function LandingPage() {
     if (!isDragging) return
     const dx = e.clientX - lastPos.current.x
     const dy = e.clientY - lastPos.current.y
-    setCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
+    
+    if (viewMode === 'classroom') {
+      // Classroom: free pan, no zoom
+      setClassroomCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
+    } else {
+      // Scrapbook: free pan in all directions
+      setScrapbookCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
+    }
     lastPos.current = { x: e.clientX, y: e.clientY }
-  }, [isDragging])
+  }, [isDragging, viewMode])
 
   const handleMouseUp = useCallback(() => setIsDragging(false), [])
 
@@ -277,14 +292,10 @@ export function LandingPage() {
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden">
-      {/* ── Static graph paper grid — same shape as circle but no scale animation ── */}
+      {/* ── Static graph paper grid — fixed full-screen, revealed by animated clip-path ── */}
       <motion.div
-        className="absolute pointer-events-none"
+        className="fixed inset-0 pointer-events-none"
         style={{
-          left: '50%',
-          top: '50%',
-          x: '-50%',
-          y: '-50%',
           zIndex: 19,
           background: '#f6f8fb',
           backgroundImage: [
@@ -296,13 +307,9 @@ export function LandingPage() {
           backgroundSize: '80px 80px, 80px 80px, 16px 16px, 16px 16px',
         }}
         animate={isSplash ? {
-          width: '30vw',
-          height: '30vw',
-          borderRadius: '50%',
+          clipPath: 'circle(15vw at 50% 50%)',
         } : {
-          width: '100vw',
-          height: '100vh',
-          borderRadius: '0%',
+          clipPath: 'circle(150vmax at 50% 50%)',
         }}
         transition={{
           duration: isSplash ? 0.6 : EXPAND_DURATION / 1000,
@@ -495,7 +502,7 @@ export function LandingPage() {
             }}
           >
             <button
-              onClick={() => { playClick(); setViewMode('scrapbook') }}
+              onClick={() => { playClick(); setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 }); setViewMode('scrapbook') }}
               className="flex items-center gap-1.5 text-sm transition-colors"
               style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
             >
@@ -516,7 +523,7 @@ export function LandingPage() {
             }}
           >
             <button
-              onClick={() => { playClick(); setViewMode('classroom') }}
+              onClick={() => { playClick(); setClassroomCamera({ x: 0, y: 0, k: 1 }); setViewMode('classroom') }}
               className="flex items-center gap-1.5 text-sm transition-colors"
               style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
             >
