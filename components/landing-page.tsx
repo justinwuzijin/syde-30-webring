@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
 import { JoinStampAnimation } from './join-stamp-animation'
+import { StretchText } from './stretch-text'
 import type { Member } from '@/types/member'
 import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import {
@@ -41,7 +42,7 @@ const ZOOM_SENSITIVITY = 0.002
 
 /** Splash preview offset — polaroids shifted up/left for visual centering. Must match camera on expand. */
 const PREVIEW_OFFSET_X = 72
-const PREVIEW_OFFSET_Y = 88
+const PREVIEW_OFFSET_Y = 118
 
 /** Landing preview: only Leo and Justin */
 function getLandingPreviewMembers(members: Member[]): Member[] {
@@ -448,10 +449,10 @@ export function LandingPage() {
           />
         )}
 
-        {/* "click to explore" — bottom of circle, fades out */}
+        {/* "click to explore" — lower in circle for visibility, fades out */}
         <motion.div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ pointerEvents: 'none', zIndex: 10 }}
+          className="absolute inset-0 flex items-end justify-center"
+          style={{ pointerEvents: 'none', zIndex: 10, paddingBottom: '10%' }}
           animate={{ opacity: isSplash ? 1 : 0 }}
           transition={{ duration: 0.25 }}
         >
@@ -590,47 +591,69 @@ export function LandingPage() {
         animate={{ opacity: isSplash ? 1 : 0 }}
         transition={{ duration: SPLASH_FADE_DURATION / 1000 }}
       >
-        {/* Hero text */}
+        {/* Hero text — desktop: single line, mobile: 3 lines */}
         <motion.div
           className="absolute top-[2%] left-0 w-full"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="relative w-full" style={{ paddingTop: '17.2%' }}>
-            <img
-              src="/systems-design-engineering.svg"
-              alt="systems design engineering"
-              className="absolute inset-0 w-full h-full object-contain object-left"
+          {/* Desktop single line — original layout */}
+          <div className="relative w-full hidden md:block" style={{ paddingTop: '13%' }}>
+            <StretchText
+              lines={["systems design engineering"]}
+              viewBox="0 0 1728 296"
+              fontSize={280}
+              className="absolute inset-0 w-full h-full"
+            />
+          </div>
+          {/* Mobile 3 lines */}
+          <div className="relative w-full block md:hidden" style={{ paddingTop: '55%' }}>
+            <StretchText
+              lines={["systems", "design", "engineering"]}
+              viewBox="0 0 700 600"
+              fontSize={280}
+              lineHeight={210}
+              className="absolute inset-0 w-full h-full"
             />
           </div>
         </motion.div>
 
         {/* 2030 */}
         <motion.div
-          className="absolute"
-          style={{ left: '0', top: '32%', width: '27%', aspectRatio: '470 / 328' }}
+          className="absolute left-0 md:top-[32%] md:bottom-auto bottom-[12%] md:w-[27%] w-[45%]"
+          style={{ aspectRatio: '470 / 250' }}
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
         >
-          <img src="/2030.svg" alt="2030" className="w-full h-full object-contain" />
+          <StretchText
+            lines={["2030"]}
+            viewBox="0 0 470 328"
+            fontSize={310}
+            className="w-full h-full"
+          />
         </motion.div>
 
         {/* webring text - bottom right */}
         <motion.div
-          className="absolute"
-          style={{ right: '0', bottom: '5%', width: '32%', aspectRatio: '553 / 384' }}
+          className="absolute right-0 bottom-[5%] md:w-[32%] w-[50%]"
+          style={{ aspectRatio: '553 / 290' }}
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          <img src="/webring.svg" alt="webring" className="w-full h-full object-contain" />
+          <StretchText
+            lines={["webring"]}
+            viewBox="0 0 553 384"
+            fontSize={360}
+            className="w-full h-full"
+          />
         </motion.div>
 
         {/* Goose 3D */}
         <motion.div
-          className="absolute pointer-events-auto"
+          className="absolute pointer-events-auto hidden md:block"
           style={{
             left: '5%', bottom: '0',
             width: '40vw', height: '45vh',
@@ -652,7 +675,7 @@ export function LandingPage() {
           transition={{ duration: 0.6, delay: 0.5 }}
         >
           <span
-            className="text-black text-[0.8vw]"
+            className="text-black text-[max(10px,0.8vw)]"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             With help from V0, Cursor, Claude Code
@@ -665,7 +688,7 @@ export function LandingPage() {
           transition={{ duration: 0.6, delay: 0.55 }}
         >
           <span
-            className="text-black text-[0.8vw]"
+            className="text-black text-[max(10px,0.8vw)]"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             Built by Justin Wu &amp; Leo Zhang
@@ -674,13 +697,13 @@ export function LandingPage() {
 
         {/* Goose attribution */}
         <motion.div
-          className="absolute bottom-[0.5%] left-1/2 -translate-x-1/2 pointer-events-auto"
+          className="absolute bottom-[0.5%] left-1/2 -translate-x-1/2 pointer-events-auto hidden md:block"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.6 }}
         >
           <span
-            className="text-black/80 text-[0.5vw]"
+            className="text-black/80 text-[max(8px,0.5vw)]"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             &quot;Goose&quot; (
@@ -695,8 +718,8 @@ export function LandingPage() {
       {/* Photo folder — bottom-left in splash, vertically centered with goose */}
       {isSplash && (
         <motion.div
-          className="absolute"
-          style={{ left: '5%', bottom: '10%', zIndex: 20 }}
+          className="absolute md:bottom-[10%] bottom-[18%] md:scale-100 scale-75 origin-bottom-left"
+          style={{ left: '5%', zIndex: 20 }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
@@ -708,8 +731,8 @@ export function LandingPage() {
       {/* Sign up / Log in — splash only */}
       {isSplash && (
         <motion.div
-          className="absolute flex items-center gap-3"
-          style={{ left: '50%', top: '85%', x: '-50%', zIndex: 15 }}
+          className="absolute flex items-center gap-3 md:top-[85%] top-[78%]"
+          style={{ left: '50%', x: '-50%', zIndex: 15 }}
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}

@@ -15,7 +15,7 @@ const ASSET_CONFIGS: AssetConfig[] = [
   { id: 'releasing-march', src: '/releasing-march.png', alt: 'Releasing March' },
 ]
 
-const INITIAL_TRANSFORMS: AssetTransform[] = [
+const DESKTOP_TRANSFORMS: AssetTransform[] = [
   { id: 'matlab', x: 55, y: 60, width: 20, rotation: 0, zIndex: 5 },
   { id: 'sw-cube', x: 20, y: 20, width: 18, rotation: 20, zIndex: 5 },
   { id: 'cpp', x: 72, y: 23, width: 8, rotation: 20, zIndex: 5 },
@@ -25,14 +25,47 @@ const INITIAL_TRANSFORMS: AssetTransform[] = [
   { id: 'releasing-march', x: 86, y: 40, width: 12, rotation: 0, zIndex: 2 },
 ]
 
+// Mobile layout — matches Figma mockup
+const MOBILE_TRANSFORMS: AssetTransform[] = [
+  { id: 'matlab', x: 12, y: 63, width: 28, rotation: 0, zIndex: 5 },
+  { id: 'sw-cube', x: 8, y: 17, width: 28, rotation: 15, zIndex: 5 },
+  { id: 'cpp', x: 65, y: 20, width: 12, rotation: 15, zIndex: 5 },
+  { id: 'sandwich', x: 68, y: 14, width: 22, rotation: 0, zIndex: 5 },
+  { id: 'crest', x: 55, y: 68, width: 24, rotation: -15, zIndex: 5 },
+  { id: 'book', x: 62, y: 48, width: 20, rotation: 10, zIndex: 1 },
+  { id: 'releasing-march', x: 5, y: 76, width: 20, rotation: -8, zIndex: 2 },
+]
+
+function getInitialTransforms() {
+  if (typeof window === 'undefined') return DESKTOP_TRANSFORMS
+  return window.innerWidth < 768 ? MOBILE_TRANSFORMS : DESKTOP_TRANSFORMS
+}
+
 export function AssetEditor() {
   const playClick = useSound('/click.mp3', { volume: 0.4 })
   const containerRef = useRef<HTMLDivElement>(null)
-  const [transforms, setTransforms] = useState<AssetTransform[]>(INITIAL_TRANSFORMS)
+  const [transforms, setTransforms] = useState<AssetTransform[]>(getInitialTransforms)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
+  // Snap layout when crossing 768px breakpoint
+  const wasMobileRef = useRef(typeof window !== 'undefined' && window.innerWidth < 768)
+  useEffect(() => {
+    const onResize = () => {
+      const isMobile = window.innerWidth < 768
+      if (isMobile !== wasMobileRef.current) {
+        wasMobileRef.current = isMobile
+        const next = isMobile ? MOBILE_TRANSFORMS : DESKTOP_TRANSFORMS
+        setTransforms(next)
+        setHistory([next])
+        setHistoryIndex(0)
+      }
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
   // Undo stack
-  const [history, setHistory] = useState<AssetTransform[][]>([INITIAL_TRANSFORMS])
+  const [history, setHistory] = useState<AssetTransform[][]>([getInitialTransforms()])
   const [historyIndex, setHistoryIndex] = useState(0)
 
   const pushHistory = useCallback((newTransforms: AssetTransform[]) => {

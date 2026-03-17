@@ -33,6 +33,12 @@ const commaTrial = localFont({
   display: 'swap',
 })
 
+const figmaSans = localFont({
+  src: './fonts/FIgma Sans VF.ttf',
+  variable: '--font-figma-sans',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'SYDE 30 Webring',
   description: 'A webring for Systems Design Engineering 2030 at the University of Waterloo.',
@@ -50,7 +56,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${caveat.variable} ${permanentMarker.variable} ${commaTrial.variable}`}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${caveat.variable} ${permanentMarker.variable} ${commaTrial.variable} ${figmaSans.variable}`}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
