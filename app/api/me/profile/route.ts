@@ -3,6 +3,35 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { verifyAuthToken } from '@/lib/token'
 import type { Member } from '@/types/member'
 
+function normalizeWebsiteForStorage(input: string): string {
+  const raw = input.trim()
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) return raw
+  return `https://${raw}`
+}
+
+function isValidName(name: string): boolean {
+  const n = name.trim()
+  if (n.length < 2 || n.length > 60) return false
+  return /^[a-zA-Z\s']+$/.test(n)
+}
+
+function isValidUrlLikeOrHandle(value: string): boolean {
+  const v = value.trim()
+  if (!v) return true
+  if (v.startsWith('http://') || v.startsWith('https://')) {
+    try {
+      // eslint-disable-next-line no-new
+      new URL(v)
+      return true
+    } catch {
+      return false
+    }
+  }
+  const cleaned = v.replace(/^@/, '')
+  return /^[A-Za-z0-9_.-]{1,100}$/.test(cleaned)
+}
+
 function toSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
@@ -51,7 +80,8 @@ export async function GET(request: Request) {
     const fallback = await supabase
       .from('members')
       .select('*')
-      .eq('email', authUser.email)
+      // Use ilike to avoid casing mismatches (emails are logically case-insensitive)
+      .ilike('email', authUser.email)
       .maybeSingle()
     data = fallback.data
     error = fallback.error
@@ -78,17 +108,46 @@ export async function PATCH(request: Request) {
 
   const updates: Record<string, unknown> = {}
 
+  if (typeof body.name === 'string') {
+    const nextName = body.name.trim()
+    if (!isValidName(nextName)) {
+      return NextResponse.json({ error: 'Invalid name' }, { status: 400 })
+    }
+    updates.name = nextName
+  }
+
   if (typeof body.website_link === 'string') {
-    updates.website_link = body.website_link.trim()
+    const normalized = normalizeWebsiteForStorage(body.website_link)
+    if (normalized) {
+      try {
+        // eslint-disable-next-line no-new
+        new URL(normalized)
+      } catch {
+        return NextResponse.json({ error: 'Invalid website URL' }, { status: 400 })
+      }
+    }
+    updates.website_link = normalized || null
   }
   if (typeof body.linkedin_handle === 'string') {
-    updates.linkedin_handle = body.linkedin_handle.trim()
+    const v = body.linkedin_handle.trim()
+    if (!isValidUrlLikeOrHandle(v)) {
+      return NextResponse.json({ error: 'Invalid LinkedIn value' }, { status: 400 })
+    }
+    updates.linkedin_handle = v || null
   }
   if (typeof body.twitter_handle === 'string') {
-    updates.twitter_handle = body.twitter_handle.trim()
+    const v = body.twitter_handle.trim()
+    if (!isValidUrlLikeOrHandle(v)) {
+      return NextResponse.json({ error: 'Invalid Twitter value' }, { status: 400 })
+    }
+    updates.twitter_handle = v || null
   }
   if (typeof body.github_handle === 'string') {
-    updates.github_handle = body.github_handle.trim()
+    const v = body.github_handle.trim()
+    if (!isValidUrlLikeOrHandle(v)) {
+      return NextResponse.json({ error: 'Invalid GitHub value' }, { status: 400 })
+    }
+    updates.github_handle = v || null
   }
   if (typeof body.polaroid_still_url === 'string') {
     updates.polaroid_still_url = body.polaroid_still_url.trim()
@@ -114,7 +173,8 @@ export async function PATCH(request: Request) {
     const fallback = await supabase
       .from('members')
       .select('id, last_profile_update_at')
-      .eq('email', authUser.email)
+      // Use ilike to avoid casing mismatches (emails are logically case-insensitive)
+      .ilike('email', authUser.email)
       .maybeSingle()
     existing = fallback.data
     fetchError = fallback.error

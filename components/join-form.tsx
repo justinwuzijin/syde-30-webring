@@ -180,6 +180,7 @@ export function ProfilePictureField({
   onChange,
   error,
   accept,
+  dense,
 }: {
   label: string
   requiredNote?: string
@@ -188,6 +189,7 @@ export function ProfilePictureField({
   onChange: (file: File | null) => void
   error?: string
   accept: string
+  dense?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -273,7 +275,9 @@ export function ProfilePictureField({
         )}
       </span>
       <div
-        className="flex flex-col items-center justify-center w-full min-h-[200px] rounded-lg border-2 border-dashed transition-colors cursor-pointer overflow-hidden relative"
+        className={`flex flex-col items-center justify-center w-full rounded-lg border-2 border-dashed transition-colors cursor-pointer overflow-hidden relative ${
+          dense ? 'min-h-[140px]' : 'min-h-[200px]'
+        }`}
         style={{
           background: isDragging ? 'rgba(0,0,0,0.03)' : '#ffffff',
           borderColor: error ? '#ef4444' : isDragging ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.15)',
@@ -294,11 +298,17 @@ export function ProfilePictureField({
           className="hidden"
         />
         {previewUrl ? (
-          <div className="flex flex-col items-center justify-center w-full h-full min-h-[200px] p-4">
+          <div
+            className={`flex flex-col items-center justify-center w-full h-full ${
+              dense ? 'min-h-[140px]' : 'min-h-[200px]'
+            } p-3`}
+          >
             {value && isVideoFile(value) ? (
               <video
                 src={previewUrl}
-                className="max-w-full max-h-[180px] w-auto h-auto object-contain rounded cursor-zoom-in"
+                className={`max-w-full ${
+                  dense ? 'max-h-[120px]' : 'max-h-[180px]'
+                } w-auto h-auto object-contain rounded cursor-zoom-in`}
                 controls
                 muted
                 loop
@@ -312,7 +322,9 @@ export function ProfilePictureField({
               <img
                 src={previewUrl}
                 alt="Preview"
-                className="max-w-full max-h-[180px] w-auto h-auto object-contain rounded cursor-zoom-in"
+                className={`max-w-full ${
+                  dense ? 'max-h-[120px]' : 'max-h-[180px]'
+                } w-auto h-auto object-contain rounded cursor-zoom-in`}
                 onClick={(e) => {
                   e.stopPropagation()
                   setShowEnlarged(true)
@@ -348,8 +360,8 @@ export function ProfilePictureField({
             </p>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center gap-2 py-8">
-            <Upload className="w-10 h-10 text-black/30" />
+          <div className={`flex flex-col items-center justify-center gap-2 ${dense ? 'py-5' : 'py-8'}`}>
+            <Upload className={`text-black/30 ${dense ? 'w-8 h-8' : 'w-10 h-10'}`} />
             <span className="font-mono text-xs text-black/50">
               drag and drop, paste, or click to upload
             </span>
