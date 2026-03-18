@@ -42,14 +42,13 @@ export function AuthCelebration({ type, onComplete }: AuthCelebrationProps) {
   return <SigninCelebration phase={phase} />
 }
 
-/** Sign-up: spinning circle of assets with confirmation message */
+/** Sign-up: same spinner as page loading, just different text */
 function SignupCelebration({ phase }: { phase: string }) {
   const [visibleCount, setVisibleCount] = useState(0)
-  const RADIUS = 80
-  const ITEM_SIZE = 42
-  const SPIN_DURATION = 4
-  const STAGGER = 0.14
-  const PULSE_DURATION = 1.6
+  const RADIUS = 52
+  const ITEM_SIZE = 32
+  const SPIN_DURATION = 3
+  const STAGGER = 0.1
 
   useEffect(() => {
     if (visibleCount >= ASSETS.length) return
@@ -60,12 +59,11 @@ function SignupCelebration({ phase }: { phase: string }) {
   return (
     <motion.div
       className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
-      style={{ background: 'var(--bg)' }}
+      style={{ backgroundColor: '#ffffff' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: phase === 'exit' ? 0 : 1 }}
       transition={{ duration: phase === 'exit' ? 0.5 : 0.3 }}
     >
-      {/* Spinning ring of assets — clockwise only */}
       <motion.div
         className="relative"
         style={{ width: RADIUS * 2 + ITEM_SIZE, height: RADIUS * 2 + ITEM_SIZE }}
@@ -84,21 +82,18 @@ function SignupCelebration({ phase }: { phase: string }) {
                 className="absolute"
                 style={{ left: x, top: y, width: ITEM_SIZE, height: ITEM_SIZE }}
                 initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale: [1, 1.35, 1] }}
+                animate={{ opacity: 1, scale: 1 }}
                 transition={{
-                  opacity: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
-                  scale: {
-                    duration: PULSE_DURATION,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                    delay: i * (PULSE_DURATION / ASSETS.length),
-                  },
+                  duration: 0.3,
+                  ease: [0.22, 1, 0.36, 1],
                 }}
               >
-                <img
+                <motion.img
                   src={asset.src}
                   alt={asset.alt}
-                  className="w-full h-full object-contain drop-shadow-lg"
+                  className="w-full h-full object-contain drop-shadow-md"
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: SPIN_DURATION, repeat: Infinity, ease: 'linear' }}
                   draggable={false}
                 />
               </motion.div>
@@ -107,28 +102,26 @@ function SignupCelebration({ phase }: { phase: string }) {
         })}
       </motion.div>
 
-      {/* Text below spinner */}
       <motion.p
-        className="text-white/80 mt-8"
-        style={{ ...sfPro, fontSize: '1rem', letterSpacing: '0.03em' }}
+        className="mt-8 text-sm text-neutral-400 lowercase tracking-[0.15em]"
+        style={{ ...sfPro }}
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === 'exit' ? 0 : 1 }}
         transition={{ delay: 0.6, duration: 0.4 }}
       >
-        Check your inbox for email confirmation!
+        check your inbox for email confirmation...
       </motion.p>
     </motion.div>
   )
 }
 
-/** Sign-in: assets appear one by one in a circle, spin clockwise, pulse in size */
+/** Sign-in: same spinner as page loading, just different text */
 function SigninCelebration({ phase }: { phase: string }) {
   const [visibleCount, setVisibleCount] = useState(0)
-  const RADIUS = 80
-  const ITEM_SIZE = 42
-  const SPIN_DURATION = 4
-  const STAGGER = 0.14
-  const PULSE_DURATION = 1.6
+  const RADIUS = 52
+  const ITEM_SIZE = 32
+  const SPIN_DURATION = 3
+  const STAGGER = 0.1
 
   useEffect(() => {
     if (visibleCount >= ASSETS.length) return
@@ -139,13 +132,12 @@ function SigninCelebration({ phase }: { phase: string }) {
   return (
     <motion.div
       className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
-      style={{ background: 'var(--bg)' }}
+      style={{ backgroundColor: '#ffffff' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Spinning ring of assets — clockwise only */}
       <motion.div
         className="relative"
         style={{ width: RADIUS * 2 + ITEM_SIZE, height: RADIUS * 2 + ITEM_SIZE }}
@@ -164,21 +156,18 @@ function SigninCelebration({ phase }: { phase: string }) {
                 className="absolute"
                 style={{ left: x, top: y, width: ITEM_SIZE, height: ITEM_SIZE }}
                 initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale: [1, 1.35, 1] }}
+                animate={{ opacity: 1, scale: 1 }}
                 transition={{
-                  opacity: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
-                  scale: {
-                    duration: PULSE_DURATION,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                    delay: i * (PULSE_DURATION / ASSETS.length),
-                  },
+                  duration: 0.3,
+                  ease: [0.22, 1, 0.36, 1],
                 }}
               >
-                <img
+                <motion.img
                   src={asset.src}
                   alt={asset.alt}
-                  className="w-full h-full object-contain drop-shadow-lg"
+                  className="w-full h-full object-contain drop-shadow-md"
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: SPIN_DURATION, repeat: Infinity, ease: 'linear' }}
                   draggable={false}
                 />
               </motion.div>
@@ -187,15 +176,14 @@ function SigninCelebration({ phase }: { phase: string }) {
         })}
       </motion.div>
 
-      {/* Text below spinner */}
       <motion.p
-        className="text-white/80 mt-8"
-        style={{ ...sfPro, fontSize: '1rem', letterSpacing: '0.03em' }}
+        className="mt-8 text-sm text-neutral-400 lowercase tracking-[0.15em]"
+        style={{ ...sfPro }}
         initial={{ opacity: 0 }}
         animate={{ opacity: phase === 'exit' ? 0 : 1 }}
         transition={{ delay: 0.6, duration: 0.4 }}
       >
-        Welcome Back!
+        welcome back...
       </motion.p>
     </motion.div>
   )

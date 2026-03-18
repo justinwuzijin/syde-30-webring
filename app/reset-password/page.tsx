@@ -64,13 +64,13 @@ function ResetPasswordForm() {
         <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
+            className="inline-flex items-center gap-1.5 font-sans text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
           >
             <ArrowLeft className="w-3 h-3" />
             back to log in
           </Link>
-          <p className="font-mono text-sm text-red-400">{error}</p>
-          <Link href="/forgot-password" className="font-mono text-xs text-white/80 hover:text-white mt-4">
+          <p className="font-sans text-sm text-red-400">{error}</p>
+          <Link href="/forgot-password" className="font-sans text-xs text-white/80 hover:text-white mt-4">
             request a new reset link
           </Link>
         </div>
@@ -98,7 +98,7 @@ function ResetPasswordForm() {
           <p className="font-sans mt-4 text-white/80">
             redirecting you to log in…
           </p>
-          <Link href="/login" className="font-mono text-xs text-white/70 hover:text-white mt-6">
+          <Link href="/login" className="font-sans text-xs text-white/70 hover:text-white mt-6">
             go to log in
           </Link>
         </div>
@@ -114,7 +114,7 @@ function ResetPasswordForm() {
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
         <Link
           href="/login"
-          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
+          className="inline-flex items-center gap-1.5 font-sans text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
         >
           <ArrowLeft className="w-3 h-3" />
           back to log in
@@ -141,7 +141,7 @@ function ResetPasswordForm() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <label htmlFor="password" className="font-mono text-xs text-white/70">
+            <label htmlFor="password" className="font-sans text-xs text-white/70">
               new password
             </label>
             <div className="relative">
@@ -171,7 +171,7 @@ function ResetPasswordForm() {
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <label htmlFor="confirmPassword" className="font-mono text-xs text-white/70">
+            <label htmlFor="confirmPassword" className="font-sans text-xs text-white/70">
               confirm password
             </label>
             <div className="relative">
@@ -200,7 +200,7 @@ function ResetPasswordForm() {
               </button>
             </div>
           </div>
-          {error && <p className="font-mono text-xs text-red-400">{error}</p>}
+          {error && <p className="font-sans text-xs text-red-400">{error}</p>}
           <button
             type="submit"
             disabled={loading}

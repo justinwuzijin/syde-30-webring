@@ -7,6 +7,7 @@ import { AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { AuthCelebration } from '@/components/auth-celebration'
+import { StretchText } from '@/components/stretch-text'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -57,33 +58,26 @@ export default function LoginPage() {
       className="min-h-screen flex flex-col px-4 sm:px-6 md:px-8 lg:px-12 py-8 sm:py-16 md:py-24"
       style={{ background: '#ffffff' }}
     >
-      <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
+      <div className="w-full max-w-lg mx-auto flex-1 flex flex-col justify-center">
         <a
           href="/"
-          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-black/50"
+          className="inline-flex items-center gap-1.5 font-sans text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-black/50"
         >
           <ArrowLeft className="w-3 h-3" />
           back
         </a>
 
-        <h1
-          className="leading-none text-black lowercase"
-          style={{
-            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-            fontSize: 'clamp(2.5rem, 8vw, 4rem)',
-            letterSpacing: '0.02em',
-          }}
-        >
-          log in
-        </h1>
-        <p className="font-sans mt-4 text-black/60" style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}>
-          sign in with the email and password you used when joining
-        </p>
-
-        <div
-          className="mt-6 sm:mt-8 mb-8"
-          style={{ width: '32px', height: '1px', backgroundColor: 'rgba(0,0,0,0.15)' }}
-        />
+        {/* Heading — compressed text to match landing page */}
+        <div className="w-[50%] sm:w-[40%] mb-8">
+          <div className="relative w-full" style={{ paddingTop: '50%' }}>
+            <StretchText
+              lines={["log in"]}
+              viewBox="0 0 300 170"
+              fontSize={160}
+              className="absolute inset-0 w-full h-full"
+            />
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
@@ -112,7 +106,7 @@ export default function LoginPage() {
               </label>
               <Link
                 href="/forgot-password"
-                className="font-mono text-xs text-black/40 hover:text-black/70 transition-colors"
+                className="font-sans text-xs text-black/40 hover:text-black/70 transition-colors"
               >
                 forgot password?
               </Link>
@@ -142,7 +136,7 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
-          {error && <p className="font-mono text-xs text-red-400">{error}</p>}
+          {error && <p className="font-sans text-xs text-red-400">{error}</p>}
           <button
             type="submit"
             disabled={loading}
@@ -158,7 +152,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="font-mono text-xs text-black/40 mt-6">
+        <p className="font-sans text-xs text-black/40 mt-6">
           don&apos;t have an account?{' '}
           <Link href="/join" className="text-black/70 hover:text-black transition-colors">
             sign up

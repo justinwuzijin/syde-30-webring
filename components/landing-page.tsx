@@ -281,6 +281,8 @@ export function LandingPage() {
   const handleCardClick = useCallback((memberId: string) => {
     if (phase !== 'expanded') return
     playClick()
+    // Replace current history entry so browser back returns to webring view, not splash
+    window.history.replaceState(null, '', '/?view=webring')
     // Show loading spinner, then navigate
     startTransition({ waitForManualEnd: true })
     setNavigatingToProfile(true)
@@ -765,9 +767,9 @@ export function LandingPage() {
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             &quot;Goose&quot; (
-            <a href="https://skfb.ly/oJtwy" target="_blank" rel="noopener noreferrer" className="underline hover:text-black/90">https://skfb.ly/oJtwy</a>
+            <a href="https://skfb.ly/oJtwy" target="_blank" rel="noopener noreferrer" className="hover:text-black/90">https://skfb.ly/oJtwy</a>
             ) by OlegPopka is licensed under Creative Commons Attribution (
-            <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline hover:text-black/90">http://creativecommons.org/licenses/by/4.0/</a>
+            <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="hover:text-black/90">http://creativecommons.org/licenses/by/4.0/</a>
             ).
           </span>
         </motion.div>
@@ -812,12 +814,12 @@ export function LandingPage() {
         >
           {user ? (
             <div className="flex items-center gap-3">
-              <span className="text-black text-sm font-medium uppercase tracking-wider">
-                Logged in as {user.name}
+              <span className="text-black text-sm font-medium lowercase tracking-wider">
+                logged in as {user.name}
               </span>
               <button
                 onClick={() => { playClick(); logout() }}
-                className="px-4 py-2 text-black/70 text-xs font-medium uppercase tracking-wider border border-black/20 hover:bg-black/10 hover:text-black transition-colors"
+                className="px-4 py-2 text-black/70 text-xs font-medium lowercase tracking-wider border border-black/20 hover:bg-black/10 hover:text-black transition-colors"
               >
                 Log out
               </button>

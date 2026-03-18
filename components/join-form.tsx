@@ -6,6 +6,7 @@ import { AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowUpRight, ChevronDown, Eye, EyeOff, Trash2, Upload, X } from 'lucide-react'
 import { parseSocialLink } from '@/lib/parse-social'
 import { AuthCelebration } from './auth-celebration'
+import { StretchText } from './stretch-text'
 
 interface FormData {
   name: string
@@ -620,29 +621,17 @@ export function JoinForm() {
           back
         </a>
 
-        {/* Heading */}
-        <h1
-          className="leading-none text-black lowercase"
-          style={{
-            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-            fontSize: 'clamp(2.5rem, 8vw, 5.5rem)',
-            letterSpacing: '0.02em',
-          }}
-        >
-          sign up
-        </h1>
-        <p
-          className="font-sans mt-4 leading-relaxed text-black/60 md:whitespace-nowrap"
-          style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}
-        >
-          join the SYDE 2030 webring — share your site and connect with your cohort
-        </p>
-
-        {/* Divider */}
-        <div
-          className="mt-6 sm:mt-8 mb-8 sm:mb-10"
-          style={{ width: '32px', height: '1px', backgroundColor: 'rgba(0,0,0,0.1)' }}
-        />
+        {/* Heading — compressed text to match landing page */}
+        <div className="w-[55%] sm:w-[45%] mb-8 sm:mb-10">
+          <div className="relative w-full" style={{ paddingTop: '45%' }}>
+            <StretchText
+              lines={["sign up"]}
+              viewBox="0 0 340 170"
+              fontSize={160}
+              className="absolute inset-0 w-full h-full"
+            />
+          </div>
+        </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6 sm:gap-7">
@@ -681,7 +670,7 @@ export function JoinForm() {
             <div className="flex flex-col gap-2 lg:col-span-2">
               <InputField
                 id="websiteLink"
-                label="website link"
+                label="website"
                 value={form.websiteLink}
                 onChange={update('websiteLink')}
                 placeholder="e.g. https://example.com"
@@ -698,7 +687,7 @@ export function JoinForm() {
           {/* Social links */}
           <div className="flex flex-col gap-3">
             <span className="text-xs font-medium text-black lowercase" style={sfPro}>
-              social links
+              social
               <span className="ml-0.5 text-red-400">*</span>
               <span className="font-normal normal-case italic ml-1 text-[10px] text-black/50">
                 (at least one)

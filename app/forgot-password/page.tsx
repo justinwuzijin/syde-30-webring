@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
         <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
+            className="inline-flex items-center gap-1.5 font-sans text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
           >
             <ArrowLeft className="w-3 h-3" />
             back to log in
@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
           <p className="font-sans mt-4 text-white/80">
             if we have an account for that email, we&apos;ve sent a reset link. it expires in 1 hour.
           </p>
-          <Link href="/login" className="font-mono text-xs text-white/70 hover:text-white mt-6">
+          <Link href="/login" className="font-sans text-xs text-white/70 hover:text-white mt-6">
             back to log in
           </Link>
         </div>
@@ -76,7 +76,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
         <Link
           href="/login"
-          className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
+          className="inline-flex items-center gap-1.5 font-sans text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
         >
           <ArrowLeft className="w-3 h-3" />
           back to log in
@@ -103,7 +103,7 @@ export default function ForgotPasswordPage() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <label htmlFor="email" className="font-mono text-xs text-white/70">
+            <label htmlFor="email" className="font-sans text-xs text-white/70">
               email
             </label>
             <input
@@ -121,7 +121,7 @@ export default function ForgotPasswordPage() {
               }}
             />
           </div>
-          {error && <p className="font-mono text-xs text-red-400">{error}</p>}
+          {error && <p className="font-sans text-xs text-red-400">{error}</p>}
           <button
             type="submit"
             disabled={loading}
@@ -137,7 +137,7 @@ export default function ForgotPasswordPage() {
           </button>
         </form>
 
-        <p className="font-mono text-xs text-white/50 mt-6">
+        <p className="font-sans text-xs text-white/50 mt-6">
           don&apos;t have an account?{' '}
           <Link href="/join" className="text-white/80 hover:text-white transition-colors">
             sign up
