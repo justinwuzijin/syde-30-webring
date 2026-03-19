@@ -18,20 +18,27 @@ interface JoinStampAnimationProps {
 export function JoinStampAnimation({ user, members, onComplete }: JoinStampAnimationProps) {
   const [phase, setPhase] = useState<'drop' | 'impact' | 'done'>('drop')
   const completedRef = useRef(false)
-  const currentMember = members.find((m) => toSlug(m.name) === toSlug(user.name))
+  const startedRef = useRef(false)
+  const userSlug = toSlug(user.name)
+
+  // Prefer matching the member's polaroid by name, but fall back to any member.
+  // We must not "complete immediately" when matching fails; that can trigger a parent
+  // state loop before `has_seen_join_stamp_animation` flips in the client.
+  const currentMember = members.find((m) => toSlug(m.name) === userSlug) ?? members[0] ?? null
+  const currentMemberId = currentMember?.id ?? null
 
   useEffect(() => {
-    if (!currentMember) {
-      onComplete()
-      return
-    }
+    if (!currentMemberId) return
+    if (startedRef.current) return
+    startedRef.current = true
+
     const t1 = setTimeout(() => setPhase('impact'), 400)
     const t2 = setTimeout(() => setPhase('done'), 800)
     return () => {
       clearTimeout(t1)
       clearTimeout(t2)
     }
-  }, [currentMember, onComplete])
+  }, [currentMemberId, onComplete])
 
   const handleAnimationComplete = useCallback(() => {
     if (completedRef.current) return

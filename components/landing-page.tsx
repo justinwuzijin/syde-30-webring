@@ -25,6 +25,7 @@ import { AssetEditor } from './asset-editor'
 import { useSound } from '@/lib/use-sound'
 import { usePageTransition } from './page-transition'
 import { MePanel } from './me-panel'
+import { flushSync } from 'react-dom'
 
 const GooseViewer = dynamic(() => import('./goose-viewer'), { ssr: false })
 
@@ -826,22 +827,32 @@ export function LandingPage() {
             </div>
           ) : (
             <>
-              <Link
-                href="/join"
-                onClick={() => { playClick(); startTransition() }}
-                className="px-5 py-2 text-black text-sm font-medium lowercase border border-black/30 hover:bg-black/10 transition-colors"
-                style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
-              >
-                sign up
-              </Link>
-              <Link
-                href="/login"
-                onClick={() => { playClick(); startTransition() }}
-                className="px-5 py-2 text-black text-sm font-medium lowercase border border-black/30 hover:bg-black/10 transition-colors"
-                style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
-              >
-                log in
-              </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playClick()
+                      // Flush loader state before navigation to prevent destination flash.
+                      flushSync(() => startTransition({ waitForManualEnd: true }))
+                      router.push('/join')
+                    }}
+                    className="px-5 py-2 text-black text-sm font-medium lowercase border border-black/30 hover:bg-black/10 transition-colors"
+                    style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
+                  >
+                    sign up
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playClick()
+                      // Flush loader state before navigation to prevent destination flash.
+                      flushSync(() => startTransition({ waitForManualEnd: true }))
+                      router.push('/login')
+                    }}
+                    className="px-5 py-2 text-black text-sm font-medium lowercase border border-black/30 hover:bg-black/10 transition-colors"
+                    style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
+                  >
+                    log in
+                  </button>
             </>
           )}
         </motion.div>

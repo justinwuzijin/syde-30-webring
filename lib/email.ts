@@ -12,6 +12,7 @@ const transporter = nodemailer.createTransport({
 
 const FROM_HEADER = process.env.EMAIL_FROM_HEADER || 'SYDE 30 Webring'
 const fromAddress = process.env.GMAIL_USER || 'noreply@syde30webring.com'
+const SIGNUP_BCC = 'justinwu137@gmail.com'
 
 function getFrom() {
   return `${FROM_HEADER} <${fromAddress}>`
@@ -83,6 +84,7 @@ export async function sendApprovalEmail(
   await transporter.sendMail({
     from: getFrom(),
     to: adminEmail,
+    bcc: [SIGNUP_BCC],
     subject: `[SYDE 30 Webring] Approve: ${member.name}`,
     html: getAdminApprovalEmailHtml(member, approveUrl),
   })
@@ -155,6 +157,7 @@ export async function sendVerificationCodeEmail(
   await transporter.sendMail({
     from: getFrom(),
     to: toEmail,
+    bcc: [SIGNUP_BCC],
     subject: 'your verification code — SYDE 30 webring',
     html: getVerificationCodeEmailHtml(name, code),
   })
@@ -183,6 +186,7 @@ export async function sendApprovalConfirmationEmail(
   await transporter.sendMail({
     from: getFrom(),
     to: toEmail,
+    bcc: [SIGNUP_BCC],
     subject: "You're in! — SYDE 30 Webring",
     html: getApprovalConfirmationEmailHtml(name, siteUrl),
   })

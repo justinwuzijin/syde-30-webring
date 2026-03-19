@@ -181,6 +181,7 @@ export function ProfilePictureField({
   error,
   accept,
   dense,
+  selectedStateText,
 }: {
   label: string
   requiredNote?: string
@@ -190,6 +191,7 @@ export function ProfilePictureField({
   error?: string
   accept: string
   dense?: boolean
+  selectedStateText?: string
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -358,6 +360,14 @@ export function ProfilePictureField({
             <p className="font-mono text-[10px] italic text-black/40 mt-0.5">
               {value && isVideoFile(value) ? 'click video to enlarge' : 'click image to enlarge'}
             </p>
+            {value?.name && (
+              <p className="font-mono text-[10px] text-black/45 break-all mt-1">
+                {value.name}
+              </p>
+            )}
+            {selectedStateText && (
+              <p className="font-mono text-[10px] text-black/55 mt-1">{selectedStateText}</p>
+            )}
           </div>
         ) : (
           <div className={`flex flex-col items-center justify-center gap-2 ${dense ? 'py-5' : 'py-8'}`}>

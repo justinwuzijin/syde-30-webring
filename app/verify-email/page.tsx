@@ -84,24 +84,28 @@ function VerifyEmailContent() {
     return (
       <div
         className="min-h-screen flex flex-col px-4 sm:px-6 md:px-8 lg:px-12 py-8 sm:py-16 md:py-24"
-        style={{ background: 'var(--bg)' }}
+        style={{ background: '#ffffff' }}
       >
         <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
           <h1
-            className="leading-none text-white lowercase"
+          className="leading-none text-black lowercase"
             style={{
-              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
               fontSize: 'clamp(2.5rem, 8vw, 4rem)',
               letterSpacing: '0.02em',
             }}
           >
             email verified
           </h1>
-          <p className="font-sans mt-4 text-white/80">
+          <p className="font-sans mt-4 text-black/60">
             your request is in. we&apos;ll email you once an admin approves.
           </p>
-          <p className="font-sans text-xs text-white/50 mt-4">redirecting you home…</p>
-          <Link href="/" className="inline-flex items-center gap-1.5 font-sans text-xs text-white/70 hover:text-white mt-6">
+          <p className="font-sans text-xs text-black/40 mt-4">redirecting you home…</p>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 font-sans text-xs text-black/70 hover:text-black mt-6 transition-colors"
+          >
             <ArrowLeft className="w-3 h-3" />
             back to the web
           </Link>
@@ -113,19 +117,19 @@ function VerifyEmailContent() {
   return (
     <div
       className="min-h-screen flex flex-col px-4 sm:px-6 md:px-8 lg:px-12 py-8 sm:py-16 md:py-24"
-      style={{ background: 'var(--bg)' }}
+      style={{ background: '#ffffff' }}
     >
       <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-center">
         <Link
           href="/join"
-          className="inline-flex items-center gap-1.5 font-sans text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-white/70"
+          className="inline-flex items-center gap-1.5 font-sans text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-black/50"
         >
           <ArrowLeft className="w-3 h-3" />
           back
         </Link>
 
         <h1
-          className="leading-none text-white lowercase"
+          className="leading-none text-black lowercase"
           style={{
             fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
             fontSize: 'clamp(2.5rem, 8vw, 4rem)',
@@ -134,18 +138,18 @@ function VerifyEmailContent() {
         >
           verify your email
         </h1>
-        <p className="font-sans mt-4 text-white/80" style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}>
+        <p className="font-sans mt-4 text-black/60" style={{ fontSize: 'clamp(12px, 2vw, 1rem)' }}>
           we sent a 6-digit code to your email. enter it below. codes expire in 5 minutes.
         </p>
 
         <div
           className="mt-6 sm:mt-8 mb-8"
-          style={{ width: '32px', height: '1px', backgroundColor: 'var(--border)' }}
+          style={{ width: '32px', height: '1px', backgroundColor: 'rgba(0,0,0,0.12)' }}
         />
 
         <form onSubmit={handleVerify} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <label htmlFor="email" className="font-sans text-xs text-white/70">
+            <label htmlFor="email" className="font-sans text-xs text-black/60">
               email
             </label>
             <input
@@ -155,16 +159,16 @@ function VerifyEmailContent() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="e.g. example@gmail.com"
               required
-              className="font-sans text-sm px-4 py-3 outline-none text-white placeholder:text-white/50 w-full"
+              className="font-sans text-sm px-4 py-3 outline-none text-black placeholder:text-black/40 w-full"
               style={{
-                background: 'var(--surface)',
-                border: `1px solid ${error ? '#ef4444' : 'var(--border)'}`,
+                background: '#f7f7f7',
+                border: `1px solid ${error ? '#ef4444' : 'rgba(0,0,0,0.1)'}`,
                 borderRadius: 'var(--radius)',
               }}
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label htmlFor="code" className="font-sans text-xs text-white/70">
+            <label htmlFor="code" className="font-sans text-xs text-black/60">
               verification code
             </label>
             <input
@@ -176,21 +180,21 @@ function VerifyEmailContent() {
               onChange={handleCodeChange}
               placeholder="000000"
               autoComplete="one-time-code"
-              className="font-sans text-[28px] tracking-[0.4em] px-4 py-4 text-center outline-none text-white placeholder:text-white/30 w-full"
+              className="font-mono text-[28px] tracking-[0.4em] px-4 py-4 text-center outline-none text-black placeholder:text-black/30 w-full"
               style={{
-                background: 'var(--surface)',
-                border: `1px solid ${error ? '#ef4444' : 'var(--border)'}`,
+                background: '#f7f7f7',
+                border: `1px solid ${error ? '#ef4444' : 'rgba(0,0,0,0.1)'}`,
                 borderRadius: 'var(--radius)',
               }}
             />
           </div>
-          {error && <p className="font-sans text-xs text-red-400">{error}</p>}
+          {error && <p className="font-sans text-xs text-red-500">{error}</p>}
           <button
             type="submit"
             disabled={loading || code.length !== 6}
             className="group flex items-center justify-center gap-2.5 px-6 py-3.5 font-sans text-xs sm:text-sm font-medium lowercase transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             style={{
-              background: 'var(--accent-red)',
+              background: '#333',
               color: '#fff',
               borderRadius: 'var(--radius)',
               border: 'none',
@@ -200,13 +204,13 @@ function VerifyEmailContent() {
           </button>
         </form>
 
-        <div className="mt-6 pt-6 border-t border-white/10">
-          <p className="font-sans text-xs text-white/50 mb-2">didn&apos;t get the code?</p>
+        <div className="mt-6 pt-6 border-t border-black/10">
+          <p className="font-sans text-xs text-black/50 mb-2">didn&apos;t get the code?</p>
           <button
             type="button"
             onClick={handleResend}
             disabled={resendLoading || resendCooldown > 0}
-            className="font-sans text-xs text-white/70 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="font-sans text-xs text-black/70 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {resendCooldown > 0
               ? `resend in ${resendCooldown}s`
@@ -223,8 +227,8 @@ function VerifyEmailContent() {
 export default function VerifyEmailPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
-        <span className="font-sans text-xs text-white/50">loading…</span>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#ffffff' }}>
+        <span className="font-sans text-xs text-black/40">loading…</span>
       </div>
     }>
       <VerifyEmailContent />

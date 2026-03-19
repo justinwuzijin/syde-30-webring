@@ -49,6 +49,8 @@ export function MePanel() {
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadingKind, setUploadingKind] = useState<'still' | 'live' | null>(null)
+  const [stillFile, setStillFile] = useState<File | null>(null)
+  const [liveFile, setLiveFile] = useState<File | null>(null)
   const stillObjectUrlRef = useRef<string | null>(null)
   const liveObjectUrlRef = useRef<string | null>(null)
   const previewContainerRef = useRef<HTMLDivElement>(null)
@@ -70,6 +72,9 @@ export function MePanel() {
       polaroid_still_url: m.polaroid_still_url || '',
       polaroid_live_url: m.polaroid_live_url || '',
     })
+    // Existing persisted media isn't a File object; reset upload selection UI.
+    setStillFile(null)
+    setLiveFile(null)
   }, [data?.member])
 
   useEffect(() => {
@@ -210,15 +215,21 @@ export function MePanel() {
     async (kind: 'still' | 'live', file: File | null) => {
       if (!user || !data?.member) return
       setError(null)
+      const memberStillUrl = data.member.polaroid_still_url || ''
+      const memberLiveUrl = data.member.polaroid_live_url || ''
+      const revertTo = kind === 'still' ? memberStillUrl : memberLiveUrl
+
       if (!file) {
         // Clearing media: just clear local state; user can save to persist
         if (kind === 'still') {
           if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
           stillObjectUrlRef.current = null
+          setStillFile(null)
           setDraft((d) => ({ ...d, polaroid_still_url: '' }))
         } else {
           if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
           liveObjectUrlRef.current = null
+          setLiveFile(null)
           setDraft((d) => ({ ...d, polaroid_live_url: '' }))
         }
         return
@@ -232,10 +243,12 @@ export function MePanel() {
         if (kind === 'still') {
           if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
           stillObjectUrlRef.current = objectUrl
+          setStillFile(file)
           setDraft((d) => ({ ...d, polaroid_still_url: objectUrl }))
         } else {
           if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
           liveObjectUrlRef.current = objectUrl
+          setLiveFile(file)
           setDraft((d) => ({ ...d, polaroid_live_url: objectUrl }))
         }
 
@@ -254,23 +267,73 @@ export function MePanel() {
           const msg =
             (payload.errors && (payload.errors.polaroidStill || payload.errors.polaroidLive)) ||
             payload.error ||
-            'failed to upload media'
+            `failed to upload ${kind === 'still' ? 'still image' : 'live clip'}`
           setError(msg)
+
+          // Revert preview so we never persist a blob: URL into the database.
+          if (kind === 'still') {
+            if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
+            stillObjectUrlRef.current = null
+          } else {
+            if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
+            liveObjectUrlRef.current = null
+          }
+          if (kind === 'still') setStillFile(null)
+          if (kind === 'live') setLiveFile(null)
+          setDraft((d) => ({
+            ...d,
+            polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
+            polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+          }))
           return
         }
-        if (typeof payload.polaroid_still_url === 'string') {
+
+        if (kind === 'still') {
+          const nextUrl = typeof payload.polaroid_still_url === 'string' ? payload.polaroid_still_url.trim() : ''
+          if (!nextUrl) {
+            setError('Upload succeeded but still URL was missing')
+            if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
+            stillObjectUrlRef.current = null
+            setStillFile(null)
+            setDraft((d) => ({ ...d, polaroid_still_url: revertTo }))
+            return
+          }
           if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
           stillObjectUrlRef.current = null
-          setDraft((d) => ({ ...d, polaroid_still_url: payload.polaroid_still_url }))
+          setDraft((d) => ({ ...d, polaroid_still_url: nextUrl }))
         }
-        if (typeof payload.polaroid_live_url === 'string') {
+
+        if (kind === 'live') {
+          const nextUrl = typeof payload.polaroid_live_url === 'string' ? payload.polaroid_live_url.trim() : ''
+          if (!nextUrl) {
+            setError('Upload succeeded but live clip URL was missing')
+            if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
+            liveObjectUrlRef.current = null
+            setLiveFile(null)
+            setDraft((d) => ({ ...d, polaroid_live_url: revertTo }))
+            return
+          }
           if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
           liveObjectUrlRef.current = null
-          setDraft((d) => ({ ...d, polaroid_live_url: payload.polaroid_live_url }))
+          setDraft((d) => ({ ...d, polaroid_live_url: nextUrl }))
         }
         // Do not auto-PATCH here; the main Save button will persist media + other fields
       } catch {
-        setError('failed to upload media')
+        setError(`failed to upload ${kind === 'still' ? 'still image' : 'live clip'}`)
+        if (kind === 'still') {
+          if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
+          stillObjectUrlRef.current = null
+        } else {
+          if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
+          liveObjectUrlRef.current = null
+        }
+        if (kind === 'still') setStillFile(null)
+        if (kind === 'live') setLiveFile(null)
+        setDraft((d) => ({
+          ...d,
+          polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
+          polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+        }))
       } finally {
         setUploading(false)
         setUploadingKind(null)
@@ -453,13 +516,22 @@ export function MePanel() {
                       label="new polaroid still (photo)"
                       requiredNote="heic, jpg, jpeg, png"
                       helperText="updates the preview immediately; hit save to persist"
-                      value={null}
+                      value={stillFile}
                       onChange={(file) => {
-                        if (file) void handleMediaUpload('still', file)
+                        void handleMediaUpload('still', file)
                       }}
                       error={undefined}
                       accept=".heic,.heif,.jpg,.jpeg,.png,image/*"
                       dense
+                      selectedStateText={
+                        stillFile && uploading && uploadingKind === 'still'
+                          ? 'uploading…'
+                          : stillFile &&
+                              !draft.polaroid_still_url.startsWith('blob:') &&
+                              member?.polaroid_still_url !== draft.polaroid_still_url
+                            ? 'uploaded; ready to save'
+                            : undefined
+                      }
                     />
                   </div>
 
@@ -478,13 +550,22 @@ export function MePanel() {
                       label="new polaroid live clip"
                       requiredNote="mov or mp4"
                       helperText="short clip that plays when others hover your polaroid"
-                      value={null}
+                      value={liveFile}
                       onChange={(file) => {
-                        if (file) void handleMediaUpload('live', file)
+                        void handleMediaUpload('live', file)
                       }}
                       error={undefined}
                       accept=".mov,.mp4,video/*"
                       dense
+                      selectedStateText={
+                        liveFile && uploading && uploadingKind === 'live'
+                          ? 'uploading…'
+                          : liveFile &&
+                              !draft.polaroid_live_url.startsWith('blob:') &&
+                              member?.polaroid_live_url !== draft.polaroid_live_url
+                            ? 'uploaded; ready to save'
+                            : undefined
+                      }
                     />
                   </div>
                 </div>
@@ -498,7 +579,16 @@ export function MePanel() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
                   <button
                     type="submit"
-                    disabled={!isDirty || saving || cooldownSeconds > 0 || isLoading || uploading}
+                    disabled={
+                      !isDirty ||
+                      saving ||
+                      cooldownSeconds > 0 ||
+                      isLoading ||
+                      uploading ||
+                      !!error ||
+                      draft.polaroid_still_url.startsWith('blob:') ||
+                      draft.polaroid_live_url.startsWith('blob:')
+                    }
                     className="px-4 py-2 rounded-full text-xs font-medium lowercase tracking-[0.16em] bg-black text-white disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {saving
