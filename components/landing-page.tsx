@@ -884,9 +884,9 @@ export function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 12 }}
           transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          onWheel={(e) => e.preventDefault()}
-          onMouseDown={(e) => e.preventDefault()}
-          style={{ touchAction: 'none' }}
+          // Let form controls receive focus/clicks; prevent underlying canvas interactions via viewMode guards.
+          onWheel={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <MePanel />
         </motion.div>
