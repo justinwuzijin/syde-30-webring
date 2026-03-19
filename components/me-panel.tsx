@@ -7,6 +7,8 @@ import type { Member } from '@/types/member'
 import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import { ProfilePictureField } from './join-form'
 import { parseSocialLink } from '@/lib/parse-social'
+import { createClient } from '@supabase/supabase-js'
+import heicConvert from 'heic-convert'
 
 interface ProfileResponse {
   member: Member
@@ -31,6 +33,12 @@ const fetcher = (url: string) => {
     return r.json()
   })
 }
+
+const BUCKET = 'profile-website-pictures'
+const MAX_STILL_BYTES = 25 * 1024 * 1024 // 25MB
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024 // 50MB
+const STILL_ALLOWED = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'] as const
+const LIVE_ALLOWED = ['mov', 'mp4'] as const
 
 export function MePanel() {
   const { user } = useAuth()
@@ -59,6 +67,14 @@ export function MePanel() {
   const { data, isLoading } = useSWR<ProfileResponse>(user ? '/api/me/profile' : null, fetcher, {
     revalidateOnFocus: false,
   })
+
+  const supabaseBrowser = useMemo(() => {
+    // Client-side storage uploads use signed URLs, so we only need the public anon key here.
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+    )
+  }, [])
 
   useEffect(() => {
     if (!data?.member) return
@@ -217,7 +233,6 @@ export function MePanel() {
       setError(null)
       const memberStillUrl = data.member.polaroid_still_url || ''
       const memberLiveUrl = data.member.polaroid_live_url || ''
-      const revertTo = kind === 'still' ? memberStillUrl : memberLiveUrl
 
       if (!file) {
         // Clearing media: just clear local state; user can save to persist
@@ -234,52 +249,96 @@ export function MePanel() {
         }
         return
       }
+
+      let uploadFile = file
+      const extRaw = uploadFile.name.split('.').pop()?.toLowerCase() || ''
+
+      // Client-side validation so we fail fast (and avoid Next body limits entirely).
+      if (kind === 'still') {
+        if (!STILL_ALLOWED.includes(extRaw as (typeof STILL_ALLOWED)[number])) {
+          setError('Invalid still image format. Use JPG, PNG, WEBP, or HEIC/HEIF.')
+          return
+        }
+        if (uploadFile.size > MAX_STILL_BYTES) {
+          setError(`Still image is too large (max 25MB). Try a smaller file.`)
+          return
+        }
+
+        // Convert HEIC/HEIF to JPEG in-browser so Polaroid <img> stays reliable.
+        if (extRaw === 'heic' || extRaw === 'heif') {
+          try {
+            const inputBuffer = await uploadFile.arrayBuffer()
+            const jpegBuffer = await heicConvert({
+              buffer: inputBuffer as ArrayBuffer,
+              format: 'JPEG',
+              quality: 0.9,
+            })
+            const jpegBlob = new Blob([jpegBuffer], { type: 'image/jpeg' })
+            const jpegName = uploadFile.name.replace(/\.(heic|heif)$/i, '.jpg')
+            uploadFile = new File([jpegBlob], jpegName, { type: 'image/jpeg' })
+          } catch {
+            // Fall back to uploading the original file.
+            // Some browsers can render HEIC directly; if not, the Polaroid preview may fail.
+          }
+        }
+      } else {
+        if (!LIVE_ALLOWED.includes(extRaw as (typeof LIVE_ALLOWED)[number])) {
+          setError('Invalid live clip format. Use MOV or MP4.')
+          return
+        }
+        if (uploadFile.size > MAX_VIDEO_BYTES) {
+          setError('Video is too large (max 50MB). Try a shorter clip.')
+          return
+        }
+      }
+
       try {
         setUploading(true)
         setUploadingKind(kind)
 
         // Immediate local preview while upload runs
-        const objectUrl = URL.createObjectURL(file)
+        const objectUrl = URL.createObjectURL(uploadFile)
         if (kind === 'still') {
           if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
           stillObjectUrlRef.current = objectUrl
-          setStillFile(file)
+          setStillFile(uploadFile)
           setDraft((d) => ({ ...d, polaroid_still_url: objectUrl }))
         } else {
           if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
           liveObjectUrlRef.current = objectUrl
-          setLiveFile(file)
+          setLiveFile(uploadFile)
           setDraft((d) => ({ ...d, polaroid_live_url: objectUrl }))
         }
 
         const token =
           typeof window !== 'undefined' ? localStorage.getItem('syde30_auth_token') : null
-        const fd = new FormData()
-        if (kind === 'still') fd.set('polaroidStill', file)
-        if (kind === 'live') fd.set('polaroidLive', file)
-        const res = await fetch('/api/me/polaroid', {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          body: fd,
-        })
-        const payload = await res.json().catch(() => ({}))
-        if (!res.ok) {
-          const msg =
-            (payload.errors && (payload.errors.polaroidStill || payload.errors.polaroidLive)) ||
-            payload.error ||
-            `failed to upload ${kind === 'still' ? 'still image' : 'live clip'}`
-          setError(msg)
 
-          // Revert preview so we never persist a blob: URL into the database.
+        // 1) Ask our API for a signed upload token (small JSON request).
+        const signedRes = await fetch('/api/me/polaroid/upload-url', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            kind,
+            fileName: uploadFile.name,
+            contentType: uploadFile.type,
+            size: uploadFile.size,
+          }),
+        })
+        const signedPayload = await signedRes.json().catch(() => ({}))
+        if (!signedRes.ok) {
+          setError(signedPayload.error || 'failed to upload media')
           if (kind === 'still') {
             if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
             stillObjectUrlRef.current = null
+            setStillFile(null)
           } else {
             if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
             liveObjectUrlRef.current = null
+            setLiveFile(null)
           }
-          if (kind === 'still') setStillFile(null)
-          if (kind === 'live') setLiveFile(null)
           setDraft((d) => ({
             ...d,
             polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
@@ -288,34 +347,62 @@ export function MePanel() {
           return
         }
 
-        if (kind === 'still') {
-          const nextUrl = typeof payload.polaroid_still_url === 'string' ? payload.polaroid_still_url.trim() : ''
-          if (!nextUrl) {
-            setError('Upload succeeded but still URL was missing')
+        const storagePath: string | undefined = signedPayload.path
+        const uploadToken: string | undefined = signedPayload.token
+        const publicUrl: string | undefined = signedPayload.publicUrl
+
+        if (!storagePath || !uploadToken || !publicUrl) {
+          setError('Upload failed: missing signed upload details')
+          if (kind === 'still') {
             if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
             stillObjectUrlRef.current = null
             setStillFile(null)
-            setDraft((d) => ({ ...d, polaroid_still_url: revertTo }))
-            return
-          }
-          if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
-          stillObjectUrlRef.current = null
-          setDraft((d) => ({ ...d, polaroid_still_url: nextUrl }))
-        }
-
-        if (kind === 'live') {
-          const nextUrl = typeof payload.polaroid_live_url === 'string' ? payload.polaroid_live_url.trim() : ''
-          if (!nextUrl) {
-            setError('Upload succeeded but live clip URL was missing')
+          } else {
             if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
             liveObjectUrlRef.current = null
             setLiveFile(null)
-            setDraft((d) => ({ ...d, polaroid_live_url: revertTo }))
-            return
           }
+          setDraft((d) => ({
+            ...d,
+            polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
+            polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+          }))
+          return
+        }
+
+        // 2) Directly upload to Supabase Storage using the signed URL token.
+        const { error: uploadErr } = await supabaseBrowser.storage
+          .from(BUCKET)
+          .uploadToSignedUrl(storagePath, uploadToken, uploadFile, { contentType: uploadFile.type })
+
+        if (uploadErr) {
+          setError(`failed to upload ${kind === 'still' ? 'still image' : 'live clip'}`)
+          if (kind === 'still') {
+            if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
+            stillObjectUrlRef.current = null
+            setStillFile(null)
+          } else {
+            if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
+            liveObjectUrlRef.current = null
+            setLiveFile(null)
+          }
+          setDraft((d) => ({
+            ...d,
+            polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
+            polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+          }))
+          return
+        }
+
+        // 3) Swap preview to the real public storage URL so “Save” persists correct URLs.
+        if (kind === 'still') {
+          if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
+          stillObjectUrlRef.current = null
+          setDraft((d) => ({ ...d, polaroid_still_url: publicUrl }))
+        } else {
           if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
           liveObjectUrlRef.current = null
-          setDraft((d) => ({ ...d, polaroid_live_url: nextUrl }))
+          setDraft((d) => ({ ...d, polaroid_live_url: publicUrl }))
         }
         // Do not auto-PATCH here; the main Save button will persist media + other fields
       } catch {
@@ -339,7 +426,7 @@ export function MePanel() {
         setUploadingKind(null)
       }
     },
-    [user, data?.member]
+    [user, data?.member, supabaseBrowser]
   )
 
   useEffect(() => {
