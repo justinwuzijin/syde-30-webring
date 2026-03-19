@@ -29,6 +29,9 @@ import { flushSync } from 'react-dom'
 
 const GooseViewer = dynamic(() => import('./goose-viewer'), { ssr: false })
 
+// Module-level set so revealed names survive remounts/navigation
+const revealedNamesSet = new Set<string>()
+
 type Phase = 'splash' | 'transitioning' | 'expanded'
 type ViewMode = 'scrapbook' | 'classroom' | 'me'
 
@@ -435,6 +438,8 @@ export function LandingPage() {
                   noTilt={placementMode === 'classroom'}
                   rotation={hasRotation ? pos.rotation : undefined}
                   onHover={playPageTurn}
+                  initialNameRevealed={revealedNamesSet.has(m.id)}
+                  onNameReveal={() => revealedNamesSet.add(m.id)}
                 />
               )
             })}

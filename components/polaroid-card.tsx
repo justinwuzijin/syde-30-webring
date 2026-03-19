@@ -30,11 +30,13 @@ interface PolaroidCardProps {
   /** Override rotation when noTilt is false (e.g. from placement logic) */
   rotation?: number
   onHover?: () => void
+  initialNameRevealed?: boolean
+  onNameReveal?: () => void
 }
 
-export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover }: PolaroidCardProps) {
+export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover, initialNameRevealed, onNameReveal }: PolaroidCardProps) {
   const [hovered, setHovered] = useState(false)
-  const [nameRevealed, setNameRevealed] = useState(false)
+  const [nameRevealed, setNameRevealed] = useState(initialNameRevealed ?? false)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageFailed, setImageFailed] = useState(false)
   const [videoVisible, setVideoVisible] = useState(false)
@@ -89,6 +91,7 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
     setHovered(true)
     setNameRevealed(true)
     onHover?.()
+    onNameReveal?.()
     if (hasUploadedLive) {
       setVideoVisible(true)
       if (videoRef.current) {

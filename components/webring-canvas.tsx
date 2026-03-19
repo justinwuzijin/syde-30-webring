@@ -12,6 +12,9 @@ const MIN_ZOOM = 0.15
 const MAX_ZOOM = 2
 const ZOOM_SENSITIVITY = 0.002
 
+// Module-level set so revealed names survive remounts/navigation
+const revealedNamesSet = new Set<string>()
+
 export function WebringCanvas() {
   const router = useRouter()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -120,6 +123,8 @@ export function WebringCanvas() {
               x={pos.x - POLAROID_WIDTH / 2}
               y={pos.y - POLAROID_HEIGHT / 2}
               onClick={() => handleCardClick(m.id)}
+              initialNameRevealed={revealedNamesSet.has(m.id)}
+              onNameReveal={() => revealedNamesSet.add(m.id)}
             />
           )
         })}
