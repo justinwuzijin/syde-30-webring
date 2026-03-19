@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Member } from '@/types/member'
+import { getDisplayUrl, type Member } from '@/types/member'
 
 // ── Instax Mini proportions (real: 54×86mm, photo: 46×62mm) ──────────────
 // Scaled to pixel ratios matching the reference image
@@ -69,9 +69,10 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
   }, [member.id, rotation])
 
   // Fallback to Microlink screenshot if no uploaded still
-  const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(
-    member.embedUrl,
-  )}&screenshot=true&meta=false&embed=screenshot.url`
+  const displayUrl = getDisplayUrl(member)
+  const screenshotUrl = displayUrl
+    ? `https://api.microlink.io/?url=${encodeURIComponent(displayUrl)}&screenshot=true&meta=false&embed=screenshot.url`
+    : ''
 
   const stillImageSrc = (member.polaroid_still_url && !imageFailed)
     ? member.polaroid_still_url

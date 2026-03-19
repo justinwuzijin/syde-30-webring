@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import type { Member } from '@/types/member'
+import { getDisplayUrl, type Member } from '@/types/member'
 
 export const CARD_WIDTH = 130
 const PREVIEW_HEIGHT = Math.round(CARD_WIDTH * 1.25) // ~163px
@@ -34,7 +34,10 @@ export function WebringSiteCard({ member, x, y }: WebringSiteCardProps) {
     }
   }, [hovered])
 
-  const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(member.embedUrl)}&screenshot=true&meta=false&embed=screenshot.url`
+  const displayUrl = getDisplayUrl(member)
+  const screenshotUrl = displayUrl
+    ? `https://api.microlink.io/?url=${encodeURIComponent(displayUrl)}&screenshot=true&meta=false&embed=screenshot.url`
+    : ''
 
   const w = hovered ? EXPANDED_WIDTH : CARD_WIDTH
   const ph = hovered ? EXPANDED_PREVIEW_HEIGHT : PREVIEW_HEIGHT
@@ -109,7 +112,7 @@ export function WebringSiteCard({ member, x, y }: WebringSiteCardProps) {
         {/* Live iframe — loads after 350ms hover delay, replaces screenshot once ready */}
         {showIframe && (
           <iframe
-            src={member.embedUrl}
+            src={displayUrl}
             title={member.name}
             style={{
               position: 'absolute',
@@ -163,7 +166,7 @@ export function WebringSiteCard({ member, x, y }: WebringSiteCardProps) {
         </span>
         {hovered && (
           <a
-            href={member.embedUrl}
+            href={displayUrl}
             target="_blank"
             rel="noopener noreferrer"
             style={{

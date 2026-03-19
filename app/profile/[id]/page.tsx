@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { type ReactElement, useState, useEffect, useMemo } from 'react'
 import { use } from 'react'
 import useSWR from 'swr'
-import type { Member } from '@/types/member'
+import { getDisplayUrl, type Member } from '@/types/member'
 import { parseSocialLink } from '@/lib/parse-social'
 import { useSound } from '@/lib/use-sound'
 import { usePageTransition } from '@/components/page-transition'
@@ -39,15 +39,15 @@ export default function ProfilePage({ params }: ProfilePageProps) {
   // Resolve website URL from member record — only valid external URLs, never webring origin
   const websiteUrl = useMemo(() => {
     if (!member) return null
-    const raw = member.embedUrl || member.socials.website
+    const raw = getDisplayUrl(member)
     return normalizeWebsiteUrl(raw)
-  }, [member?.embedUrl, member?.socials?.website])
+  }, [member])
   const hasValidWebsite = !!websiteUrl
 
   // Signal page ready when iframe loads or when member has no website
   useEffect(() => {
     if (!member) return
-    const url = member.embedUrl || member.socials.website
+    const url = getDisplayUrl(member)
     const hasWebsite = !!normalizeWebsiteUrl(url)
     if (!hasWebsite) {
       endTransition()
