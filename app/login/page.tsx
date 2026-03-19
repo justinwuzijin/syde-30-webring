@@ -66,7 +66,7 @@ export default function LoginPage() {
       className="min-h-screen flex flex-col px-4 sm:px-6 md:px-8 lg:px-12 py-8 sm:py-16 md:py-24"
       style={{ background: '#ffffff' }}
     >
-      <div className="w-full max-w-lg mx-auto flex-1 flex flex-col justify-center">
+      <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto flex-1 flex flex-col justify-center">
         <a
           href="/"
           className="inline-flex items-center gap-1.5 font-sans text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-black/50"
@@ -76,11 +76,11 @@ export default function LoginPage() {
         </a>
 
         {/* Heading — compressed text to match landing page */}
-        <div className="w-[50%] sm:w-[40%] mb-8">
-          <div className="relative w-full" style={{ paddingTop: '50%' }}>
+        <div className="w-[55%] sm:w-[45%] mb-8 sm:mb-10">
+          <div className="relative w-full" style={{ paddingTop: '45%' }}>
             <StretchText
               lines={["log in"]}
-              viewBox="0 0 300 170"
+              viewBox="0 0 200 170"
               fontSize={160}
               className="absolute inset-0 w-full h-full"
             />
