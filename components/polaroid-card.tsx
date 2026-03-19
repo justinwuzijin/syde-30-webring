@@ -34,6 +34,7 @@ interface PolaroidCardProps {
 
 export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover }: PolaroidCardProps) {
   const [hovered, setHovered] = useState(false)
+  const [nameRevealed, setNameRevealed] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageFailed, setImageFailed] = useState(false)
   const [videoVisible, setVideoVisible] = useState(false)
@@ -85,6 +86,7 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
 
   const handleMouseEnter = useCallback(() => {
     setHovered(true)
+    setNameRevealed(true)
     onHover?.()
     if (hasUploadedLive) {
       setVideoVisible(true)
@@ -278,6 +280,8 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
                 color: '#111111',
                 whiteSpace: 'nowrap',
                 textShadow: '0.4px 0.8px 0 rgba(0,0,0,0.18)',
+                opacity: nameRevealed ? 1 : 0,
+                transition: 'opacity 400ms ease',
               }}
             >
               {firstName}
