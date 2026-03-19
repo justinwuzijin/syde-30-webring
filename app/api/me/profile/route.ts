@@ -4,6 +4,8 @@ import { verifyAuthToken } from '@/lib/token'
 import { parseSocialLink } from '@/lib/parse-social'
 import type { Member } from '@/types/member'
 import { storagePathFromPublicUrl } from '@/lib/storage-path'
+import { s3KeyFromUrl } from '@/lib/media-storage'
+import { deleteLiveClipByKey } from '@/lib/s3'
 
 function normalizeWebsiteForStorage(input: string): string {
   const raw = input.trim()
@@ -230,30 +232,42 @@ export async function PATCH(request: Request) {
   const nextLiveUrl: string | null =
     typeof body.polaroid_live_url === 'string' ? (body.polaroid_live_url.trim() || null) : oldLiveUrl
 
-  const deleteIfOrphan = async (oldUrl: string | null) => {
+  const deleteStillIfOrphan = async (oldUrl: string | null) => {
     if (!oldUrl) return
-    // Only delete if this member no longer references it.
-    if (oldUrl !== nextStillUrl && oldUrl !== nextLiveUrl) {
-      // Check whether any other member still references the file (still or live).
-      const [stillUsers, liveUsers] = await Promise.all([
-        supabase.from('members').select('id').eq('polaroid_still_url', oldUrl).neq('id', existing.id).limit(1),
-        supabase.from('members').select('id').eq('polaroid_live_url', oldUrl).neq('id', existing.id).limit(1),
-      ])
+    if (oldUrl === nextStillUrl) return
+    const stillUsers = await supabase
+      .from('members')
+      .select('id')
+      .eq('polaroid_still_url', oldUrl)
+      .neq('id', existing.id)
+      .limit(1)
+    if ((stillUsers.data?.length ?? 0) > 0) return
+    const oldPath = storagePathFromPublicUrl(oldUrl, BUCKET)
+    if (!oldPath) return
+    await supabase.storage.from(BUCKET).remove([oldPath]).catch((e) => {
+      console.warn('Failed to remove orphaned still file:', e)
+    })
+  }
 
-      const stillCount = stillUsers.data?.length ?? 0
-      const liveCount = liveUsers.data?.length ?? 0
-      if (stillCount === 0 && liveCount === 0) {
-        const oldPath = storagePathFromPublicUrl(oldUrl, BUCKET)
-        if (!oldPath) return
-        await supabase.storage.from(BUCKET).remove([oldPath]).catch((e) => {
-          console.warn('Failed to remove orphaned polaroid still/live file:', e)
-        })
-      }
-    }
+  const deleteLiveIfOrphan = async (oldUrl: string | null) => {
+    if (!oldUrl) return
+    if (oldUrl === nextLiveUrl) return
+    const liveUsers = await supabase
+      .from('members')
+      .select('id')
+      .eq('polaroid_live_url', oldUrl)
+      .neq('id', existing.id)
+      .limit(1)
+    if ((liveUsers.data?.length ?? 0) > 0) return
+    const oldKey = s3KeyFromUrl(oldUrl)
+    if (!oldKey) return
+    await deleteLiveClipByKey(oldKey).catch((e) => {
+      console.warn('Failed to remove orphaned live clip:', e)
+    })
   }
 
   // Delete old files if they changed (clearing counts as changing).
-  await Promise.all([deleteIfOrphan(oldStillUrl), deleteIfOrphan(oldLiveUrl)])
+  await Promise.all([deleteStillIfOrphan(oldStillUrl), deleteLiveIfOrphan(oldLiveUrl)])
 
   const member = rowToMember(data)
   return NextResponse.json({ member })

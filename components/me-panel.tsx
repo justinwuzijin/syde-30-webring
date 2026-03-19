@@ -9,6 +9,7 @@ import { ProfilePictureField } from './join-form'
 import { parseSocialLink } from '@/lib/parse-social'
 import { createClient } from '@supabase/supabase-js'
 import heicConvert from 'heic-convert'
+import { enforceLiveClipPolicy } from '@/lib/live-clip-processing'
 
 interface ProfileResponse {
   member: Member
@@ -38,7 +39,31 @@ const BUCKET = 'profile-website-pictures'
 const MAX_STILL_BYTES = 25 * 1024 * 1024 // 25MB
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024 // 50MB
 const STILL_ALLOWED = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'] as const
-const LIVE_ALLOWED = ['mov', 'mp4'] as const
+const LIVE_ALLOWED = ['mov', 'mp4', 'webm'] as const
+
+async function uploadToS3WithProgress(
+  putUrl: string,
+  file: File,
+  contentType: string,
+  onProgress: (percent: number) => void
+): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', putUrl, true)
+    xhr.setRequestHeader('Content-Type', contentType || 'video/mp4')
+    xhr.upload.onprogress = (evt) => {
+      if (!evt.lengthComputable) return
+      const pct = Math.round((evt.loaded / evt.total) * 100)
+      onProgress(pct)
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve()
+      else reject(new Error(`S3 upload failed with status ${xhr.status}`))
+    }
+    xhr.onerror = () => reject(new Error('S3 upload failed'))
+    xhr.send(file)
+  })
+}
 
 export function MePanel() {
   const { user } = useAuth()
@@ -57,6 +82,8 @@ export function MePanel() {
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadingKind, setUploadingKind] = useState<'still' | 'live' | null>(null)
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null)
+  const [processingLive, setProcessingLive] = useState(false)
   const [stillFile, setStillFile] = useState<File | null>(null)
   const [liveFile, setLiveFile] = useState<File | null>(null)
   const stillObjectUrlRef = useRef<string | null>(null)
@@ -283,18 +310,29 @@ export function MePanel() {
         }
       } else {
         if (!LIVE_ALLOWED.includes(extRaw as (typeof LIVE_ALLOWED)[number])) {
-          setError('Invalid live clip format. Use MOV or MP4.')
+          setError('Invalid live clip format. Use MOV, MP4, or WEBM.')
           return
         }
         if (uploadFile.size > MAX_VIDEO_BYTES) {
           setError('Video is too large (max 50MB). Try a shorter clip.')
           return
         }
+        setProcessingLive(true)
+        try {
+          uploadFile = await enforceLiveClipPolicy(uploadFile)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Failed to process live clip.'
+          setError(msg)
+          setProcessingLive(false)
+          return
+        }
+        setProcessingLive(false)
       }
 
       try {
         setUploading(true)
         setUploadingKind(kind)
+        setUploadPercent(kind === 'live' ? 0 : null)
 
         // Immediate local preview while upload runs
         const objectUrl = URL.createObjectURL(uploadFile)
@@ -347,11 +385,13 @@ export function MePanel() {
           return
         }
 
+        const provider: 'supabase' | 's3' | undefined = signedPayload.provider
         const storagePath: string | undefined = signedPayload.path
         const uploadToken: string | undefined = signedPayload.token
+        const s3PutUrl: string | undefined = signedPayload.putUrl
         const publicUrl: string | undefined = signedPayload.publicUrl
 
-        if (!storagePath || !uploadToken || !publicUrl) {
+        if (!provider || !publicUrl) {
           setError('Upload failed: missing signed upload details')
           if (kind === 'still') {
             if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
@@ -370,28 +410,51 @@ export function MePanel() {
           return
         }
 
-        // 2) Directly upload to Supabase Storage using the signed URL token.
-        const { error: uploadErr } = await supabaseBrowser.storage
-          .from(BUCKET)
-          .uploadToSignedUrl(storagePath, uploadToken, uploadFile, { contentType: uploadFile.type })
-
-        if (uploadErr) {
-          setError(`failed to upload ${kind === 'still' ? 'still image' : 'live clip'}`)
-          if (kind === 'still') {
-            if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
-            stillObjectUrlRef.current = null
-            setStillFile(null)
-          } else {
-            if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
-            liveObjectUrlRef.current = null
-            setLiveFile(null)
+        if (provider === 'supabase') {
+          if (!storagePath || !uploadToken) {
+            setError('Upload failed: missing Supabase upload token')
+            setDraft((d) => ({
+              ...d,
+              polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
+              polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+            }))
+            return
           }
-          setDraft((d) => ({
-            ...d,
-            polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
-            polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
-          }))
-          return
+          const { error: uploadErr } = await supabaseBrowser.storage
+            .from(BUCKET)
+            .uploadToSignedUrl(storagePath, uploadToken, uploadFile, { contentType: uploadFile.type })
+          if (uploadErr) {
+            setError(`failed to upload ${kind === 'still' ? 'still image' : 'live clip'}`)
+            setDraft((d) => ({
+              ...d,
+              polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
+              polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+            }))
+            return
+          }
+        } else {
+          if (!s3PutUrl) {
+            setError('Upload failed: missing S3 upload URL')
+            setDraft((d) => ({
+              ...d,
+              polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
+              polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+            }))
+            return
+          }
+          try {
+            await uploadToS3WithProgress(s3PutUrl, uploadFile, uploadFile.type || 'video/mp4', (pct) => {
+              setUploadPercent(pct)
+            })
+          } catch {
+            setError(`failed to upload ${kind === 'still' ? 'still image' : 'live clip'}`)
+            setDraft((d) => ({
+              ...d,
+              polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
+              polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+            }))
+            return
+          }
         }
 
         // 3) Swap preview to the real public storage URL so “Save” persists correct URLs.
@@ -422,8 +485,10 @@ export function MePanel() {
           polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
         }))
       } finally {
+        setProcessingLive(false)
         setUploading(false)
         setUploadingKind(null)
+        setUploadPercent(null)
       }
     },
     [user, data?.member, supabaseBrowser]
@@ -629,20 +694,25 @@ export function MePanel() {
                       </span>
                       {uploading && uploadingKind === 'live' && (
                         <span className="text-[10px] text-neutral-400 font-mono lowercase">
-                          uploading…
+                          {typeof uploadPercent === 'number' ? `uploading ${uploadPercent}%` : 'uploading…'}
+                        </span>
+                      )}
+                      {processingLive && (
+                        <span className="text-[10px] text-neutral-400 font-mono lowercase">
+                          processing clip…
                         </span>
                       )}
                     </div>
                     <ProfilePictureField
                       label="new polaroid live clip"
-                      requiredNote="mov or mp4"
+                      requiredNote="mov, mp4, webm (max 3.0s)"
                       helperText="short clip that plays when others hover your polaroid"
                       value={liveFile}
                       onChange={(file) => {
                         void handleMediaUpload('live', file)
                       }}
                       error={undefined}
-                      accept=".mov,.mp4,video/*"
+                      accept=".mov,.mp4,.webm,video/*"
                       dense
                       selectedStateText={
                         liveFile && uploading && uploadingKind === 'live'
@@ -672,6 +742,7 @@ export function MePanel() {
                       cooldownSeconds > 0 ||
                       isLoading ||
                       uploading ||
+                      processingLive ||
                       !!error ||
                       draft.polaroid_still_url.startsWith('blob:') ||
                       draft.polaroid_live_url.startsWith('blob:')

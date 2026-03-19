@@ -4,9 +4,11 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowUpRight, ChevronDown, Eye, EyeOff, Trash2, Upload, X } from 'lucide-react'
-import { parseSocialLink } from '@/lib/parse-social'
 import { AuthCelebration } from './auth-celebration'
 import { StretchText } from './stretch-text'
+import { createClient } from '@supabase/supabase-js'
+import heicConvert from 'heic-convert'
+import { enforceLiveClipPolicy } from '@/lib/live-clip-processing'
 
 interface FormData {
   name: string
@@ -57,6 +59,32 @@ const isValidSocial = (value: string) => {
 }
 
 const sfPro = { fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }
+const SUPABASE_STILL_BUCKET = 'profile-website-pictures'
+const MAX_STILL_BYTES = 25 * 1024 * 1024
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024
+
+async function uploadToS3WithProgress(
+  putUrl: string,
+  file: File,
+  contentType: string,
+  onProgress: (percent: number) => void
+): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', putUrl, true)
+    xhr.setRequestHeader('Content-Type', contentType || 'video/mp4')
+    xhr.upload.onprogress = (evt) => {
+      if (!evt.lengthComputable) return
+      onProgress(Math.round((evt.loaded / evt.total) * 100))
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve()
+      else reject(new Error(`S3 upload failed with status ${xhr.status}`))
+    }
+    xhr.onerror = () => reject(new Error('S3 upload failed'))
+    xhr.send(file)
+  })
+}
 
 function InputField({
   id,
@@ -441,6 +469,15 @@ export function JoinForm() {
   const [errors, setErrors] = useState<
     Partial<Record<keyof FormData | 'socials' | '_', string>>
   >({})
+  const [uploadingKind, setUploadingKind] = useState<'still' | 'live' | null>(null)
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null)
+
+  const supabaseBrowser = useRef(
+    createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+    )
+  ).current
 
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof FormData | 'socials', string>> = {}
@@ -475,10 +512,12 @@ export function JoinForm() {
 
     if (!form.polaroidStill || form.polaroidStill.size === 0) {
       newErrors.polaroidStill = 'polaroid still photo is required'
+    } else if (form.polaroidStill.size > MAX_STILL_BYTES) {
+      newErrors.polaroidStill = 'still photo too large (max 25MB)'
     }
     if (!form.polaroidLive || form.polaroidLive.size === 0) {
       newErrors.polaroidLive = 'polaroid live clip is required'
-    } else if (form.polaroidLive.size > 50 * 1024 * 1024) {
+    } else if (form.polaroidLive.size > MAX_VIDEO_BYTES) {
       newErrors.polaroidLive = 'video too large (max 50MB). try a shorter clip.'
     }
 
@@ -507,21 +546,111 @@ export function JoinForm() {
     if (!validate()) return
     setSubmitting(true)
     try {
-      const linkedin = parseSocialLink('linkedin', form.linkedin)
-      const twitter = parseSocialLink('twitter', form.twitter)
-      const github = parseSocialLink('github', form.github)
-      const fd = new FormData()
-      fd.set('name', form.name.trim())
-      fd.set('email', form.email.trim())
-      fd.set('password', form.password)
-      fd.set('websiteLink', form.websiteLink.trim())
-      fd.set('linkedin', form.linkedin.trim())
-      fd.set('twitter', form.twitter.trim())
-      fd.set('github', form.github.trim())
-      fd.set('polaroidStill', form.polaroidStill!)
-      fd.set('polaroidLive', form.polaroidLive!)
+      let stillFile = form.polaroidStill!
+      let liveFile = form.polaroidLive!
+      const stillExt = stillFile.name.split('.').pop()?.toLowerCase() || ''
 
-      const res = await fetch('/api/join', { method: 'POST', body: fd })
+      // Lightweight still optimization: convert HEIC/HEIF to JPEG.
+      if (stillExt === 'heic' || stillExt === 'heif') {
+        try {
+          const inputBuffer = await stillFile.arrayBuffer()
+          const jpegBuffer = await heicConvert({
+            buffer: inputBuffer as ArrayBuffer,
+            format: 'JPEG',
+            quality: 0.9,
+          })
+          const jpegBlob = new Blob([jpegBuffer], { type: 'image/jpeg' })
+          stillFile = new File([jpegBlob], stillFile.name.replace(/\.(heic|heif)$/i, '.jpg'), {
+            type: 'image/jpeg',
+          })
+        } catch {
+          // Keep original file if conversion fails.
+        }
+      }
+
+      try {
+        setUploadingKind('live')
+        setUploadPercent(0)
+        liveFile = await enforceLiveClipPolicy(liveFile)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'failed to process live clip'
+        setErrors((prev) => ({ ...prev, polaroidLive: msg }))
+        return
+      }
+
+      // 1) Get still upload URL and upload directly to Supabase
+      setUploadingKind('still')
+      setUploadPercent(null)
+      const stillSignedRes = await fetch('/api/join/media-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email.trim().toLowerCase(),
+          kind: 'still',
+          fileName: stillFile.name,
+          contentType: stillFile.type,
+          size: stillFile.size,
+        }),
+      })
+      const stillSigned = await stillSignedRes.json().catch(() => ({}))
+      if (!stillSignedRes.ok || !stillSigned.path || !stillSigned.token || !stillSigned.publicUrl) {
+        setErrors((prev) => ({ ...prev, polaroidStill: stillSigned.error || 'failed to upload still photo' }))
+        return
+      }
+      const { error: stillUploadErr } = await supabaseBrowser.storage
+        .from(SUPABASE_STILL_BUCKET)
+        .uploadToSignedUrl(stillSigned.path, stillSigned.token, stillFile, {
+          contentType: stillFile.type || 'image/jpeg',
+        })
+      if (stillUploadErr) {
+        setErrors((prev) => ({ ...prev, polaroidStill: 'failed to upload still photo' }))
+        return
+      }
+
+      // 2) Get live upload URL and upload directly to S3
+      setUploadingKind('live')
+      setUploadPercent(0)
+      const liveSignedRes = await fetch('/api/join/media-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email.trim().toLowerCase(),
+          kind: 'live',
+          fileName: liveFile.name,
+          contentType: liveFile.type,
+          size: liveFile.size,
+        }),
+      })
+      const liveSigned = await liveSignedRes.json().catch(() => ({}))
+      if (!liveSignedRes.ok || !liveSigned.putUrl || !liveSigned.publicUrl) {
+        setErrors((prev) => ({ ...prev, polaroidLive: liveSigned.error || 'failed to upload live clip' }))
+        return
+      }
+      let liveUploadFailed = false
+      await uploadToS3WithProgress(liveSigned.putUrl, liveFile, liveFile.type || 'video/mp4', setUploadPercent).catch(
+        () => {
+          liveUploadFailed = true
+          setErrors((prev) => ({ ...prev, polaroidLive: 'failed to upload live clip' }))
+        }
+      )
+      if (liveUploadFailed) return
+
+      // 3) Submit metadata (no large files through app server)
+      const res = await fetch('/api/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim().toLowerCase(),
+          password: form.password,
+          websiteLink: form.websiteLink.trim(),
+          linkedin: form.linkedin.trim(),
+          twitter: form.twitter.trim(),
+          github: form.github.trim(),
+          polaroid_still_url: stillSigned.publicUrl,
+          polaroid_live_url: liveSigned.publicUrl,
+        }),
+      })
       if (res.status === 202) {
         const data = await res.json().catch(() => ({}))
         if (data.needsVerification && data.email) {
@@ -542,6 +671,8 @@ export function JoinForm() {
     } catch {
       setErrors({ _: 'something went wrong. try again.' })
     } finally {
+      setUploadingKind(null)
+      setUploadPercent(null)
       setSubmitting(false)
     }
   }
@@ -836,16 +967,23 @@ export function JoinForm() {
 
           <ProfilePictureField
             label="polaroid live clip"
-            requiredNote="mov or mp4"
-            helperText="short clip that plays when others hover your polaroid"
+            requiredNote="mov, mp4, or webm (max 3.0s)"
+            helperText="we process to muted web-safe format before upload"
             value={form.polaroidLive}
             onChange={updatePolaroidLive}
             error={errors.polaroidLive}
-            accept=".mov,.mp4,video/*"
+            accept=".mov,.mp4,.webm,video/*"
           />
 
           {errors._ && (
             <p className="font-mono text-xs text-red-400">{errors._}</p>
+          )}
+          {uploadingKind && (
+            <p className="font-mono text-xs text-black/50">
+              {uploadingKind === 'still'
+                ? 'uploading still photo…'
+                : `uploading live clip${typeof uploadPercent === 'number' ? ` ${uploadPercent}%` : '…'}`}
+            </p>
           )}
           {/* Submit */}
           <button
@@ -859,7 +997,15 @@ export function JoinForm() {
               border: 'none',
             }}
           >
-            <span>{submitting ? 'signing up…' : 'sign up'}</span>
+            <span>
+              {submitting
+                ? uploadingKind === 'still'
+                  ? 'uploading still…'
+                  : uploadingKind === 'live'
+                    ? 'uploading live…'
+                    : 'signing up…'
+                : 'sign up'}
+            </span>
             <ArrowUpRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </button>
         </form>

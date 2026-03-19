@@ -1,18 +1,36 @@
 /* eslint-disable no-console */
 /**
- * Deletes storage objects in `profile-website-pictures` that are not referenced by any
- * member row's `polaroid_still_url` / `polaroid_live_url`.
+ * Deletes Supabase still-photo objects in `profile-website-pictures`
+ * that are not referenced by any member row's `polaroid_still_url`.
  *
  * Run manually:
- * $env:NEXT_PUBLIC_SUPABASE_URL="insert_key"
- * $env:SUPABASE_SERVICE_ROLE_KEY="insert_key"
+ * $env:NEXT_PUBLIC_SUPABASE_URL="..."
+ * $env:SUPABASE_SERVICE_ROLE_KEY="..."
+ * node scripts/cleanup-orphaned-polaroids.js --dry-run
  * node scripts/cleanup-orphaned-polaroids.js
- * 
  */
 
 const { createClient } = require('@supabase/supabase-js')
 
 const BUCKET = 'profile-website-pictures'
+const DRY_RUN = process.argv.includes('--dry-run')
+
+function storagePathFromPublicUrl(publicUrl, bucket) {
+  if (!publicUrl) return null
+  try {
+    const u = new URL(publicUrl)
+    const marker = `/storage/v1/object/public/${bucket}/`
+    const idx = u.pathname.indexOf(marker)
+    if (idx >= 0) return u.pathname.slice(idx + marker.length) || null
+
+    const marker2 = `/public/${bucket}/`
+    const idx2 = u.pathname.indexOf(marker2)
+    if (idx2 >= 0) return u.pathname.slice(idx2 + marker2.length) || null
+  } catch {
+    // ignore malformed URL
+  }
+  return null
+}
 
 async function main() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -24,26 +42,25 @@ async function main() {
 
   const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-  // 1) Build active URL set from DB
+  // 1) Build active still path set from DB
   const { data: members, error: membersErr } = await supabase
     .from('members')
-    .select('polaroid_still_url, polaroid_live_url')
+    .select('polaroid_still_url')
 
   if (membersErr) throw membersErr
 
-  const activeUrls = new Set()
+  const activeStillPaths = new Set()
   for (const m of members || []) {
-    if (m.polaroid_still_url) activeUrls.add(m.polaroid_still_url)
-    if (m.polaroid_live_url) activeUrls.add(m.polaroid_live_url)
+    const p = storagePathFromPublicUrl(m.polaroid_still_url, BUCKET)
+    if (p) activeStillPaths.add(p)
   }
 
-  // 2) List all objects in bucket and delete orphans
+  // 2) List all still objects in bucket and delete orphans
   const limit = 100
   let offset = 0
   let removed = 0
+  let candidates = 0
 
-  // We assume all objects are stored at bucket root (flat names).
-  // If you introduce subfolders later, change `path` to the appropriate prefix.
   while (true) {
     const { data: objects, error: listErr } = await supabase.storage
       .from(BUCKET)
@@ -57,14 +74,15 @@ async function main() {
       const name = obj.name
       if (!name) continue
 
-      const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(name)
-      const publicUrl = publicUrlData?.publicUrl
-      if (!publicUrl) continue
-
-      if (!activeUrls.has(publicUrl)) {
-        await supabase.storage.from(BUCKET).remove([name])
-        removed++
-        console.log(`Removed orphaned media: ${name}`)
+      if (!activeStillPaths.has(name)) {
+        candidates++
+        if (DRY_RUN) {
+          console.log(`[dry-run] Would remove orphaned still: ${name}`)
+        } else {
+          await supabase.storage.from(BUCKET).remove([name])
+          removed++
+          console.log(`Removed orphaned still: ${name}`)
+        }
       }
     }
 
@@ -72,7 +90,11 @@ async function main() {
     if (objects.length < limit) break
   }
 
-  console.log(`Cleanup complete. Removed ${removed} orphaned files.`)
+  if (DRY_RUN) {
+    console.log(`Dry run complete. Found ${candidates} orphaned still files.`)
+  } else {
+    console.log(`Cleanup complete. Removed ${removed} orphaned still files.`)
+  }
 }
 
 main().catch((err) => {

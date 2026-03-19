@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import heicConvert from 'heic-convert'
 import { supabaseAdmin } from '@/lib/supabase'
-import { signToken } from '@/lib/token'
 import { sendVerificationCodeEmail } from '@/lib/email'
 import { parseSocialLink } from '@/lib/parse-social'
+import { s3KeyFromUrl } from '@/lib/media-storage'
+import { storagePathFromPublicUrl } from '@/lib/storage-path'
+import { deleteLiveClipByKey } from '@/lib/s3'
 
 const CODE_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
 
@@ -31,16 +32,28 @@ const isValidSocial = (value: string) => {
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
-    const name = (formData.get('name') as string)?.trim() ?? ''
-    const email = (formData.get('email') as string)?.trim() ?? ''
-    const password = (formData.get('password') as string) ?? ''
-    const websiteLink = (formData.get('websiteLink') as string)?.trim() ?? ''
-    const linkedin = (formData.get('linkedin') as string)?.trim() ?? ''
-    const twitter = (formData.get('twitter') as string)?.trim() ?? ''
-    const github = (formData.get('github') as string)?.trim() ?? ''
-    const polaroidStill = formData.get('polaroidStill') as File | null
-    const polaroidLive = formData.get('polaroidLive') as File | null
+    const body = (await request.json().catch(() => null)) as
+      | {
+          name?: string
+          email?: string
+          password?: string
+          websiteLink?: string
+          linkedin?: string
+          twitter?: string
+          github?: string
+          polaroid_still_url?: string
+          polaroid_live_url?: string
+        }
+      | null
+    const name = body?.name?.trim() ?? ''
+    const email = body?.email?.trim().toLowerCase() ?? ''
+    const password = body?.password ?? ''
+    const websiteLink = body?.websiteLink?.trim() ?? ''
+    const linkedin = body?.linkedin?.trim() ?? ''
+    const twitter = body?.twitter?.trim() ?? ''
+    const github = body?.github?.trim() ?? ''
+    const polaroid_still_url = body?.polaroid_still_url?.trim() ?? ''
+    const polaroid_live_url = body?.polaroid_live_url?.trim() ?? ''
 
     // Validation
     const errors: Record<string, string> = {}
@@ -59,30 +72,8 @@ export async function POST(request: Request) {
       if (github && !isValidSocial(github)) errors.github = 'Enter handle or full URL'
     }
 
-    if (!polaroidStill || !(polaroidStill instanceof File) || polaroidStill.size === 0) {
-      errors.polaroidStill = 'Polaroid still photo is required'
-    } else {
-      const stillExt = polaroidStill.name.split('.').pop()?.toLowerCase() || ''
-      const allowedStill = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif']
-      if (!allowedStill.includes(stillExt)) {
-        errors.polaroidStill = 'Invalid format — please use JPG, PNG, or HEIC'
-      }
-    }
-
-    const MAX_VIDEO_BYTES = 50 * 1024 * 1024 // 50MB
-    if (!polaroidLive || !(polaroidLive instanceof File) || polaroidLive.size === 0) {
-      errors.polaroidLive = 'Polaroid live clip is required'
-    } else {
-      if (polaroidLive.size > MAX_VIDEO_BYTES) {
-        errors.polaroidLive = 'Video is too large (max 50MB). Try a shorter clip.'
-      } else {
-        const liveExt = polaroidLive.name.split('.').pop()?.toLowerCase() || 'mov'
-        const allowedLive = ['mov', 'mp4']
-        if (!allowedLive.includes(liveExt)) {
-          errors.polaroidLive = 'Invalid live clip format (use MOV or MP4)'
-        }
-      }
-    }
+    if (!polaroid_still_url) errors.polaroidStill = 'Polaroid still photo is required'
+    if (!polaroid_live_url) errors.polaroidLive = 'Polaroid live clip is required'
 
     if (Object.keys(errors).length > 0) {
       return NextResponse.json({ errors }, { status: 400 })
@@ -100,60 +91,15 @@ export async function POST(request: Request) {
 
     const password_hash = await bcrypt.hash(password, 10)
 
-    // All validation passed — upload to storage (no DB writes in this route)
-    let polaroid_still_url: string | null = null
-    let polaroid_live_url: string | null = null
-    let uploadedStillPath: string | null = null
-    let uploadedLivePath: string | null = null
-
-    // Convert HEIC/HEIF to JPEG; pass through other formats as-is
-    const stillExtRaw = polaroidStill!.name.split('.').pop()?.toLowerCase() || 'jpg'
-    const isHeic = ['heic', 'heif'].includes(stillExtRaw)
-    let stillUploadData: Blob | Buffer = polaroidStill!
-    let stillContentType = polaroidStill!.type
-    let stillExt = stillExtRaw
-    if (isHeic) {
-      const inputBuffer = await polaroidStill!.arrayBuffer()
-      const jpegBuffer = await heicConvert({ buffer: inputBuffer as ArrayBuffer, format: 'JPEG', quality: 0.9 })
-      stillUploadData = Buffer.from(jpegBuffer)
-      stillContentType = 'image/jpeg'
-      stillExt = 'jpg'
+    // Media is uploaded directly from the client. We only persist references here.
+    const uploadedStillPath = storagePathFromPublicUrl(polaroid_still_url, 'profile-website-pictures')
+    const uploadedLivePath = s3KeyFromUrl(polaroid_live_url)
+    if (!uploadedStillPath) {
+      return NextResponse.json({ errors: { polaroidStill: 'Invalid still photo URL' } }, { status: 400 })
     }
-    const stillFileName = `${Date.now()}-still-${Math.random().toString(36).slice(2)}.${stillExt}`
-    const { data: stillUpload, error: stillErr } = await supabaseAdmin.storage
-      .from('profile-website-pictures')
-      .upload(stillFileName, stillUploadData, { contentType: stillContentType, upsert: false })
-    if (stillErr) {
-      return NextResponse.json({ errors: { polaroidStill: 'Failed to upload still image' } }, { status: 500 })
+    if (!uploadedLivePath) {
+      return NextResponse.json({ errors: { polaroidLive: 'Invalid live clip URL' } }, { status: 400 })
     }
-    uploadedStillPath = stillUpload.path
-    const { data: stillUrlData } = supabaseAdmin.storage
-      .from('profile-website-pictures')
-      .getPublicUrl(stillUpload.path)
-    polaroid_still_url = stillUrlData.publicUrl
-
-    const liveExt = polaroidLive!.name.split('.').pop()?.toLowerCase() || 'mov'
-    const liveFileName = `${Date.now()}-live-${Math.random().toString(36).slice(2)}.${liveExt}`
-    const { data: liveUpload, error: liveErr } = await supabaseAdmin.storage
-      .from('profile-website-pictures')
-      .upload(liveFileName, polaroidLive!, { contentType: polaroidLive!.type, upsert: false })
-    if (liveErr) {
-      await supabaseAdmin.storage.from('profile-website-pictures').remove([uploadedStillPath!])
-      console.error('Supabase live clip upload error:', liveErr)
-      const msg = liveErr.message?.includes('Payload too large') || liveErr.message?.includes('Entity too large')
-        ? 'Video file is too large (max 50MB). Try a shorter clip.'
-        : `Failed to upload live clip: ${liveErr.message || 'Unknown error'}`
-      return NextResponse.json({ errors: { polaroidLive: msg } }, { status: 500 })
-    }
-    if (!liveUpload?.path) {
-      await supabaseAdmin.storage.from('profile-website-pictures').remove([uploadedStillPath!])
-      return NextResponse.json({ errors: { polaroidLive: 'Upload succeeded but no path returned' } }, { status: 500 })
-    }
-    uploadedLivePath = liveUpload.path
-    const { data: liveUrlData } = supabaseAdmin.storage
-      .from('profile-website-pictures')
-      .getPublicUrl(liveUpload.path)
-    polaroid_live_url = liveUrlData.publicUrl
 
     const li = parseSocialLink('linkedin', linkedin)
     const tw = parseSocialLink('twitter', twitter)
@@ -187,7 +133,8 @@ export async function POST(request: Request) {
     })
 
     if (insertErr) {
-      await supabaseAdmin.storage.from('profile-website-pictures').remove([uploadedStillPath!, uploadedLivePath!])
+      await supabaseAdmin.storage.from('profile-website-pictures').remove([uploadedStillPath!])
+      await deleteLiveClipByKey(uploadedLivePath!)
       console.error('pending_signups insert error:', insertErr)
       return NextResponse.json({ errors: { _: 'Failed to save signup. Please try again.' } }, { status: 500 })
     }
@@ -196,7 +143,8 @@ export async function POST(request: Request) {
       await sendVerificationCodeEmail(email, name, code)
     } catch (emailErr) {
       await supabaseAdmin.from('pending_signups').delete().eq('email', email)
-      await supabaseAdmin.storage.from('profile-website-pictures').remove([uploadedStillPath!, uploadedLivePath!])
+      await supabaseAdmin.storage.from('profile-website-pictures').remove([uploadedStillPath!])
+      await deleteLiveClipByKey(uploadedLivePath!)
       throw emailErr
     }
 

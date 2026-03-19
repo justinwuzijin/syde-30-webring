@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { signToken } from '@/lib/token'
 import { sendApprovalEmail } from '@/lib/email'
+import { deleteLiveClipByKey } from '@/lib/s3'
 
 const CODE_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
 
@@ -43,11 +44,12 @@ export async function POST(request: Request) {
     const expiresAt = new Date(pending.code_expires_at).getTime()
     if (expiresAt < Date.now()) {
       await supabaseAdmin.from('pending_signups').delete().eq('id', pending.id)
-      if (pending.polaroid_still_path && pending.polaroid_live_path) {
+      if (pending.polaroid_still_path) {
         await supabaseAdmin.storage
           .from('profile-website-pictures')
-          .remove([pending.polaroid_still_path, pending.polaroid_live_path])
+          .remove([pending.polaroid_still_path])
       }
+      if (pending.polaroid_live_path) await deleteLiveClipByKey(pending.polaroid_live_path)
       return NextResponse.json(
         { error: 'Code has expired. Please request a new one.' },
         { status: 400 }

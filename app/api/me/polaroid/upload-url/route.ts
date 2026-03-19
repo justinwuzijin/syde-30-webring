@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { verifyAuthToken } from '@/lib/token'
+import { buildLiveKey, buildStillPath, s3PublicUrlFromKey, SUPABASE_STILL_BUCKET } from '@/lib/media-storage'
+import { createLiveClipPresignedPutUrl } from '@/lib/s3'
 
 const STILL_ALLOWED = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'] as const
-const LIVE_ALLOWED = ['mov', 'mp4'] as const
+const LIVE_ALLOWED = ['mov', 'mp4', 'webm'] as const
 const MAX_LIVE_BYTES = 50 * 1024 * 1024 // 50MB
-const BUCKET = 'profile-website-pictures'
 
 function getAuthUser(request: Request) {
   const auth = request.headers.get('authorization')
@@ -51,30 +52,38 @@ export async function POST(request: Request) {
     }
   }
 
-  // Generate a unique file path so uploads are never overwritten by another user.
-  // We keep it flat (no folders) to match existing code assumptions.
-  const safeExt = extRaw || (kind === 'live' ? 'mov' : 'jpg')
-  const storagePath = `${authUser.id}-${Date.now()}-${Math.random().toString(36).slice(2)}-${kind}.${safeExt}`
-
   const supabase = getSupabaseAdmin()
 
-  const { data: signedData, error: signedErr } = await supabase.storage
-    .from(BUCKET)
-    // storage-js supports `upsert` for signed URLs; for our use case we don't want overwrites.
-    .createSignedUploadUrl(storagePath, { upsert: false } as any)
+  if (kind === 'still') {
+    const stillPath = buildStillPath(authUser.id, body.fileName)
+    const { data: signedData, error: signedErr } = await supabase.storage
+      .from(SUPABASE_STILL_BUCKET)
+      // storage-js supports `upsert` for signed URLs; for our use case we don't want overwrites.
+      .createSignedUploadUrl(stillPath, { upsert: false } as any)
 
-  if (signedErr || !signedData) {
-    return NextResponse.json({ error: 'Failed to create signed upload URL' }, { status: 500 })
+    if (signedErr || !signedData) {
+      return NextResponse.json({ error: 'Failed to create signed upload URL' }, { status: 500 })
+    }
+
+    const publicUrl = supabase.storage.from(SUPABASE_STILL_BUCKET).getPublicUrl(stillPath).data.publicUrl
+
+    return NextResponse.json({
+      provider: 'supabase',
+      path: signedData.path || stillPath,
+      token: signedData.token,
+      signedUrl: signedData.signedUrl,
+      publicUrl,
+    })
   }
 
-  const publicUrl = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl
-
+  // Live clips go to S3 directly with presigned PUT URL.
+  const key = buildLiveKey(authUser.id, body.fileName)
+  const putUrl = await createLiveClipPresignedPutUrl({ key, contentType: body.contentType || 'video/webm' })
   return NextResponse.json({
-    path: signedData.path || storagePath,
-    token: signedData.token,
-    // Keep the signedUrl for debugging/fallback; client doesn't need it if using uploadToSignedUrl.
-    signedUrl: signedData.signedUrl,
-    publicUrl,
+    provider: 's3',
+    key,
+    putUrl,
+    publicUrl: s3PublicUrlFromKey(key),
   })
 }
 
