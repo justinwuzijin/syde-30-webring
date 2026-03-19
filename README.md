@@ -11,3 +11,10 @@ built by [justin wu](https://justinzwu.com) and [leo zhang](https://leo-zhang.co
 npm install
 npm run dev
 ```
+
+or with bun:
+
+```bash
+bun install
+bun run dev
+```
