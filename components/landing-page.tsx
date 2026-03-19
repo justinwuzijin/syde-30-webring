@@ -349,7 +349,7 @@ export function LandingPage() {
           boxShadow: isSplash ? '0 8px 40px rgba(0,0,0,0.15)' : 'none',
           cursor: isSplash
             ? 'pointer'
-            : isDragging ? 'grabbing' : isExpanded ? 'grab' : 'default',
+            : isMe ? 'default' : isDragging ? 'grabbing' : isExpanded ? 'grab' : 'default',
           zIndex: 20,
           touchAction: 'none',
         }}
@@ -879,11 +879,14 @@ export function LandingPage() {
       {/* Signed-in \"me\" panel — expanded view only */}
       {isExpanded && viewMode === 'me' && (
         <motion.div
-          className="fixed inset-0 z-40 pointer-events-none bg-white/90"
+          className="fixed inset-0 z-40 pointer-events-auto bg-white/90"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 12 }}
           transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          // Let form controls receive focus/clicks; prevent underlying canvas interactions via viewMode guards.
+          onWheel={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <MePanel />
         </motion.div>
