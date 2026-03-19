@@ -1,6 +1,6 @@
 # syde 30 webring
 
-a webring for the systems design engineering class of 2030 at the university of waterloo. 
+the official systems design engineering class of 2030 network at the university of waterloo. 
 
 built by [justin wu](https://justinzwu.com) and [leo zhang](https://leo-zhang.com) between march 3 - 19, 2026.
 
