@@ -443,30 +443,44 @@ export function LandingPage() {
 
         {/* Frosted glass transition ring — only the outer edge is frosted, center stays clear */}
         {isSplash && (
-          <div
-            className="absolute inset-0 rounded-full pointer-events-none"
-            style={{
-              zIndex: 5,
-              // Soft white base in the ring band
-              background:
-                'radial-gradient(circle at center, transparent 60%, rgba(255,255,255,0.16) 74%, rgba(255,255,255,0.08) 82%, transparent 90%)',
-              // Soft white base + single soft blue highlight arc that spins around the ring
-              backgroundImage: [
-                'radial-gradient(circle at center, transparent 60%, rgba(255,255,255,0.16) 74%, rgba(255,255,255,0.08) 82%, transparent 90%)',
-                // Head of arc is darker / more opaque blue, tail is lighter
-                'conic-gradient(from 0deg, rgba(180,210,255,0.5) 0deg, rgba(150,190,255,0.7) 30deg, rgba(120,160,255,0.92) 60deg, transparent 140deg, transparent 360deg)',
-              ].join(','),
-              boxShadow:
-                '0 0 40px rgba(0,0,0,0.10), 0 0 80px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255,255,255,0.30)',
-              backdropFilter: 'blur(14px)',
-              WebkitBackdropFilter: 'blur(14px)',
-              maskImage: 'radial-gradient(circle, transparent 60%, black 72%, black 84%, transparent 92%)',
-              WebkitMaskImage:
-                'radial-gradient(circle, transparent 60%, black 72%, black 84%, transparent 92%)',
-              // Pastel conic highlight rotation (~3.5s per full rotation)
-              animation: 'webringPastelSpin 3.5s linear infinite',
-            }}
-          />
+          <>
+            {/* Single continuous glowing ribbon (pink -> purple -> blue -> fade) */}
+            <div
+              className="absolute inset-0 rounded-full pointer-events-none"
+              style={{
+                zIndex: 5,
+                backgroundImage: [
+                  // Frosted band base
+                  'radial-gradient(circle at center, transparent 56%, rgba(255,255,255,0.14) 66%, rgba(255,255,255,0.08) 76%, transparent 86%)',
+                  // One continuous ribbon with smooth opacity falloff.
+                  // Rotate this layer to communicate direction; the ribbon itself is not segmented.
+                  'conic-gradient(from 0deg,' +
+                    ' rgba(255,140,205,0.22) 0deg,' + // pink (not a hard head)
+                    ' rgba(200,110,245,0.24) 35deg,' + // purple neck
+                    ' rgba(155,125,255,0.23) 85deg,' + // purple -> blue blend
+                    ' rgba(110,155,255,0.21) 150deg,' + // blue body
+                    ' rgba(85,165,255,0.16) 215deg,' + // soften
+                    ' rgba(85,165,255,0.08) 275deg,' + // gentle fade
+                    ' rgba(85,165,255,0.0) 325deg,' + // transparent into bg
+                    ' transparent 360deg' +
+                    ')',
+                ].join(','),
+                boxShadow: '0 0 54px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(255,255,255,0.20)',
+                backdropFilter: 'blur(14px)',
+                WebkitBackdropFilter: 'blur(14px)',
+                // Feathered mask so the ribbon floats slightly away from the exact edge.
+                maskImage:
+                  'radial-gradient(circle, rgba(0,0,0,0) 58%, rgba(0,0,0,0.25) 65%, rgba(0,0,0,0.95) 70%, rgba(0,0,0,0.30) 78%, rgba(0,0,0,0) 86%)',
+                WebkitMaskImage:
+                  'radial-gradient(circle, rgba(0,0,0,0) 58%, rgba(0,0,0,0.25) 65%, rgba(0,0,0,0.95) 70%, rgba(0,0,0,0.30) 78%, rgba(0,0,0,0) 86%)',
+                // More blur falloff = less border-stroke feel, more “ink in water”.
+                filter: 'blur(8px)',
+                opacity: 0.78,
+                animation: 'webringPastelSpin 3.5s linear infinite',
+                // Keep default rotation direction so clockwise feels coherent.
+              }}
+            />
+          </>
         )}
 
         {/* "click to explore" — lower in circle for visibility, fades out */}
