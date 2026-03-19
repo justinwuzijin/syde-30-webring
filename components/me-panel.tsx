@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context'
 import type { Member } from '@/types/member'
 import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import { ProfilePictureField } from './join-form'
+import { parseSocialLink } from '@/lib/parse-social'
 
 interface ProfileResponse {
   member: Member
@@ -94,6 +95,20 @@ export function MePanel() {
         const websiteToSend =
           rawWebsite && !/^https?:\/\//i.test(rawWebsite) ? `https://${rawWebsite}` : rawWebsite
 
+        const normalizeHandle = (
+          platform: 'linkedin' | 'twitter' | 'github',
+          value: string
+        ) => {
+          const v = value.trim()
+          if (!v) return ''
+          const parsed = parseSocialLink(platform, v)
+          return (parsed?.username ?? v).replace(/^@/, '').trim()
+        }
+
+        const linkedinHandle = normalizeHandle('linkedin', draft.linkedin)
+        const twitterHandle = normalizeHandle('twitter', draft.twitter)
+        const githubHandle = normalizeHandle('github', draft.github)
+
         const res = await fetch('/api/me/profile', {
           method: 'PATCH',
           headers: {
@@ -103,9 +118,9 @@ export function MePanel() {
           body: JSON.stringify({
             name: draft.name.trim(),
             website_link: websiteToSend,
-            linkedin_handle: draft.linkedin.trim(),
-            twitter_handle: draft.twitter.trim(),
-            github_handle: draft.github.trim(),
+            linkedin_handle: linkedinHandle,
+            twitter_handle: twitterHandle,
+            github_handle: githubHandle,
             polaroid_still_url: draft.polaroid_still_url.trim(),
             polaroid_live_url: draft.polaroid_live_url.trim(),
           }),

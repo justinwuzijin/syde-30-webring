@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { verifyAuthToken } from '@/lib/token'
+import { parseSocialLink } from '@/lib/parse-social'
 import type { Member } from '@/types/member'
 
 function normalizeWebsiteForStorage(input: string): string {
@@ -30,6 +31,13 @@ function isValidUrlLikeOrHandle(value: string): boolean {
   }
   const cleaned = v.replace(/^@/, '')
   return /^[A-Za-z0-9_.-]{1,100}$/.test(cleaned)
+}
+
+function normalizeHandle(platform: 'linkedin' | 'twitter' | 'github', value: string): string {
+  const v = value.trim()
+  if (!v) return ''
+  const parsed = parseSocialLink(platform, v)
+  return (parsed?.username ?? v).replace(/^@/, '').trim()
 }
 
 function toSlug(name: string): string {
@@ -129,21 +137,21 @@ export async function PATCH(request: Request) {
     updates.website_link = normalized || null
   }
   if (typeof body.linkedin_handle === 'string') {
-    const v = body.linkedin_handle.trim()
+    const v = normalizeHandle('linkedin', body.linkedin_handle)
     if (!isValidUrlLikeOrHandle(v)) {
       return NextResponse.json({ error: 'Invalid LinkedIn value' }, { status: 400 })
     }
     updates.linkedin_handle = v || null
   }
   if (typeof body.twitter_handle === 'string') {
-    const v = body.twitter_handle.trim()
+    const v = normalizeHandle('twitter', body.twitter_handle)
     if (!isValidUrlLikeOrHandle(v)) {
       return NextResponse.json({ error: 'Invalid Twitter value' }, { status: 400 })
     }
     updates.twitter_handle = v || null
   }
   if (typeof body.github_handle === 'string') {
-    const v = body.github_handle.trim()
+    const v = normalizeHandle('github', body.github_handle)
     if (!isValidUrlLikeOrHandle(v)) {
       return NextResponse.json({ error: 'Invalid GitHub value' }, { status: 400 })
     }
