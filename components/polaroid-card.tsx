@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Member } from '@/types/member'
+import { getDisplayUrl, type Member } from '@/types/member'
 
 // ── Instax Mini proportions (real: 54×86mm, photo: 46×62mm) ──────────────
 // Scaled to pixel ratios matching the reference image
@@ -34,6 +34,7 @@ interface PolaroidCardProps {
 
 export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover }: PolaroidCardProps) {
   const [hovered, setHovered] = useState(false)
+  const [nameRevealed, setNameRevealed] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageFailed, setImageFailed] = useState(false)
   const [videoVisible, setVideoVisible] = useState(false)
@@ -68,9 +69,10 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
   }, [member.id, rotation])
 
   // Fallback to Microlink screenshot if no uploaded still
-  const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(
-    member.embedUrl,
-  )}&screenshot=true&meta=false&embed=screenshot.url`
+  const displayUrl = getDisplayUrl(member)
+  const screenshotUrl = displayUrl
+    ? `https://api.microlink.io/?url=${encodeURIComponent(displayUrl)}&screenshot=true&meta=false&embed=screenshot.url`
+    : ''
 
   const stillImageSrc = (member.polaroid_still_url && !imageFailed)
     ? member.polaroid_still_url
@@ -85,6 +87,7 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
 
   const handleMouseEnter = useCallback(() => {
     setHovered(true)
+    setNameRevealed(true)
     onHover?.()
     if (hasUploadedLive) {
       setVideoVisible(true)
@@ -278,6 +281,8 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover 
                 color: '#111111',
                 whiteSpace: 'nowrap',
                 textShadow: '0.4px 0.8px 0 rgba(0,0,0,0.18)',
+                opacity: nameRevealed ? 1 : 0,
+                transition: 'opacity 400ms ease',
               }}
             >
               {firstName}

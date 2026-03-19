@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { Member } from '@/types/member'
+import { getDisplayUrl, type Member } from '@/types/member'
 import { cardRotation, CANVAS_SIZE } from '@/lib/use-force-layout'
 
 const CARD_BASE_WIDTH  = 180
@@ -67,7 +67,10 @@ export function MemberCard({
   const baseRotation = cardRotation(member.id)
 
   // Use Microlink API to get actual website screenshot
-  const screenshotUrl = `https://api.microlink.io/?url=${encodeURIComponent(member.embedUrl)}&screenshot=true&meta=false&embed=screenshot.url`
+  const displayUrl = getDisplayUrl(member)
+  const screenshotUrl = displayUrl
+    ? `https://api.microlink.io/?url=${encodeURIComponent(displayUrl)}&screenshot=true&meta=false&embed=screenshot.url`
+    : ''
 
   // Get randomized background color based on member id
   const cardBgColor = getCardBgColor(member.id)
@@ -301,7 +304,7 @@ export function MemberCard({
           
           {/* Live iframe */}
           <iframe
-            src={member.embedUrl}
+            src={displayUrl}
             title={`${member.name}'s website preview`}
             style={{
               width: '100%',
@@ -338,7 +341,7 @@ export function MemberCard({
                 whiteSpace: 'nowrap',
               }}
             >
-              {member.embedUrl}
+              {displayUrl}
             </span>
             <span
               style={{
