@@ -101,7 +101,7 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover,
         })
       }
     }
-  }, [hasUploadedLive])
+  }, [hasUploadedLive, onHover, onNameReveal])
 
   const handleMouseLeave = useCallback(() => {
     setHovered(false)
