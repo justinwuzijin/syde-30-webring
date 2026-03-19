@@ -50,6 +50,8 @@ export function MePanel() {
   const [uploadingKind, setUploadingKind] = useState<'still' | 'live' | null>(null)
   const stillObjectUrlRef = useRef<string | null>(null)
   const liveObjectUrlRef = useRef<string | null>(null)
+  const previewContainerRef = useRef<HTMLDivElement>(null)
+  const [previewScale, setPreviewScale] = useState(1)
 
   const { data, isLoading } = useSWR<ProfileResponse>(user ? '/api/me/profile' : null, fetcher, {
     revalidateOnFocus: false,
@@ -269,43 +271,77 @@ export function MePanel() {
     }
   }, [])
 
+  // Keep the polaroid preview as a single scaled block so labels can align under it.
+  useEffect(() => {
+    const el = previewContainerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      const w = el.getBoundingClientRect().width
+      // Cap scale so the preview never overwhelms the layout
+      const s = Math.max(0.85, Math.min(1.75, w / POLAROID_WIDTH))
+      setPreviewScale(s)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      <div className="h-full w-full px-4 sm:px-6 lg:px-10 pt-24 pb-10 flex items-start justify-center">
-        <div className="w-full max-w-5xl xl:max-w-6xl pointer-events-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 items-start">
-            {/* Left: live preview */}
-            <div className="lg:sticky lg:top-24">
-              <div className="relative flex flex-col items-center">
-                <div
-                  className="w-[min(340px,92vw)]"
-                  style={{
-                    aspectRatio: `${POLAROID_WIDTH} / ${POLAROID_HEIGHT}`,
-                    position: 'relative',
-                  }}
-                >
-                  {previewMember && (
-                    <PolaroidCard
-                      member={previewMember}
-                      x={POLAROID_WIDTH / 2}
-                      y={POLAROID_HEIGHT / 2}
-                      noTilt
-                    />
-                  )}
-                </div>
-                <div className="mt-3 w-[min(340px,92vw)] flex items-center justify-between">
-                  <span className="text-[11px] text-neutral-500 font-mono lowercase truncate max-w-[60%]">
-                    {previewMember?.name ?? member?.name ?? user.name}
-                  </span>
-                  <span className="text-[11px] text-neutral-500 font-mono lowercase">
-                    live preview
-                  </span>
+    <div className="absolute inset-0 pointer-events-none overflow-x-hidden overflow-y-auto">
+      <div className="min-h-full w-full flex flex-col">
+        {/* Spacer for fixed nav (back button + tabs) */}
+        <div className="h-24 shrink-0" />
+
+        {/* Center main content in remaining viewport */}
+        <div className="flex-1 px-4 sm:px-6 lg:px-10 py-10 flex items-center justify-center min-h-0">
+          <div className="w-full max-w-6xl pointer-events-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_minmax(0,760px)] gap-12 items-center justify-center">
+              {/* Left: live preview (centered beside editor) */}
+              <div className="flex items-center justify-center">
+                <div ref={previewContainerRef} className="flex flex-col items-center w-[min(340px,92vw)]">
+                  {/* Scaled polaroid block (real visual) */}
+                  <div
+                    className="relative"
+                    style={{
+                      width: POLAROID_WIDTH * previewScale,
+                      height: POLAROID_HEIGHT * previewScale,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: POLAROID_WIDTH,
+                        height: POLAROID_HEIGHT,
+                        transform: `scale(${previewScale})`,
+                        transformOrigin: 'top left',
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                      }}
+                    >
+                      {previewMember && (
+                        <PolaroidCard
+                          member={previewMember}
+                          x={0}
+                          y={0}
+                          noTilt
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Label aligned directly under the visual block */}
+                  <div
+                    className="mt-3 flex items-center justify-center"
+                    style={{ width: POLAROID_WIDTH * previewScale }}
+                  >
+                    <span className="text-[11px] text-neutral-500 font-mono lowercase">
+                      live preview
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Right: editor */}
-            <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-3xl shadow-[0_14px_40px_rgba(15,23,42,0.16)] overflow-hidden lg:mt-2">
+              {/* Right: editor */}
+              <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-3xl shadow-[0_14px_40px_rgba(15,23,42,0.16)] overflow-hidden">
               <div className="px-5 py-4 border-b border-black/5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex flex-col">
@@ -473,6 +509,7 @@ export function MePanel() {
         </div>
       </div>
     </div>
+  </div>
   )
 }
 
