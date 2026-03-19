@@ -455,12 +455,12 @@ export function LandingPage() {
                   // One continuous ribbon with smooth opacity falloff.
                   // Rotate this layer to communicate direction; the ribbon itself is not segmented.
                   'conic-gradient(from 0deg,' +
-                    ' rgba(255,140,205,0.22) 0deg,' + // pink (not a hard head)
-                    ' rgba(200,110,245,0.24) 35deg,' + // purple neck
-                    ' rgba(155,125,255,0.23) 85deg,' + // purple -> blue blend
-                    ' rgba(110,155,255,0.21) 150deg,' + // blue body
-                    ' rgba(85,165,255,0.16) 215deg,' + // soften
-                    ' rgba(85,165,255,0.08) 275deg,' + // gentle fade
+                    ' rgba(255,140,205,0.33) 0deg,' + // pink (not a hard head)
+                    ' rgba(200,110,245,0.34) 35deg,' + // purple neck
+                    ' rgba(155,125,255,0.33) 85deg,' + // purple -> blue blend
+                    ' rgba(110,155,255,0.30) 150deg,' + // blue body
+                    ' rgba(85,165,255,0.24) 215deg,' + // soften
+                    ' rgba(85,165,255,0.14) 275deg,' + // gentle fade
                     ' rgba(85,165,255,0.0) 325deg,' + // transparent into bg
                     ' transparent 360deg' +
                     ')',
@@ -475,8 +475,12 @@ export function LandingPage() {
                   'radial-gradient(circle, rgba(0,0,0,0) 58%, rgba(0,0,0,0.25) 65%, rgba(0,0,0,0.95) 70%, rgba(0,0,0,0.30) 78%, rgba(0,0,0,0) 86%)',
                 // More blur falloff = less border-stroke feel, more “ink in water”.
                 filter: 'blur(8px)',
-                opacity: 0.78,
-                animation: 'webringPastelSpin 3.5s linear infinite',
+                opacity: 0.95,
+                // Use animation longhand to avoid React warnings about mixing with animationDirection.
+                animationName: 'webringPastelSpin',
+                animationDuration: '3.5s',
+                animationTimingFunction: 'linear',
+                animationIterationCount: 'infinite',
                 // Keep default rotation direction so clockwise feels coherent.
               }}
             />
