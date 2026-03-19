@@ -37,6 +37,10 @@ function GooseMesh({ onReady }: { onReady: () => void }) {
   useLayoutEffect(() => {
     if (size.width <= 0 || size.height <= 0) return
 
+    // Reset root transforms before measuring — useGLTF returns a cached singleton
+    // whose scale/position persist across remounts, causing compounding shrinkage.
+    scene.scale.setScalar(1)
+    scene.position.set(0, 0, 0)
     scene.updateMatrixWorld(true)
 
     const box = new THREE.Box3().setFromObject(scene)
