@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowUpRight, ChevronDown, Eye, EyeOff, Trash2, Upload, X } 
 import { AuthCelebration } from './auth-celebration'
 import { StretchText } from './stretch-text'
 import { createClient } from '@supabase/supabase-js'
-import heicConvert from 'heic-convert'
+import heic2any from 'heic2any'
 import { enforceLiveClipPolicy } from '@/lib/live-clip-processing'
 
 interface FormData {
@@ -553,18 +553,18 @@ export function JoinForm() {
       // Lightweight still optimization: convert HEIC/HEIF to JPEG.
       if (stillExt === 'heic' || stillExt === 'heif') {
         try {
-          const inputBuffer = await stillFile.arrayBuffer()
-          const jpegBuffer = await heicConvert({
-            buffer: inputBuffer as ArrayBuffer,
-            format: 'JPEG',
+          const jpegBlob = await heic2any({
+            blob: stillFile,
+            toType: 'image/jpeg',
             quality: 0.9,
-          })
-          const jpegBlob = new Blob([jpegBuffer], { type: 'image/jpeg' })
+          }) as Blob
           stillFile = new File([jpegBlob], stillFile.name.replace(/\.(heic|heif)$/i, '.jpg'), {
             type: 'image/jpeg',
           })
-        } catch {
-          // Keep original file if conversion fails.
+        } catch (err) {
+          console.error('HEIC conversion failed:', err)
+          setErrors(prev => ({ ...prev, polaroidStill: 'HEIC conversion failed — please convert to JPG/PNG and re-upload.' }))
+          return
         }
       }
 
