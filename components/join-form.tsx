@@ -7,7 +7,8 @@ import { ArrowLeft, ArrowUpRight, ChevronDown, Eye, EyeOff, Trash2, Upload, X } 
 import { AuthCelebration } from './auth-celebration'
 import { StretchText } from './stretch-text'
 import { createClient } from '@supabase/supabase-js'
-import heic2any from 'heic2any'
+// heic2any accesses `window` at import time — must be dynamically imported
+const importHeic2any = () => import('heic2any').then(m => m.default)
 import { enforceLiveClipPolicy } from '@/lib/live-clip-processing'
 
 interface FormData {
@@ -553,6 +554,7 @@ export function JoinForm() {
       // Lightweight still optimization: convert HEIC/HEIF to JPEG.
       if (stillExt === 'heic' || stillExt === 'heif') {
         try {
+          const heic2any = await importHeic2any()
           const jpegBlob = await heic2any({
             blob: stillFile,
             toType: 'image/jpeg',

@@ -8,7 +8,7 @@ import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import { ProfilePictureField } from './join-form'
 import { parseSocialLink } from '@/lib/parse-social'
 import { createClient } from '@supabase/supabase-js'
-import heic2any from 'heic2any'
+const importHeic2any = () => import('heic2any').then(m => m.default)
 import { enforceLiveClipPolicy } from '@/lib/live-clip-processing'
 
 interface ProfileResponse {
@@ -358,6 +358,7 @@ export function MePanel() {
         // Convert HEIC/HEIF to JPEG in-browser so Polaroid <img> stays reliable.
         if (extRaw === 'heic' || extRaw === 'heif') {
           try {
+            const heic2any = await importHeic2any()
             const jpegBlob = await heic2any({
               blob: uploadFile,
               toType: 'image/jpeg',
