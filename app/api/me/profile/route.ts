@@ -7,6 +7,8 @@ import { storagePathFromPublicUrl } from '@/lib/storage-path'
 import { s3KeyFromUrl } from '@/lib/media-storage'
 import { deleteLiveClipByKey } from '@/lib/s3'
 
+const PROFILE_SAVE_COOLDOWN_MS = 30_000 // 30s between profile rewrites
+
 function normalizeWebsiteForStorage(input: string): string {
   const raw = input.trim()
   if (!raw) return ''
@@ -203,10 +205,10 @@ export async function PATCH(request: Request) {
   const now = Date.now()
   const last = existing.last_profile_update_at ? new Date(existing.last_profile_update_at as string).getTime() : 0
 
-  if (last && now - last < 10_000) {
-    const retryAfter = Math.ceil((10_000 - (now - last)) / 1000)
+  if (last && now - last < PROFILE_SAVE_COOLDOWN_MS) {
+    const retryAfter = Math.ceil((PROFILE_SAVE_COOLDOWN_MS - (now - last)) / 1000)
     return NextResponse.json(
-      { error: 'You can update your profile again in a few seconds.', retryAfter },
+      { error: 'You are updating too quickly. Please wait a bit before saving again.', retryAfter },
       { status: 429 }
     )
   }
@@ -231,6 +233,8 @@ export async function PATCH(request: Request) {
     typeof body.polaroid_still_url === 'string' ? (body.polaroid_still_url.trim() || null) : oldStillUrl
   const nextLiveUrl: string | null =
     typeof body.polaroid_live_url === 'string' ? (body.polaroid_live_url.trim() || null) : oldLiveUrl
+  const stillChanged = typeof body.polaroid_still_url === 'string' && oldStillUrl !== nextStillUrl
+  const liveChanged = typeof body.polaroid_live_url === 'string' && oldLiveUrl !== nextLiveUrl
 
   const deleteStillIfOrphan = async (oldUrl: string | null) => {
     if (!oldUrl) return
@@ -266,8 +270,11 @@ export async function PATCH(request: Request) {
     })
   }
 
-  // Delete old files if they changed (clearing counts as changing).
-  await Promise.all([deleteStillIfOrphan(oldStillUrl), deleteLiveIfOrphan(oldLiveUrl)])
+  // Only touch storage backends if media actually changed.
+  const cleanupTasks: Promise<void>[] = []
+  if (stillChanged) cleanupTasks.push(deleteStillIfOrphan(oldStillUrl))
+  if (liveChanged) cleanupTasks.push(deleteLiveIfOrphan(oldLiveUrl))
+  if (cleanupTasks.length > 0) await Promise.all(cleanupTasks)
 
   const member = rowToMember(data)
   return NextResponse.json({ member })
