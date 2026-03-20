@@ -78,7 +78,9 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover,
 
   const stillImageSrc = (member.polaroid_still_url && !imageFailed)
     ? member.polaroid_still_url
-    : screenshotUrl
+    : (member.polaroid_live_url && !imageFailed)
+      ? member.polaroid_live_url
+      : screenshotUrl
 
   // Computed pixel values
   const photoW = POLAROID_WIDTH * (1 - 2 * FRAME_PADDING_SIDE)
