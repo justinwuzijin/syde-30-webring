@@ -7,7 +7,8 @@ import { ArrowLeft, ArrowUpRight, ChevronDown, Eye, EyeOff, Trash2, Upload, X } 
 import { AuthCelebration } from './auth-celebration'
 import { StretchText } from './stretch-text'
 import { createClient } from '@supabase/supabase-js'
-import heicConvert from 'heic-convert'
+// heic2any accesses `window` at import time — must be dynamically imported
+const importHeic2any = () => import('heic2any').then(m => m.default)
 import { enforceLiveClipPolicy } from '@/lib/live-clip-processing'
 
 interface FormData {
@@ -553,17 +554,17 @@ export function JoinForm() {
       // Convert HEIC/HEIF to JPEG before upload — browsers don't reliably display HEIC.
       if (stillExt === 'heic' || stillExt === 'heif') {
         try {
-          const inputBuffer = await stillFile.arrayBuffer()
-          const jpegBuffer = await heicConvert({
-            buffer: inputBuffer as ArrayBuffer,
-            format: 'JPEG',
+          const heic2any = await importHeic2any()
+          const jpegBlob = await heic2any({
+            blob: stillFile,
+            toType: 'image/jpeg',
             quality: 0.9,
-          })
-          const jpegBlob = new Blob([jpegBuffer], { type: 'image/jpeg' })
+          }) as Blob
           stillFile = new File([jpegBlob], stillFile.name.replace(/\.(heic|heif)$/i, '.jpg'), {
             type: 'image/jpeg',
           })
-        } catch {
+        } catch (err) {
+          console.error('HEIC conversion failed:', err)
           setErrors((prev) => ({
             ...prev,
             polaroidStill: 'Could not convert HEIC to JPEG. Try saving as JPG from your phone first.',

@@ -8,7 +8,7 @@ import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import { ProfilePictureField } from './join-form'
 import { parseSocialLink } from '@/lib/parse-social'
 import { createClient } from '@supabase/supabase-js'
-import heicConvert from 'heic-convert'
+const importHeic2any = () => import('heic2any').then(m => m.default)
 import { enforceLiveClipPolicy } from '@/lib/live-clip-processing'
 
 interface ProfileResponse {
@@ -358,16 +358,16 @@ export function MePanel() {
         // Convert HEIC/HEIF to JPEG before upload — browsers don't reliably display HEIC.
         if (extRaw === 'heic' || extRaw === 'heif') {
           try {
-            const inputBuffer = await uploadFile.arrayBuffer()
-            const jpegBuffer = await heicConvert({
-              buffer: inputBuffer as ArrayBuffer,
-              format: 'JPEG',
+            const heic2any = await importHeic2any()
+            const jpegBlob = await heic2any({
+              blob: uploadFile,
+              toType: 'image/jpeg',
               quality: 0.9,
-            })
-            const jpegBlob = new Blob([jpegBuffer], { type: 'image/jpeg' })
+            }) as Blob
             const jpegName = uploadFile.name.replace(/\.(heic|heif)$/i, '.jpg')
             uploadFile = new File([jpegBlob], jpegName, { type: 'image/jpeg' })
           } catch (err) {
+            console.error('HEIC conversion failed:', err)
             setError('Could not convert HEIC to JPEG. Try saving as JPG from your phone first.')
             return
           }
