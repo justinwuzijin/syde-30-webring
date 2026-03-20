@@ -74,6 +74,11 @@ async function main() {
       const name = obj.name
       if (!name) continue
 
+      // Supabase `list()` can return directory placeholders (folders)
+      // with `id: null` and `metadata: null`. Those are not real objects.
+      const isFolder = !obj.id && !obj.metadata
+      if (isFolder) continue
+
       if (!activeStillPaths.has(name)) {
         candidates++
         if (DRY_RUN) {
