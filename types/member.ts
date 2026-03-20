@@ -30,14 +30,15 @@ export function getAccentColor(index: number): string {
   return ACCENT_COLORS[index % ACCENT_COLORS.length]
 }
 
-/** Returns the best URL to display for a member: embedUrl if set, otherwise first available social. */
+/** Returns the best URL to display for a member: embedUrl if set, otherwise first available social.
+ * Display priority when no website: LinkedIn → X (Twitter) → GitHub → Instagram */
 export function getDisplayUrl(member: Member): string {
   if (member.embedUrl) return member.embedUrl
   const s = member.socials
   if (s.website) return s.website
-  if (s.github) return `https://github.com/${s.github}`
   if (s.linkedin) return s.linkedin.startsWith('http') ? s.linkedin : `https://linkedin.com/in/${s.linkedin}`
   if (s.twitter) return `https://x.com/${s.twitter}`
+  if (s.github) return `https://github.com/${s.github}`
   if (s.instagram) return `https://instagram.com/${s.instagram}`
   return ''
 }

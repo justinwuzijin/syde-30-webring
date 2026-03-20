@@ -355,7 +355,7 @@ export function MePanel() {
           return
         }
 
-        // Convert HEIC/HEIF to JPEG in-browser so Polaroid <img> stays reliable.
+        // Convert HEIC/HEIF to JPEG before upload — browsers don't reliably display HEIC.
         if (extRaw === 'heic' || extRaw === 'heif') {
           try {
             const inputBuffer = await uploadFile.arrayBuffer()
@@ -367,9 +367,9 @@ export function MePanel() {
             const jpegBlob = new Blob([jpegBuffer], { type: 'image/jpeg' })
             const jpegName = uploadFile.name.replace(/\.(heic|heif)$/i, '.jpg')
             uploadFile = new File([jpegBlob], jpegName, { type: 'image/jpeg' })
-          } catch {
-            // Fall back to uploading the original file.
-            // Some browsers can render HEIC directly; if not, the Polaroid preview may fail.
+          } catch (err) {
+            setError('Could not convert HEIC to JPEG. Try saving as JPG from your phone first.')
+            return
           }
         }
       } else {
@@ -505,7 +505,8 @@ export function MePanel() {
             .from(BUCKET)
             .uploadToSignedUrl(storagePath, uploadToken, uploadFile, { contentType: uploadFile.type })
           if (uploadErr) {
-            setError(`failed to upload ${kind === 'still' ? 'still image' : 'live clip'}`)
+            const msg = uploadErr.message || uploadErr.name || 'unknown'
+            setError(`failed to upload ${kind === 'still' ? 'still image' : 'live clip'}: ${msg}`)
             setDraft((d) => ({
               ...d,
               polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,

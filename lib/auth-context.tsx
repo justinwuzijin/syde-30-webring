@@ -8,7 +8,6 @@ export interface AuthUser {
   id: string
   email: string
   name: string
-  has_seen_join_stamp_animation?: boolean
 }
 
 interface AuthContextValue {

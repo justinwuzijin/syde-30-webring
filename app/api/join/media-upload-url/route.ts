@@ -9,7 +9,7 @@ import {
 } from '@/lib/media-storage'
 import { createLiveClipPresignedPutUrl } from '@/lib/s3'
 
-const STILL_ALLOWED = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'] as const
+const STILL_ALLOWED = ['jpg', 'jpeg', 'png', 'webp'] as const
 const LIVE_ALLOWED = ['mov', 'mp4', 'webm'] as const
 const MAX_STILL_BYTES = 25 * 1024 * 1024 // 25MB
 const MAX_LIVE_BYTES = 50 * 1024 * 1024 // 50MB
@@ -38,9 +38,16 @@ export async function POST(request: Request) {
 
   const extRaw = body.fileName.split('.').pop()?.toLowerCase() || ''
   if (body.kind === 'still') {
+    // Reject HEIC/HEIF — client must convert to JPEG before upload for browser compatibility.
+    if (extRaw === 'heic' || extRaw === 'heif') {
+      return NextResponse.json(
+        { error: 'HEIC/HEIF must be converted to JPEG first. The form converts automatically — please try again.' },
+        { status: 400 }
+      )
+    }
     if (!STILL_ALLOWED.includes(extRaw as (typeof STILL_ALLOWED)[number])) {
       return NextResponse.json(
-        { error: 'Invalid still image format (use JPG, PNG, WEBP, or HEIC/HEIF)' },
+        { error: 'Invalid still image format (use JPG, PNG, WEBP)' },
         { status: 400 }
       )
     }

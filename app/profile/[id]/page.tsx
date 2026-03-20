@@ -22,6 +22,18 @@ const fetcher = async (url: string) => {
   return data as Member
 }
 
+/** Social platforms block framing via CSP. Only embed actual personal websites. */
+function isEmbeddableUrl(url: string | null): boolean {
+  if (!url) return false
+  try {
+    const host = new URL(url).hostname.toLowerCase()
+    const blocked = ['linkedin.com', 'www.linkedin.com', 'x.com', 'twitter.com', 'github.com', 'www.github.com', 'instagram.com', 'www.instagram.com']
+    return !blocked.some((b) => host === b || host.endsWith('.' + b))
+  } catch {
+    return false
+  }
+}
+
 export default function ProfilePage({ params }: ProfilePageProps) {
   const { id } = use(params)
   const router = useRouter()
@@ -43,22 +55,21 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     return normalizeWebsiteUrl(raw)
   }, [member])
   const hasValidWebsite = !!websiteUrl
+  const canEmbedInIframe = hasValidWebsite && websiteUrl && isEmbeddableUrl(websiteUrl)
 
-  // Signal page ready when iframe loads or when member has no website
+  // Signal page ready when iframe loads, or when no website / social-only (no iframe)
   useEffect(() => {
     if (!member) return
-    const url = getDisplayUrl(member)
-    const hasWebsite = !!normalizeWebsiteUrl(url)
-    if (!hasWebsite) {
+    if (!hasValidWebsite || !canEmbedInIframe) {
       endTransition()
     }
-  }, [member?.id, endTransition])
+  }, [member?.id, hasValidWebsite, canEmbedInIframe, endTransition])
 
   useEffect(() => {
-    if (iframeLoaded) {
+    if (canEmbedInIframe && iframeLoaded) {
       endTransition()
     }
-  }, [iframeLoaded, endTransition])
+  }, [canEmbedInIframe, iframeLoaded, endTransition])
 
   // Must run unconditionally (Rules of Hooks) — only applies when member exists
   useEffect(() => {
@@ -99,18 +110,18 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     )
   }
 
-  // Normalize socials into icons + handle + URL (using the same parsing logic as signup)
+  // Normalize socials into icons + handle + URL. Display priority: LinkedIn → X → GitHub
   const socialEntries: { key: string; label: string; handle: string; url: string; icon: ReactElement }[] = []
 
-  if (member.socials.github) {
-    const p = parseSocialLink('github', member.socials.github)
+  if (member.socials.linkedin) {
+    const p = parseSocialLink('linkedin', member.socials.linkedin)
     if (p) {
       socialEntries.push({
-        key: 'github',
-        label: 'GitHub',
+        key: 'linkedin',
+        label: 'LinkedIn',
         handle: p.username,
         url: p.url,
-        icon: <FaGithub className="w-4 h-4" />,
+        icon: <FaLinkedin className="w-4 h-4" />,
       })
     }
   }
@@ -126,15 +137,15 @@ export default function ProfilePage({ params }: ProfilePageProps) {
       })
     }
   }
-  if (member.socials.linkedin) {
-    const p = parseSocialLink('linkedin', member.socials.linkedin)
+  if (member.socials.github) {
+    const p = parseSocialLink('github', member.socials.github)
     if (p) {
       socialEntries.push({
-        key: 'linkedin',
-        label: 'LinkedIn',
+        key: 'github',
+        label: 'GitHub',
         handle: p.username,
         url: p.url,
-        icon: <FaLinkedin className="w-4 h-4" />,
+        icon: <FaGithub className="w-4 h-4" />,
       })
     }
   }
@@ -175,7 +186,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           transition: 'opacity 220ms ease',
         }}
       >
-        {/* Site preview — only when member has a valid external website URL */}
+        {/* Site preview — when member has a link (website or social). Iframe only for embeddable URLs. */}
         {hasValidWebsite && websiteUrl && (
           <div
             className="mt-8 rounded-lg overflow-hidden border border-black/10 shadow-lg relative bg-gray-50"
@@ -187,28 +198,30 @@ export default function ProfilePage({ params }: ProfilePageProps) {
               src={`https://api.microlink.io/?url=${encodeURIComponent(
                 websiteUrl,
               )}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1280&viewport.height=800&viewport.deviceScaleFactor=2`}
-              alt={`${member.name}'s website`}
+              alt={`${member.name}'s site`}
               className="absolute inset-0 w-full h-full object-cover"
             />
 
-            {/* Iframe – fades in on top once fully loaded */}
-            <iframe
-              src={websiteUrl}
-              title={`${member.name}'s website`}
-              className="absolute inset-0 w-full h-full border-0 transition-opacity duration-300"
-              style={{ opacity: iframeLoaded ? 1 : 0 }}
-              onLoad={() => setIframeLoaded(true)}
-              sandbox="allow-scripts allow-same-origin"
-            />
-
-            {/* Loading overlay with blur + text while live preview initializes */}
-            {!iframeLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-md z-10">
-                <div className="flex items-center gap-2 text-sm text-neutral-800">
-                  <div className="w-4 h-4 border-2 border-neutral-400 border-t-neutral-800 rounded-full animate-spin" />
-                  <span>loading live preview…</span>
-                </div>
-              </div>
+            {/* Iframe — only for embeddable URLs. LinkedIn, X, GitHub block framing via CSP. */}
+            {canEmbedInIframe && (
+              <>
+                <iframe
+                  src={websiteUrl}
+                  title={`${member.name}'s website`}
+                  className="absolute inset-0 w-full h-full border-0 transition-opacity duration-300"
+                  style={{ opacity: iframeLoaded ? 1 : 0 }}
+                  onLoad={() => setIframeLoaded(true)}
+                  sandbox="allow-scripts allow-same-origin"
+                />
+                {!iframeLoaded && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-md z-10">
+                    <div className="flex items-center gap-2 text-sm text-neutral-800">
+                      <div className="w-4 h-4 border-2 border-neutral-400 border-t-neutral-800 rounded-full animate-spin" />
+                      <span>loading live preview…</span>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

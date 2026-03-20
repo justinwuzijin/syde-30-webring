@@ -70,14 +70,15 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover,
     }
   }, [member.id, rotation])
 
-  // Fallback to Microlink screenshot if no uploaded still
+  // Fallback to Microlink screenshot only when member has NO uploaded still.
+  // If they uploaded a still but it fails to load, show placeholder — never a social screenshot.
   const displayUrl = getDisplayUrl(member)
   const screenshotUrl = displayUrl
     ? `https://api.microlink.io/?url=${encodeURIComponent(displayUrl)}&screenshot=true&meta=false&embed=screenshot.url`
     : ''
 
-  const stillImageSrc = (member.polaroid_still_url && !imageFailed)
-    ? member.polaroid_still_url
+  const stillImageSrc = hasUploadedStill
+    ? member.polaroid_still_url!
     : screenshotUrl
 
   // Computed pixel values
@@ -214,6 +215,24 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover,
             onLoad={() => setImageLoaded(true)}
             onError={() => { setImageFailed(true); setImageLoaded(false) }}
           />
+          {/* Placeholder when uploaded still fails to load — never show social screenshot */}
+          {hasUploadedStill && imageFailed && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: '#d8d5cf',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 10,
+                color: '#888',
+                fontFamily: 'system-ui, sans-serif',
+              }}
+            >
+              photo unavailable
+            </div>
+          )}
 
           {/* Live Photo video — plays once on hover */}
           {hasUploadedLive && member.polaroid_live_url && (

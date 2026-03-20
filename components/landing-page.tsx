@@ -7,7 +7,6 @@ import useSWR from 'swr'
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
-import { JoinStampAnimation } from './join-stamp-animation'
 import { StretchText } from './stretch-text'
 import type { Member } from '@/types/member'
 import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
@@ -105,7 +104,6 @@ export function LandingPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('scrapbook')
   const [navigatingToProfile, setNavigatingToProfile] = useState(false)
-  const [showStampAnimation, setShowStampAnimation] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
   // Detect mobile viewport (for responsive circle sizing)
@@ -180,22 +178,6 @@ export function LandingPage() {
     }
   }, [pathname, searchParams])
 
-  // Show stamp animation when landing directly on ?view=webring (e.g. from approval email)
-  useEffect(() => {
-    if (
-      phase === 'expanded' &&
-      user &&
-      !user.has_seen_join_stamp_animation &&
-      members.length > 0 &&
-      !showStampAnimation
-    ) {
-      const viewParam = searchParams.get('view')
-      if (viewParam === 'webring') {
-        setShowStampAnimation(true)
-      }
-    }
-  }, [phase, user, members.length, searchParams, showStampAnimation])
-
   // Fade out the white intro overlay after a short delay
   useEffect(() => {
     const id = setTimeout(() => setPageReady(true), 600)
@@ -269,19 +251,6 @@ export function LandingPage() {
   const handleMouseUp = useCallback(() => setIsDragging(false), [])
 
   // Click polaroid → profile (expanded only)
-  const handleStampComplete = useCallback(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('syde30_auth_token') : null
-    if (token) {
-      fetch('/api/me/mark-stamp-seen', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }).then(() => {
-        setUserFromToken(token)
-      })
-    }
-    setShowStampAnimation(false)
-  }, [setUserFromToken])
-
   const handleCardClick = useCallback((memberId: string) => {
     if (phase !== 'expanded') return
     playClick()
@@ -902,14 +871,6 @@ export function LandingPage() {
         }}
       />
 
-      {/* First-login stamp animation — one-time after approval */}
-      {showStampAnimation && user && (
-        <JoinStampAnimation
-          user={user}
-          members={members}
-          onComplete={handleStampComplete}
-        />
-      )}
       {/* Signed-in \"me\" panel — expanded view only */}
       {isExpanded && viewMode === 'me' && (
         <motion.div

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { verifyAuthToken } from '@/lib/token'
-import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(request: Request) {
   const auth = request.headers.get('authorization')
@@ -13,16 +12,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 })
   }
 
-  const { data: member } = await supabaseAdmin
-    .from('members')
-    .select('has_seen_join_stamp_animation')
-    .eq('id', user.id)
-    .single()
-
-  return NextResponse.json({
-    user: {
-      ...user,
-      has_seen_join_stamp_animation: member?.has_seen_join_stamp_animation ?? false,
-    },
-  })
+  return NextResponse.json({ user })
 }

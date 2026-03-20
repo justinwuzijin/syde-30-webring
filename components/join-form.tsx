@@ -550,7 +550,7 @@ export function JoinForm() {
       let liveFile = form.polaroidLive!
       const stillExt = stillFile.name.split('.').pop()?.toLowerCase() || ''
 
-      // Lightweight still optimization: convert HEIC/HEIF to JPEG.
+      // Convert HEIC/HEIF to JPEG before upload — browsers don't reliably display HEIC.
       if (stillExt === 'heic' || stillExt === 'heif') {
         try {
           const inputBuffer = await stillFile.arrayBuffer()
@@ -564,7 +564,12 @@ export function JoinForm() {
             type: 'image/jpeg',
           })
         } catch {
-          // Keep original file if conversion fails.
+          setErrors((prev) => ({
+            ...prev,
+            polaroidStill: 'Could not convert HEIC to JPEG. Try saving as JPG from your phone first.',
+          }))
+          setSubmitting(false)
+          return
         }
       }
 

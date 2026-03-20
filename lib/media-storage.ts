@@ -17,16 +17,28 @@ export function extFromName(name: string, fallback: string): string {
   return ext.replace(/[^a-z0-9]/g, '') || fallback
 }
 
-export function buildStillPath(memberId: string, fileName: string): string {
-  const ext = extFromName(fileName, 'jpg')
-  const base = sanitizeFileName(fileName.replace(/\.[^.]+$/, '')) || 'still'
-  return `members/${memberId}/still/${Date.now()}-${base}.${ext}`
+/** Derives first-last slug from display name for folder naming. */
+export function deriveFirstLastSlug(name: string): string {
+  const n = (name || '').trim().replace(/\s+/g, ' ')
+  if (!n) return 'member'
+  const parts = n.split(' ').filter(Boolean)
+  const first = parts[0] || 'member'
+  const last = parts[parts.length - 1] || first
+  const joined = `${first}-${last}`
+  return sanitizeFileName(joined) || 'member'
 }
 
-export function buildLiveKey(memberId: string, fileName: string): string {
+export function buildStillPath(memberId: string, fileName: string, memberName?: string): string {
+  const ext = extFromName(fileName, 'jpg')
+  const base = sanitizeFileName(fileName.replace(/\.[^.]+$/, '')) || 'still'
+  const segment = memberName ? `${deriveFirstLastSlug(memberName)}-${memberId}` : memberId
+  return `members/${segment}/still/${Date.now()}-${base}.${ext}`
+}
+
+export function buildLiveKey(memberId: string, fileName: string, memberName?: string): string {
   const base = sanitizeFileName(fileName.replace(/\.[^.]+$/, '')) || 'live'
-  // Keep all processed clips in a consistent web-safe container.
-  return `members/${memberId}/live/${Date.now()}-${base}.webm`
+  const segment = memberName ? `${deriveFirstLastSlug(memberName)}-${memberId}` : memberId
+  return `members/${segment}/live/${Date.now()}-${base}.webm`
 }
 
 export function pendingMemberIdFromEmail(email: string): string {

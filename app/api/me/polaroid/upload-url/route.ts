@@ -4,7 +4,7 @@ import { verifyAuthToken } from '@/lib/token'
 import { buildLiveKey, buildStillPath, s3PublicUrlFromKey, SUPABASE_STILL_BUCKET } from '@/lib/media-storage'
 import { createLiveClipPresignedPutUrl } from '@/lib/s3'
 
-const STILL_ALLOWED = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'] as const
+const STILL_ALLOWED = ['jpg', 'jpeg', 'png', 'webp'] as const
 const LIVE_ALLOWED = ['mov', 'mp4', 'webm'] as const
 const MAX_LIVE_BYTES = 50 * 1024 * 1024 // 50MB
 
@@ -44,25 +44,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid live clip format (use MOV or MP4)' }, { status: 400 })
     }
   } else {
+    // Reject HEIC/HEIF — client must convert to JPEG before upload for browser compatibility.
+    if (extRaw === 'heic' || extRaw === 'heif') {
+      return NextResponse.json(
+        { error: 'HEIC/HEIF must be converted to JPEG first. The upload form converts automatically.' },
+        { status: 400 }
+      )
+    }
     if (!STILL_ALLOWED.includes(extRaw as (typeof STILL_ALLOWED)[number])) {
       return NextResponse.json(
-        { error: 'Invalid still image format (use JPG, PNG, WEBP, or HEIC/HEIF)' },
+        { error: 'Invalid still image format (use JPG, PNG, WEBP)' },
         { status: 400 }
       )
     }
   }
 
   const supabase = getSupabaseAdmin()
+  const { data: member } = await supabase
+    .from('members')
+    .select('name')
+    .eq('id', authUser.id)
+    .single()
+  const memberName = member?.name ?? undefined
 
   if (kind === 'still') {
-    const stillPath = buildStillPath(authUser.id, body.fileName)
+    const stillPath = buildStillPath(authUser.id, body.fileName, memberName)
     const { data: signedData, error: signedErr } = await supabase.storage
       .from(SUPABASE_STILL_BUCKET)
       // storage-js supports `upsert` for signed URLs; for our use case we don't want overwrites.
       .createSignedUploadUrl(stillPath, { upsert: false } as any)
 
     if (signedErr || !signedData) {
-      return NextResponse.json({ error: 'Failed to create signed upload URL' }, { status: 500 })
+      const msg = signedErr?.message || signedErr?.name || 'Failed to create signed upload URL'
+      return NextResponse.json({ error: msg }, { status: 500 })
     }
 
     const publicUrl = supabase.storage.from(SUPABASE_STILL_BUCKET).getPublicUrl(stillPath).data.publicUrl
@@ -77,7 +91,7 @@ export async function POST(request: Request) {
   }
 
   // Live clips go to S3 directly with presigned PUT URL.
-  const key = buildLiveKey(authUser.id, body.fileName)
+  const key = buildLiveKey(authUser.id, body.fileName, memberName)
   const putUrl = await createLiveClipPresignedPutUrl({ key, contentType: body.contentType || 'video/webm' })
   return NextResponse.json({
     provider: 's3',

@@ -22,6 +22,7 @@
 
 const crypto = require('crypto')
 const { createClient } = require('@supabase/supabase-js')
+const heicConvert = require('heic-convert')
 const {
   S3Client,
   CopyObjectCommand,
@@ -70,12 +71,18 @@ function parseSupabaseStillPathFromUrl(publicUrl, bucket) {
   if (!publicUrl) return null
   try {
     const u = new URL(publicUrl)
+    const pathname = u.pathname || ''
+    // Standard: /storage/v1/object/public/{bucket}/{path}
     const marker = `/storage/v1/object/public/${bucket}/`
-    const idx = u.pathname.indexOf(marker)
-    if (idx >= 0) return decodeURIComponent(u.pathname.slice(idx + marker.length)) || null
+    let idx = pathname.indexOf(marker)
+    if (idx >= 0) return decodeURIComponent(pathname.slice(idx + marker.length)) || null
+    // Alternate: /public/{bucket}/{path}
     const marker2 = `/public/${bucket}/`
-    const idx2 = u.pathname.indexOf(marker2)
-    if (idx2 >= 0) return decodeURIComponent(u.pathname.slice(idx2 + marker2.length)) || null
+    idx = pathname.indexOf(marker2)
+    if (idx >= 0) return decodeURIComponent(pathname.slice(idx + marker2.length)) || null
+    // Fallback: pathname contains "members/" (bucket-relative path)
+    const membersIdx = pathname.indexOf('members/')
+    if (membersIdx >= 0) return decodeURIComponent(pathname.slice(membersIdx)) || null
   } catch {
     // ignore
   }
@@ -284,6 +291,17 @@ async function main() {
         } else if (newStillPath !== oldStillPath) {
           const newStillUrl = supabase.storage.from(SUPABASE_STILL_BUCKET).getPublicUrl(newStillPath).data.publicUrl
           stillUpdates = { oldStillPath, newStillPath, newStillUrl }
+        } else {
+          // Path already correct; convert HEIC→JPEG for browser display (Chrome/Firefox/Edge don't render HEIC)
+          const ext = (oldStillPath.split('.').pop() || '').toLowerCase()
+          if (ext === 'heic' || ext === 'heif') {
+            const jpegPath = oldStillPath.replace(/\.(heic|heif)$/i, '.jpg')
+            stillUpdates = {
+              oldStillPath,
+              newStillPath: jpegPath,
+              newStillUrl: supabase.storage.from(SUPABASE_STILL_BUCKET).getPublicUrl(jpegPath).data.publicUrl,
+            }
+          }
         }
       }
     }
@@ -333,15 +351,37 @@ async function main() {
         const existingDest = !!destBlob && !destErr
 
         if (!existingDest) {
-          const bytes = Buffer.from(await sourceBlob.arrayBuffer())
-          const contentType = sourceBlob.type || 'image/jpeg'
+          let bytes = Buffer.from(await sourceBlob.arrayBuffer())
+          let contentType = sourceBlob.type || 'image/jpeg'
+          let uploadPath = stillUpdates.newStillPath
+
+          // HEIC/HEIF: convert to JPEG for browser compatibility (Chrome, Firefox, Edge don't display HEIC)
+          const ext = (uploadPath.split('.').pop() || '').toLowerCase()
+          if (ext === 'heic' || ext === 'heif') {
+            try {
+              const jpegBuffer = await heicConvert({
+                buffer: bytes,
+                format: 'JPEG',
+                quality: 0.9,
+              })
+              bytes = Buffer.isBuffer(jpegBuffer) ? jpegBuffer : Buffer.from(jpegBuffer)
+              contentType = 'image/jpeg'
+              uploadPath = uploadPath.replace(/\.(heic|heif)$/i, '.jpg')
+              stillUpdates.newStillPath = uploadPath
+              stillUpdates.newStillUrl = supabase.storage.from(SUPABASE_STILL_BUCKET).getPublicUrl(uploadPath).data.publicUrl
+              console.log(`  [heic→jpeg] ${uploadPath}`)
+            } catch (convErr) {
+              console.log(`  [warn heic convert failed, uploading as-is] ${convErr?.message || convErr}`)
+            }
+          }
+
           const { error: uploadErr } = await supabase.storage
             .from(SUPABASE_STILL_BUCKET)
-            .upload(stillUpdates.newStillPath, bytes, { contentType, upsert: false })
+            .upload(uploadPath, bytes, { contentType, upsert: false })
 
           if (uploadErr) {
             failures++
-            console.log(`  [fail upload still] ${stillUpdates.newStillPath}: ${uploadErr.message}`)
+            console.log(`  [fail upload still] ${uploadPath}: ${uploadErr.message}`)
             stillUpdates = null
           } else {
             movedStill++
