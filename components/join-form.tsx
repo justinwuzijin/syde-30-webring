@@ -573,7 +573,12 @@ export function JoinForm() {
         setUploadPercent(0)
         liveFile = await enforceLiveClipPolicy(liveFile)
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'failed to process live clip'
+        const msg =
+          err instanceof Error
+            ? err.message
+            : typeof err === 'string'
+              ? err
+              : 'failed to process live clip'
         setErrors((prev) => ({ ...prev, polaroidLive: msg }))
         return
       }
@@ -627,12 +632,16 @@ export function JoinForm() {
         return
       }
       let liveUploadFailed = false
-      await uploadToS3WithProgress(liveSigned.putUrl, liveFile, liveFile.type || 'video/mp4', setUploadPercent).catch(
-        () => {
-          liveUploadFailed = true
-          setErrors((prev) => ({ ...prev, polaroidLive: 'failed to upload live clip' }))
-        }
-      )
+      await uploadToS3WithProgress(
+        liveSigned.putUrl,
+        liveFile,
+        liveFile.type || 'video/mp4',
+        setUploadPercent
+      ).catch((err) => {
+        liveUploadFailed = true
+        const msg = err instanceof Error ? err.message : 'failed to upload live clip'
+        setErrors((prev) => ({ ...prev, polaroidLive: msg }))
+      })
       if (liveUploadFailed) return
 
       // 3) Submit metadata (no large files through app server)

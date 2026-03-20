@@ -1,24 +1,31 @@
 'use client'
 
 import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { fetchFile, toBlobURL } from '@ffmpeg/util'
+import { fetchFile } from '@ffmpeg/util'
 
 const MAX_CLIP_SECONDS = 3.0
 const MAX_DIMENSION = 1080
+// Temporary safety switch:
+// ffmpeg.wasm is currently crashing with "memory access out of bounds" on some inputs.
+// We keep the duration policy checks, but skip actual transcoding/audio-stripping for now.
+// Next pass can re-enable transcoding once we add a more robust pipeline.
+const ENABLE_FFMPEG_TRANSCODE = false
 
 let ffmpeg: FFmpeg | null = null
 let ffmpegLoadPromise: Promise<FFmpeg> | null = null
 
 async function getFfmpeg(): Promise<FFmpeg> {
+  if (!ENABLE_FFMPEG_TRANSCODE) {
+    throw new Error('Live clip transcoding is temporarily disabled due to processing instability.')
+  }
   if (ffmpeg) return ffmpeg
   if (!ffmpegLoadPromise) {
     ffmpegLoadPromise = (async () => {
       const instance = new FFmpeg()
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm'
-      await instance.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-      })
+      // Use ffmpeg-wasm's built-in static CORE_URL/wasm resolution.
+      // This avoids Next/webpack issues with dynamically provided module URLs
+      // ("expression is too dynamic") inside the worker.
+      await instance.load()
       ffmpeg = instance
       return instance
     })()
@@ -53,6 +60,13 @@ export async function enforceLiveClipPolicy(inputFile: File): Promise<File> {
     throw new Error('Live clip must be 3.0 seconds or shorter.')
   }
 
+  if (!ENABLE_FFMPEG_TRANSCODE) {
+    // Cost-safe interim behavior:
+    // validate duration only, then upload original file.
+    // This keeps the direct-to-S3 upload architecture unchanged.
+    return inputFile
+  }
+
   const engine = await getFfmpeg()
   const inName = `in-${Date.now()}-${Math.random().toString(36).slice(2)}`
   const outName = `out-${Date.now()}-${Math.random().toString(36).slice(2)}.webm`
@@ -71,9 +85,11 @@ export async function enforceLiveClipPolicy(inputFile: File): Promise<File> {
       String(MAX_CLIP_SECONDS),
       '-an',
       '-vf',
-      `scale='if(gt(iw,${MAX_DIMENSION}),${MAX_DIMENSION},iw)':'if(gt(ih,${MAX_DIMENSION}),${MAX_DIMENSION},ih)':force_original_aspect_ratio=decrease`,
+      `scale='if(gte(iw,ih),min(iw,${MAX_DIMENSION}),-2)':'if(gte(ih,iw),min(ih,${MAX_DIMENSION}),-2)'`,
       '-c:v',
       'libvpx-vp9',
+      '-pix_fmt',
+      'yuv420p',
       '-crf',
       '31',
       '-b:v',
@@ -89,6 +105,9 @@ export async function enforceLiveClipPolicy(inputFile: File): Promise<File> {
     const blob = new Blob([out], { type: 'video/webm' })
     const baseName = inputFile.name.replace(/\.[^.]+$/, '') || 'live-clip'
     return new File([blob], `${baseName}.webm`, { type: 'video/webm' })
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : typeof err === 'string' ? err : 'unknown ffmpeg error'
+    throw new Error(`Live clip processing failed: ${detail}`)
   } finally {
     await engine.deleteFile(inName).catch(() => {})
     await engine.deleteFile(outName).catch(() => {})

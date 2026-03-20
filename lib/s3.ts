@@ -30,8 +30,8 @@ export async function createLiveClipPresignedPutUrl(params: {
     Bucket: S3_LIVE_BUCKET,
     Key: params.key,
     ContentType: params.contentType || 'video/mp4',
-    // MVP: public-read simplifies direct playback from stored URL.
-    ACL: 'public-read',
+    // Bucket policy controls public read.
+    // Some buckets disallow ACLs entirely, so do not set ACL here.
   })
   const url = await getSignedUrl(s3, command, { expiresIn: params.expiresInSeconds ?? 300 })
   return url

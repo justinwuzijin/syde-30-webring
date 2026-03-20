@@ -139,6 +139,70 @@ export function MePanel() {
         const token =
           typeof window !== 'undefined' ? localStorage.getItem('syde30_auth_token') : null
 
+        let polaroidStillToSend = draft.polaroid_still_url.trim()
+        let polaroidLiveToSend = draft.polaroid_live_url.trim()
+
+        // Cost-aware behavior:
+        // During selection, live videos are preview-only via `blob:` URLs.
+        // Only upload to S3 if the user actually presses "Save".
+        if (polaroidLiveToSend.startsWith('blob:')) {
+          if (!liveFile) {
+            setError('No live clip file selected.')
+            return
+          }
+          setUploading(true)
+          setUploadingKind('live')
+          setUploadPercent(0)
+          const signedRes = await fetch('/api/me/polaroid/upload-url', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              kind: 'live',
+              fileName: liveFile.name,
+              contentType: liveFile.type,
+              size: liveFile.size,
+            }),
+          })
+          const signedPayload = await signedRes.json().catch(() => ({}))
+          if (!signedRes.ok || signedPayload.provider !== 's3' || !signedPayload.putUrl || !signedPayload.publicUrl) {
+            setError(signedPayload.error || 'failed to prepare live upload')
+            setUploading(false)
+            setUploadingKind(null)
+            setUploadPercent(null)
+            return
+          }
+
+          try {
+            await uploadToS3WithProgress(
+              signedPayload.putUrl,
+              liveFile,
+              liveFile.type || 'video/webm',
+              (pct) => {
+                setUploadPercent(pct)
+              }
+            )
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : 'failed to upload live clip'
+            setError(msg)
+            setUploading(false)
+            setUploadingKind(null)
+            setUploadPercent(null)
+            return
+          }
+
+          // Swap preview to persisted URL so PATCH writes the correct S3 reference.
+          if (liveObjectUrlRef.current) URL.revokeObjectURL(liveObjectUrlRef.current)
+          liveObjectUrlRef.current = null
+          polaroidLiveToSend = signedPayload.publicUrl
+          setDraft((d) => ({ ...d, polaroid_live_url: signedPayload.publicUrl }))
+          setUploading(false)
+          setUploadingKind(null)
+          setUploadPercent(null)
+        }
+
         const rawWebsite = draft.website.trim()
         const websiteToSend =
           rawWebsite && !/^https?:\/\//i.test(rawWebsite) ? `https://${rawWebsite}` : rawWebsite
@@ -169,8 +233,8 @@ export function MePanel() {
             linkedin_handle: linkedinHandle,
             twitter_handle: twitterHandle,
             github_handle: githubHandle,
-            polaroid_still_url: draft.polaroid_still_url.trim(),
-            polaroid_live_url: draft.polaroid_live_url.trim(),
+            polaroid_still_url: polaroidStillToSend,
+            polaroid_live_url: polaroidLiveToSend,
           }),
         })
         if (!res.ok) {
@@ -201,7 +265,7 @@ export function MePanel() {
         setSaving(false)
       }
     },
-    [user, data?.member, draft, cooldownSeconds, saving]
+    [user, data?.member, draft, cooldownSeconds, saving, liveFile]
   )
 
   if (!user) {
@@ -321,7 +385,12 @@ export function MePanel() {
         try {
           uploadFile = await enforceLiveClipPolicy(uploadFile)
         } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Failed to process live clip.'
+          const msg =
+            err instanceof Error
+              ? err.message
+              : typeof err === 'string'
+                ? err
+                : 'Failed to process live clip.'
           setError(msg)
           setProcessingLive(false)
           return
@@ -330,11 +399,20 @@ export function MePanel() {
       }
 
       try {
-        setUploading(true)
-        setUploadingKind(kind)
-        setUploadPercent(kind === 'live' ? 0 : null)
+        // Immediate local preview.
+        // Cost-aware behavior: still photos are uploaded immediately,
+        // but live videos are preview-only here (upload happens on Save).
+        if (kind === 'still') {
+          setUploading(true)
+          setUploadingKind(kind)
+          setUploadPercent(null)
+        } else {
+          setUploadPercent(null)
+          setUploadingKind(null)
+          setUploading(false)
+        }
 
-        // Immediate local preview while upload runs
+        // Immediate local preview while selection is updated
         const objectUrl = URL.createObjectURL(uploadFile)
         if (kind === 'still') {
           if (stillObjectUrlRef.current) URL.revokeObjectURL(stillObjectUrlRef.current)
@@ -346,6 +424,9 @@ export function MePanel() {
           liveObjectUrlRef.current = objectUrl
           setLiveFile(uploadFile)
           setDraft((d) => ({ ...d, polaroid_live_url: objectUrl }))
+          // IMPORTANT: do not upload live clip to S3 during selection.
+          // The user-visible preview works via the `blob:` URL.
+          return
         }
 
         const token =
@@ -380,7 +461,7 @@ export function MePanel() {
           setDraft((d) => ({
             ...d,
             polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
-            polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+            polaroid_live_url: d.polaroid_live_url,
           }))
           return
         }
@@ -405,7 +486,7 @@ export function MePanel() {
           setDraft((d) => ({
             ...d,
             polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
-            polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+            polaroid_live_url: d.polaroid_live_url,
           }))
           return
         }
@@ -416,7 +497,7 @@ export function MePanel() {
             setDraft((d) => ({
               ...d,
               polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
-              polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+              polaroid_live_url: d.polaroid_live_url,
             }))
             return
           }
@@ -428,7 +509,7 @@ export function MePanel() {
             setDraft((d) => ({
               ...d,
               polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
-              polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+              polaroid_live_url: d.polaroid_live_url,
             }))
             return
           }
@@ -438,7 +519,7 @@ export function MePanel() {
             setDraft((d) => ({
               ...d,
               polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
-              polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+              polaroid_live_url: d.polaroid_live_url,
             }))
             return
           }
@@ -451,7 +532,7 @@ export function MePanel() {
             setDraft((d) => ({
               ...d,
               polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
-              polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+              polaroid_live_url: d.polaroid_live_url,
             }))
             return
           }
@@ -482,7 +563,7 @@ export function MePanel() {
         setDraft((d) => ({
           ...d,
           polaroid_still_url: kind === 'still' ? memberStillUrl : d.polaroid_still_url,
-          polaroid_live_url: kind === 'live' ? memberLiveUrl : d.polaroid_live_url,
+          polaroid_live_url: d.polaroid_live_url,
         }))
       } finally {
         setProcessingLive(false)
@@ -744,8 +825,7 @@ export function MePanel() {
                       uploading ||
                       processingLive ||
                       !!error ||
-                      draft.polaroid_still_url.startsWith('blob:') ||
-                      draft.polaroid_live_url.startsWith('blob:')
+                      draft.polaroid_still_url.startsWith('blob:')
                     }
                     className="px-4 py-2 rounded-full text-xs font-medium lowercase tracking-[0.16em] bg-black text-white disabled:opacity-60 disabled:cursor-not-allowed"
                   >
