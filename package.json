@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "cleanup:stills": "node scripts/cleanup-orphaned-polaroids.js",
     "cleanup:stills:dry": "node scripts/cleanup-orphaned-polaroids.js --dry-run",
+    "delete:pending": "node scripts/delete-all-pending-signups.js",
+    "delete:pending:dry": "node scripts/delete-all-pending-signups.js --dry-run",
     "cleanup:lives": "node scripts/cleanup-orphaned-live-clips-s3.js",
     "cleanup:lives:dry": "node scripts/cleanup-orphaned-live-clips-s3.js --dry-run",
     "media:reconcile:dry": "node scripts/media-reconcile.js --dry-run",

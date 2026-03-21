@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import crypto from 'crypto'
 import { verifyToken } from '@/lib/token'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendApprovalConfirmationEmail } from '@/lib/email'
@@ -32,6 +33,20 @@ export async function GET(request: Request) {
     return new NextResponse(
       '<!DOCTYPE html><html><head><title>Expired</title></head><body><h1>Link expired or invalid</h1><p><a href="/">Back to webring</a></p></body></html>',
       { status: 400, headers: { 'Content-Type': 'text/html' } }
+    )
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+  const { data: existing } = await supabaseAdmin
+    .from('used_approval_tokens')
+    .select('token_hash')
+    .eq('token_hash', tokenHash)
+    .single()
+
+  if (existing) {
+    return new NextResponse(
+      '<!DOCTYPE html><html><head><title>Already used</title></head><body><h1>This approval link has already been used</h1><p>The member was previously approved.</p><p><a href="/">Back to webring</a></p></body></html>',
+      { status: 409, headers: { 'Content-Type': 'text/html' } }
     )
   }
 
@@ -76,6 +91,10 @@ export async function GET(request: Request) {
       { status: 500, headers: { 'Content-Type': 'text/html' } }
     )
   }
+
+  await supabaseAdmin.from('used_approval_tokens').insert({
+    token_hash: tokenHash,
+  })
 
   revalidatePath('/api/members')
   revalidatePath('/')

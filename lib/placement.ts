@@ -125,26 +125,53 @@ export function computeScrapbookPositions(
   return { positions, canvasW, canvasH }
 }
 
-/** Classroom: rigid grid, upright, equal spacing. Same ordering. */
+/** Classroom: rigid grid, upright. Row 0 = Leo & Justin only; row 1+ = others, cols from viewport. */
 export function computeClassroomPositions(
-  members: Member[]
+  members: Member[],
+  containerWidth?: number
 ): { positions: Map<string, { x: number; y: number }>; canvasW: number; canvasH: number } {
   const sorted = getSortedMembers(members)
-  const n = sorted.length
-  const cols = Math.max(2, Math.ceil(Math.sqrt(n)))
-  const rows = Math.ceil(n / cols)
-  const innerW = cols * (POLAROID_WIDTH + CARD_GAP) - CARD_GAP
-  const innerH = rows * (POLAROID_HEIGHT + CARD_GAP) - CARD_GAP
-  const canvasW = innerW + GRID_PADDING * 2
-  const canvasH = innerH + GRID_PADDING * 2
+  const creators = sorted.filter(isCreator)
+  const others = sorted.filter((m) => !isCreator(m))
+
+  const availableWidth = containerWidth ?? 1200
+  const colsBelow = Math.max(
+    2,
+    Math.floor((availableWidth - 2 * GRID_PADDING) / (POLAROID_WIDTH + CARD_GAP))
+  )
 
   const positions = new Map<string, { x: number; y: number }>()
-  sorted.forEach((m, i) => {
+
+  // Row 0: Leo and Justin only (2 columns)
+  creators.slice(0, 2).forEach((m, i) => {
     positions.set(m.id, {
-      x: GRID_PADDING + (i % cols) * (POLAROID_WIDTH + CARD_GAP),
-      y: GRID_PADDING + Math.floor(i / cols) * (POLAROID_HEIGHT + CARD_GAP),
+      x: GRID_PADDING + i * (POLAROID_WIDTH + CARD_GAP),
+      y: GRID_PADDING,
     })
   })
+
+  const topRowCount = Math.min(2, creators.length)
+  const startY =
+    topRowCount > 0 ? GRID_PADDING + (POLAROID_HEIGHT + CARD_GAP) : GRID_PADDING
+
+  // Row 1+: all others, colsBelow per row
+  others.forEach((m, i) => {
+    const row = Math.floor(i / colsBelow)
+    const col = i % colsBelow
+    positions.set(m.id, {
+      x: GRID_PADDING + col * (POLAROID_WIDTH + CARD_GAP),
+      y: startY + row * (POLAROID_HEIGHT + CARD_GAP),
+    })
+  })
+
+  let maxX = 0
+  let maxY = 0
+  positions.forEach((pos) => {
+    maxX = Math.max(maxX, pos.x + POLAROID_WIDTH)
+    maxY = Math.max(maxY, pos.y + POLAROID_HEIGHT)
+  })
+  const canvasW = maxX + GRID_PADDING
+  const canvasH = maxY + GRID_PADDING
 
   return { positions, canvasW, canvasH }
 }
