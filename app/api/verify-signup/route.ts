@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       if (vercelUrl) {
         baseUrl = `https://${vercelUrl}`
       } else {
-        baseUrl = 'http://localhost:3000'
+        baseUrl = 'https://syde-30-webring-eta.vercel.app'
       }
     }
     const approveUrl = `${baseUrl.replace(/\/$/, '')}/api/approve?token=${token}`

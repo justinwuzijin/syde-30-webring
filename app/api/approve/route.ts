@@ -99,7 +99,7 @@ export async function GET(request: Request) {
   revalidatePath('/api/members')
   revalidatePath('/')
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://syde-30-webring-eta.vercel.app')
   sendApprovalConfirmationEmail(email, name, baseUrl).catch((err) =>
     console.error('Failed to send approval confirmation email:', err)
   )
