@@ -360,13 +360,29 @@ export function LandingPage() {
   // Classroom mode anchors grid to top-left (aligned with photo folder at 5%, below toggles at ~6rem)
   const isClassroom = isExpanded && viewMode === 'classroom'
   const isMe = isExpanded && viewMode === 'me'
-  // Vertical shift so Leo & Justin (center of spiral) appear centered in preview circle
-  const PREVIEW_Y_SHIFT = -40
+  // Compute creators' centroid offset from canvas center so preview centers on Leo & Justin
+  const creatorsOffset = useMemo(() => {
+    const creatorIds = displayMembers.filter(m => isCreator(m)).map(m => m.id)
+    if (creatorIds.length === 0) return { dx: 0, dy: 0 }
+    let sumX = 0, sumY = 0
+    for (const id of creatorIds) {
+      const pos = positions.get(id)
+      if (pos) {
+        sumX += pos.x + POLAROID_WIDTH / 2
+        sumY += pos.y + POLAROID_HEIGHT / 2
+      }
+    }
+    const cx = sumX / creatorIds.length
+    const cy = sumY / creatorIds.length
+    // Offset from canvas center
+    return { dx: cx - canvasW / 2, dy: cy - canvasH / 2 }
+  }, [displayMembers, positions, canvasW, canvasH])
+
   const gridTransform = isExpanded
     ? isClassroom
       ? 'none'
       : `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
-    : `translate(-50%, calc(-50% + ${PREVIEW_Y_SHIFT}px)) scale(0.62)`
+    : `translate(calc(-50% - ${creatorsOffset.dx}px), calc(-50% - ${creatorsOffset.dy}px)) scale(0.62)`
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden select-none md:select-auto">
@@ -562,10 +578,10 @@ export function LandingPage() {
             className="absolute inset-0 rounded-full pointer-events-none"
             style={{
               zIndex: 4,
-              backdropFilter: 'blur(6px)',
-              WebkitBackdropFilter: 'blur(6px)',
-              maskImage: 'radial-gradient(circle, transparent 50%, black 80%)',
-              WebkitMaskImage: 'radial-gradient(circle, transparent 50%, black 80%)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              maskImage: 'radial-gradient(circle, transparent 42%, black 72%)',
+              WebkitMaskImage: 'radial-gradient(circle, transparent 42%, black 72%)',
             }}
           />
         )}
