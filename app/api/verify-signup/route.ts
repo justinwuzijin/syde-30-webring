@@ -76,8 +76,17 @@ export async function POST(request: Request) {
     }
 
     const token = signToken(payload)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-    const approveUrl = `${baseUrl}/api/approve?token=${token}`
+    // Prefer explicit base URL; on Vercel use deployment URL if BASE_URL is localhost
+    let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || ''
+    if (!baseUrl || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
+      const vercelUrl = process.env.VERCEL_URL
+      if (vercelUrl) {
+        baseUrl = `https://${vercelUrl}`
+      } else {
+        baseUrl = 'http://localhost:3000'
+      }
+    }
+    const approveUrl = `${baseUrl.replace(/\/$/, '')}/api/approve?token=${token}`
 
     const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER
     if (!adminEmail) {

@@ -11,7 +11,6 @@ import { StretchText } from './stretch-text'
 import type { Member } from '@/types/member'
 import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import {
-  getSortedMembers,
   isCreator,
   computeScrapbookPositions,
   computeClassroomPositions,
@@ -56,14 +55,15 @@ function getLandingPreviewMembers(members: Member[]): Member[] {
 /** Compute positions for scrapbook (center-out, tilt) or classroom (rigid grid) */
 function computePositions(
   members: Member[],
-  mode: ViewMode
+  mode: ViewMode,
+  viewportWidth?: number
 ): {
   positions: Map<string, { x: number; y: number; rotation?: number }>
   canvasW: number
   canvasH: number
 } {
   if (mode === 'classroom') {
-    const { positions, canvasW, canvasH } = computeClassroomPositions(members)
+    const { positions, canvasW, canvasH } = computeClassroomPositions(members, viewportWidth)
     return { positions, canvasW, canvasH }
   }
   const { positions, canvasW, canvasH } = computeScrapbookPositions(members)
@@ -105,6 +105,9 @@ export function LandingPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('scrapbook')
   const [navigatingToProfile, setNavigatingToProfile] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [viewportWidth, setViewportWidth] = useState(
+    () => (typeof window !== 'undefined' ? window.innerWidth : 1200)
+  )
 
   // Detect mobile viewport (for responsive circle sizing)
   useEffect(() => {
@@ -112,6 +115,14 @@ export function LandingPage() {
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Track viewport width for dynamic classroom columns
+  useEffect(() => {
+    const updateViewportWidth = () => setViewportWidth(window.innerWidth)
+    updateViewportWidth()
+    window.addEventListener('resize', updateViewportWidth)
+    return () => window.removeEventListener('resize', updateViewportWidth)
   }, [])
 
   // Fetch members from Supabase with SWR (cached, deduped)
@@ -128,8 +139,8 @@ export function LandingPage() {
   const displayMembers = isSplash ? getLandingPreviewMembers(members) : members
   const placementMode = isSplash ? 'scrapbook' : viewMode
   const { positions, canvasW, canvasH } = useMemo(
-    () => computePositions(displayMembers, placementMode),
-    [displayMembers, placementMode]
+    () => computePositions(displayMembers, placementMode, viewportWidth),
+    [displayMembers, placementMode, viewportWidth]
   )
 
   const filteredMembers = useMemo(() => {
