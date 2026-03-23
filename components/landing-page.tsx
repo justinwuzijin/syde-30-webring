@@ -43,15 +43,12 @@ const MIN_ZOOM = 0.3
 const MAX_ZOOM = 2.5
 const ZOOM_SENSITIVITY = 0.002
 
-/** Splash preview offset — polaroids shifted up/left for visual centering. Must match camera on expand. */
-const PREVIEW_OFFSET_X = 72
-const PREVIEW_OFFSET_Y = 118
 const DESKTOP_ZOOM = 0.75
 const MOBILE_ZOOM = 0.65
 
-/** Landing preview: only Leo and Justin */
+/** Landing preview: all members (Leo & Justin centered via sort order) */
 function getLandingPreviewMembers(members: Member[]): Member[] {
-  return members.filter(isCreator)
+  return members
 }
 
 /** Compute positions for scrapbook (center-out, tilt) or classroom (rigid grid) */
@@ -157,7 +154,7 @@ export function LandingPage() {
   // Separate camera states for scrapbook and classroom views
   const defaultZoom = isMobile ? MOBILE_ZOOM : DESKTOP_ZOOM
   const [scrapbookCamera, setScrapbookCamera] = useState(() =>
-    startExpanded ? { x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom } : { x: 0, y: 0, k: 1 }
+    startExpanded ? { x: 0, y: -60, k: defaultZoom } : { x: 0, y: 0, k: 1 }
   )
   // Classroom always starts at default position (reset on each switch)
   const [classroomCamera, setClassroomCamera] = useState({ x: 0, y: 0, k: 1 })
@@ -209,16 +206,16 @@ export function LandingPage() {
     setPhase('transitioning')
     setTimeout(() => {
       setViewMode('scrapbook')
-      setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
+      setScrapbookCamera({ x: 0, y: -60, k: defaultZoom })
       setPhase('expanded')
     }, EXPANDED_DELAY)
   }, [phase, playClick])
 
-  // Back to splash — reset camera to match preview offset so Leo & Justin stay centered
+  // Back to splash — reset camera
   const handleBack = useCallback(() => {
     playClick()
     setPhase('splash')
-    setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
+    setScrapbookCamera({ x: 0, y: -60, k: defaultZoom })
     setClassroomCamera({ x: 0, y: 0, k: 1 })
     setViewMode('scrapbook')
     window.history.replaceState({}, '', '/')
@@ -244,7 +241,7 @@ export function LandingPage() {
   // ── Drag → pan (expanded only) ──
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (phase !== 'expanded') return
-    if (viewMode === 'me') return
+    if (viewMode === 'me' || viewMode === 'classroom') return
     if ((e.target as HTMLElement).closest('.polaroid-frame, button, a')) return
     setIsDragging(true)
     lastPos.current = { x: e.clientX, y: e.clientY }
@@ -270,7 +267,7 @@ export function LandingPage() {
 
   // ── Touch handlers for mobile pan + pinch-to-zoom ──
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (phase !== 'expanded' || viewMode === 'me') return
+    if (phase !== 'expanded' || viewMode === 'me' || viewMode === 'classroom') return
     // On desktop, block drag from polaroids; on mobile, allow pan from anywhere
     if ((e.target as HTMLElement).closest('button, a')) return
 
@@ -286,23 +283,19 @@ export function LandingPage() {
       lastTouchPos.current = { x: midX, y: midY }
       touchStartRef.current = {
         x: midX, y: midY, dist,
-        k: viewMode === 'classroom' ? classroomCamera.k : scrapbookCamera.k,
+        k: scrapbookCamera.k,
       }
     }
-  }, [phase, viewMode, classroomCamera.k, scrapbookCamera.k])
+  }, [phase, viewMode, scrapbookCamera.k])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (phase !== 'expanded' || viewMode === 'me') return
+    if (phase !== 'expanded' || viewMode === 'me' || viewMode === 'classroom') return
     e.preventDefault() // prevent scroll
 
     if (e.touches.length === 1 && isDragging) {
       const dx = e.touches[0].clientX - lastTouchPos.current.x
       const dy = e.touches[0].clientY - lastTouchPos.current.y
-      if (viewMode === 'classroom') {
-        setClassroomCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
-      } else {
-        setScrapbookCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
-      }
+      setScrapbookCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
       lastTouchPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
     } else if (e.touches.length === 2 && touchStartRef.current) {
       const dx = e.touches[0].clientX - e.touches[1].clientX
@@ -357,15 +350,13 @@ export function LandingPage() {
   const isClassroom = isExpanded && viewMode === 'classroom'
   const isMe = isExpanded && viewMode === 'me'
   // Mobile needs less offset (smaller polaroids relative to larger circle) for better preview
-  const mobileOffsetX = 40
-  const mobileOffsetY = 60
+  // Vertical shift so Leo & Justin (center of spiral) appear centered in preview circle
+  const PREVIEW_Y_SHIFT = -60
   const gridTransform = isExpanded
     ? isClassroom
-      ? `translate(${camera.x}px, ${camera.y}px) scale(${camera.k})`
+      ? 'none'
       : `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
-    : isMobile
-      ? `translate(calc(-50% - ${mobileOffsetX}px), calc(-50% - ${mobileOffsetY}px)) scale(0.8)`
-      : `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px)) scale(0.75)`
+    : `translate(-50%, calc(-50% + ${PREVIEW_Y_SHIFT}px)) scale(0.55)`
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden select-none md:select-auto">
@@ -404,13 +395,19 @@ export function LandingPage() {
           x: '-50%',
           y: '-50%',
           background: 'transparent',
-          overflow: 'hidden',
+          overflow: isClassroom ? 'auto' : 'hidden',
           boxShadow: isSplash ? '0 8px 40px rgba(0,0,0,0.15)' : 'none',
           cursor: isSplash
             ? 'pointer'
-            : isMe ? 'default' : isDragging ? 'grabbing' : isExpanded ? 'grab' : 'default',
+            : isMe || isClassroom ? 'default' : isDragging ? 'grabbing' : isExpanded ? 'grab' : 'default',
           zIndex: 20,
-          touchAction: 'none',
+          touchAction: isClassroom ? 'pan-y' : 'none',
+          maskImage: isClassroom
+            ? 'linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)'
+            : undefined,
+          WebkitMaskImage: isClassroom
+            ? 'linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)'
+            : undefined,
         }}
         animate={isSplash ? {
           width: isMobile ? '65vw' : '30vw',
@@ -447,17 +444,16 @@ export function LandingPage() {
         {!isMe && (
           <div
             style={{
-              position: 'absolute',
-              left: isClassroom ? '5%' : '50%',
-              top: isClassroom ? '6.5rem' : '50%',
-              width: canvasW,
-              height: canvasH,
+              position: isClassroom ? 'relative' : 'absolute',
+              left: isClassroom ? 'auto' : '50%',
+              top: isClassroom ? 'auto' : '50%',
+              width: isClassroom ? '100%' : canvasW,
+              height: isClassroom ? canvasH + 80 : canvasH,
               transform: gridTransform,
-              transformOrigin: isClassroom ? '0 0' : '50% 50%',
+              transformOrigin: isClassroom ? undefined : '50% 50%',
+              paddingBottom: isClassroom ? '2rem' : undefined,
               opacity: isSplash ? 0.7 : 1,
-              transition: isSplash
-                ? 'opacity 0.3s ease, transform 0.6s cubic-bezier(0.22,1,0.36,1)'
-                : 'opacity 0.5s ease, left 0.4s ease, top 0.4s ease',
+              transition: 'opacity 0.5s ease, transform 0.9s cubic-bezier(0.22,1,0.36,1), left 0.4s ease, top 0.4s ease',
               pointerEvents: isExpanded ? 'auto' : 'none',
             }}
           >
@@ -604,7 +600,7 @@ export function LandingPage() {
             }}
           >
             <button
-              onClick={() => { playClick(); setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom }); setViewMode('scrapbook') }}
+              onClick={() => { playClick(); setScrapbookCamera({ x: 0, y: -60, k: defaultZoom }); setViewMode('scrapbook') }}
               className="flex items-center gap-1.5 text-sm transition-colors"
               style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
             >

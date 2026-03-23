@@ -40,52 +40,26 @@ export function getDeterministicTilt(id: string): number {
   return ((h % 11) - 5) * 0.8
 }
 
-/** Spiral slots: center-out, no overlap guaranteed. Leo & Justin side-by-side at center. */
+/** Spiral slots: center-out on a uniform grid, no overlap. All members treated equally. */
 function getSpiralSlots(count: number): { x: number; y: number }[] {
-  const slots: { x: number; y: number }[] = []
+  if (count <= 0) return []
+
   const stepX = POLAROID_WIDTH + CARD_GAP
   const stepY = POLAROID_HEIGHT + CARD_GAP
 
-  if (count <= 0) return slots
-  if (count === 1) {
-    slots.push({ x: 0, y: 0 })
-    return slots
-  }
-
-  // First two: side-by-side at center (half-grid offset)
-  const placed = [{ x: -stepX / 2, y: 0 }, { x: stepX / 2, y: 0 }]
-  slots.push(...placed)
-
-  if (count > 2) {
-    // Generate grid candidates, reject any that overlap existing slots
-    function wouldOverlap(gx: number, gy: number): boolean {
-      for (const p of placed) {
-        if (Math.abs(gx - p.x) < stepX - 1 && Math.abs(gy - p.y) < stepY - 1) {
-          return true
-        }
-      }
-      return false
-    }
-
-    const maxRing = Math.ceil(Math.sqrt(count)) + 2
-    const candidates: { x: number; y: number; dist: number }[] = []
-    for (let row = -maxRing; row <= maxRing; row++) {
-      for (let col = -maxRing; col <= maxRing; col++) {
-        const gx = col * stepX
-        const gy = row * stepY
-        if (!wouldOverlap(gx, gy)) {
-          candidates.push({ x: gx, y: gy, dist: gx * gx + gy * gy })
-        }
-      }
-    }
-    candidates.sort((a, b) => a.dist - b.dist)
-
-    for (let i = 0; i < count - 2 && i < candidates.length; i++) {
-      slots.push({ x: candidates[i].x, y: candidates[i].y })
+  // Generate grid positions sorted by distance from center
+  const maxRing = Math.ceil(Math.sqrt(count)) + 2
+  const candidates: { x: number; y: number; dist: number }[] = []
+  for (let row = -maxRing; row <= maxRing; row++) {
+    for (let col = -maxRing; col <= maxRing; col++) {
+      const gx = col * stepX
+      const gy = row * stepY
+      candidates.push({ x: gx, y: gy, dist: gx * gx + gy * gy })
     }
   }
+  candidates.sort((a, b) => a.dist - b.dist)
 
-  return slots.slice(0, count)
+  return candidates.slice(0, count).map(c => ({ x: c.x, y: c.y }))
 }
 
 /** Scrapbook: center-out placement with deterministic tilt. No overlap. */
@@ -129,52 +103,39 @@ export function computeScrapbookPositions(
   return { positions, canvasW, canvasH }
 }
 
-/** Classroom: rigid grid, upright. Row 0 = Leo & Justin only; row 1+ = others, cols from viewport. */
+/** Classroom: rigid grid, upright. Fixed 7 columns, centered horizontally. */
 export function computeClassroomPositions(
   members: Member[],
   containerWidth?: number
 ): { positions: Map<string, { x: number; y: number }>; canvasW: number; canvasH: number } {
   const sorted = getSortedMembers(members)
-  const creators = sorted.filter(isCreator)
-  const others = sorted.filter((m) => !isCreator(m))
 
-  const availableWidth = containerWidth ?? 1200
-  const colsBelow = Math.max(
-    2,
-    Math.floor((availableWidth - 2 * GRID_PADDING) / (POLAROID_WIDTH + CARD_GAP))
-  )
+  // 7 columns on desktop, 2 on mobile (< 768px)
+  const COLS = (containerWidth ?? 1200) < 768 ? 2 : 7
+  const gridContentWidth = COLS * POLAROID_WIDTH + (COLS - 1) * CARD_GAP
+  const availableWidth = containerWidth ?? gridContentWidth + GRID_PADDING * 2
+  // Center: equal padding on left and right
+  const leftPad = Math.max(GRID_PADDING, (availableWidth - gridContentWidth) / 2)
 
   const positions = new Map<string, { x: number; y: number }>()
 
-  // Row 0: Leo and Justin only (2 columns)
-  creators.slice(0, 2).forEach((m, i) => {
+  // Top padding to clear the search bar + view toggle overlay (~120px)
+  const topPad = 120
+
+  sorted.forEach((m, i) => {
+    const row = Math.floor(i / COLS)
+    const col = i % COLS
     positions.set(m.id, {
-      x: GRID_PADDING + i * (POLAROID_WIDTH + CARD_GAP),
-      y: GRID_PADDING,
+      x: leftPad + col * (POLAROID_WIDTH + CARD_GAP),
+      y: topPad + row * (POLAROID_HEIGHT + CARD_GAP),
     })
   })
 
-  const topRowCount = Math.min(2, creators.length)
-  const startY =
-    topRowCount > 0 ? GRID_PADDING + (POLAROID_HEIGHT + CARD_GAP) : GRID_PADDING
-
-  // Row 1+: all others, colsBelow per row
-  others.forEach((m, i) => {
-    const row = Math.floor(i / colsBelow)
-    const col = i % colsBelow
-    positions.set(m.id, {
-      x: GRID_PADDING + col * (POLAROID_WIDTH + CARD_GAP),
-      y: startY + row * (POLAROID_HEIGHT + CARD_GAP),
-    })
-  })
-
-  let maxX = 0
   let maxY = 0
   positions.forEach((pos) => {
-    maxX = Math.max(maxX, pos.x + POLAROID_WIDTH)
     maxY = Math.max(maxY, pos.y + POLAROID_HEIGHT)
   })
-  const canvasW = maxX + GRID_PADDING
+  const canvasW = availableWidth
   const canvasH = maxY + GRID_PADDING
 
   return { positions, canvasW, canvasH }

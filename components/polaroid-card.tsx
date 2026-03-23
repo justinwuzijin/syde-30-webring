@@ -260,6 +260,7 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover,
           {/* Still frame image (greyed out by default, full color on hover) */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
+            loading="lazy"
             src={stillImageSrc}
             alt={`${member.name}'s photo`}
             style={{
