@@ -154,7 +154,7 @@ export function LandingPage() {
 
   // Separate camera states for scrapbook and classroom views
   const [scrapbookCamera, setScrapbookCamera] = useState(() =>
-    startExpanded ? { x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 } : { x: 0, y: 0, k: 1 }
+    startExpanded ? { x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 0.75 } : { x: 0, y: 0, k: 1 }
   )
   // Classroom always starts at default position (reset on each switch)
   const [classroomCamera, setClassroomCamera] = useState({ x: 0, y: 0, k: 1 })
@@ -202,7 +202,7 @@ export function LandingPage() {
     setPhase('transitioning')
     setTimeout(() => {
       setViewMode('scrapbook')
-      setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 })
+      setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 0.75 })
       setPhase('expanded')
     }, EXPANDED_DELAY)
   }, [phase, playClick])
@@ -211,7 +211,7 @@ export function LandingPage() {
   const handleBack = useCallback(() => {
     playClick()
     setPhase('splash')
-    setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 })
+    setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 0.75 })
     setClassroomCamera({ x: 0, y: 0, k: 1 })
     setViewMode('scrapbook')
     window.history.replaceState({}, '', '/')
@@ -290,7 +290,7 @@ export function LandingPage() {
       : `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
     : isMobile
       ? `translate(calc(-50% - ${mobileOffsetX}px), calc(-50% - ${mobileOffsetY}px)) scale(0.8)`
-      : `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px))`
+      : `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px)) scale(0.75)`
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden">
@@ -526,7 +526,7 @@ export function LandingPage() {
             }}
           >
             <button
-              onClick={() => { playClick(); setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 }); setViewMode('scrapbook') }}
+              onClick={() => { playClick(); setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 0.75 }); setViewMode('scrapbook') }}
               className="flex items-center gap-1.5 text-sm transition-colors"
               style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
             >
