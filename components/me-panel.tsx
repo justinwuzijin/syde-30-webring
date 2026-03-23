@@ -598,18 +598,18 @@ export function MePanel() {
   }, [])
 
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-x-hidden overflow-y-auto">
+    <div className="absolute inset-0 pointer-events-none overflow-x-hidden overflow-y-auto lg:overflow-hidden">
       <div className="min-h-full w-full flex flex-col">
         {/* Spacer for fixed nav (back button + tabs) */}
-        <div className="h-24 shrink-0" />
+        <div className="h-[5.5rem] shrink-0" />
 
         {/* Center main content in remaining viewport */}
-        <div className="flex-1 px-4 sm:px-6 lg:px-10 py-10 flex items-center justify-center min-h-0">
-          <div className="w-full max-w-6xl pointer-events-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_minmax(0,760px)] gap-12 items-center justify-center">
+        <div className="flex-1 px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-center min-h-0">
+          <div className="w-full max-w-5xl pointer-events-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] gap-6 items-center justify-center">
               {/* Left: live preview (centered beside editor) */}
               <div className="flex items-center justify-center">
-                <div ref={previewContainerRef} className="flex flex-col items-center w-[min(340px,92vw)]">
+                <div ref={previewContainerRef} className="flex flex-col items-center w-[min(300px,88vw)]">
                   {/* Scaled polaroid block (real visual) */}
                   <div
                     className="relative"
@@ -653,8 +653,8 @@ export function MePanel() {
               </div>
 
               {/* Right: editor */}
-              <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-3xl shadow-[0_14px_40px_rgba(15,23,42,0.16)] overflow-hidden">
-              <div className="px-5 py-4 border-b border-black/5">
+              <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-3xl shadow-[0_12px_32px_rgba(15,23,42,0.14)] overflow-hidden">
+              <div className="px-4 py-3 border-b border-black/5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex flex-col">
                     <span className="text-[11px] text-neutral-500 font-mono lowercase">
@@ -673,8 +673,8 @@ export function MePanel() {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <form onSubmit={handleSubmit} className="px-4 py-3 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                   <div className="space-y-1.5 md:col-span-2">
                     <label className="text-[11px] text-neutral-500 font-mono lowercase">
                       display name (handwritten label)
@@ -734,7 +734,7 @@ export function MePanel() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] text-neutral-500 font-mono lowercase">
