@@ -495,12 +495,12 @@ export function LandingPage() {
             )}
             {filteredMembers.length === 0 && searchTerm.trim() && !membersLoading && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className={'px-6 py-3 ' + GLASS_CHROME}>
-                  <div className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
-                  <p className="relative text-xs md:text-sm text-neutral-900 lowercase tracking-[0.16em] text-center">
-                    the user you are searching for does not exist yet, get them to sign up!
-                  </p>
-                </div>
+                <p
+                  className="text-black/40 text-xs md:text-sm lowercase tracking-[0.16em] text-center max-w-[min(90vw,28rem)]"
+                  style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+                >
+                  the user you are searching for does not exist yet, get them to sign up!
+                </p>
               </div>
             )}
 
