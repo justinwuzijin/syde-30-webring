@@ -167,6 +167,10 @@ export function LandingPage() {
   const [isHoveringPreview, setIsHoveringPreview] = useState(false)
   const lastPos = useRef({ x: 0, y: 0 })
 
+  // Touch state for pan and pinch-to-zoom
+  const touchStartRef = useRef<{ x: number; y: number; dist: number; k: number } | null>(null)
+  const lastTouchPos = useRef({ x: 0, y: 0 })
+
   // Remount goose when returning to home
   const prevPathname = useRef<string | null>(null)
   const [gooseKey, setGooseKey] = useState(0)
@@ -260,6 +264,73 @@ export function LandingPage() {
   }, [isDragging, viewMode])
 
   const handleMouseUp = useCallback(() => setIsDragging(false), [])
+
+  // ── Touch handlers for mobile pan + pinch-to-zoom ──
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (phase !== 'expanded' || viewMode === 'me') return
+    if ((e.target as HTMLElement).closest('.polaroid-frame, button, a')) return
+
+    if (e.touches.length === 1) {
+      lastTouchPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      setIsDragging(true)
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+      lastTouchPos.current = { x: midX, y: midY }
+      touchStartRef.current = {
+        x: midX, y: midY, dist,
+        k: viewMode === 'classroom' ? classroomCamera.k : scrapbookCamera.k,
+      }
+    }
+  }, [phase, viewMode, classroomCamera.k, scrapbookCamera.k])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (phase !== 'expanded' || viewMode === 'me') return
+    e.preventDefault() // prevent scroll
+
+    if (e.touches.length === 1 && isDragging) {
+      const dx = e.touches[0].clientX - lastTouchPos.current.x
+      const dy = e.touches[0].clientY - lastTouchPos.current.y
+      if (viewMode === 'classroom') {
+        setClassroomCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
+      } else {
+        setScrapbookCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
+      }
+      lastTouchPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    } else if (e.touches.length === 2 && touchStartRef.current) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+
+      // Pan from midpoint movement
+      const panDx = midX - lastTouchPos.current.x
+      const panDy = midY - lastTouchPos.current.y
+      lastTouchPos.current = { x: midX, y: midY }
+
+      if (viewMode === 'scrapbook') {
+        // Pinch-to-zoom (scrapbook only)
+        const scale = dist / touchStartRef.current.dist
+        const newK = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, touchStartRef.current.k * scale))
+        setScrapbookCamera(prev => {
+          const ratio = newK / prev.k
+          return { x: prev.x * ratio + panDx, y: prev.y * ratio + panDy, k: newK }
+        })
+      } else {
+        // Classroom: pan only, no zoom
+        setClassroomCamera(prev => ({ ...prev, x: prev.x + panDx, y: prev.y + panDy }))
+      }
+    }
+  }, [phase, viewMode, isDragging])
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length < 2) touchStartRef.current = null
+    if (e.touches.length === 0) setIsDragging(false)
+  }, [])
 
   // Click polaroid → profile (expanded only)
   const handleCardClick = useCallback((memberId: string) => {
@@ -362,6 +433,9 @@ export function LandingPage() {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
 {/* Grid is rendered outside circle as a sibling */}
 
@@ -626,7 +700,7 @@ export function LandingPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.3 }}
         >
-          Scroll to zoom · Drag to pan · Click a polaroid to visit
+          {isMobile ? 'Drag to pan · Pinch to zoom · Long-press a polaroid' : 'Scroll to zoom · Drag to pan · Click a polaroid to visit'}
         </motion.div>
       )}
 

@@ -113,6 +113,50 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover,
     }
   }, [])
 
+  // Long-press for mobile: activate live photo + name reveal
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [longPressed, setLongPressed] = useState(false)
+
+  const handleTouchStartCard = useCallback((_e: React.TouchEvent) => {
+    // Don't stop propagation — let parent handle pan. Only activate on single finger hold.
+    longPressTimer.current = setTimeout(() => {
+      setLongPressed(true)
+      setHovered(true)
+      setNameRevealed(true)
+      onHover?.()
+      onNameReveal?.()
+      if (hasUploadedLive && videoRef.current) {
+        setVideoVisible(true)
+        videoRef.current.currentTime = 0
+        videoRef.current.play().catch(() => {})
+      }
+    }, 400)
+  }, [hasUploadedLive, onHover, onNameReveal])
+
+  const handleTouchEndCard = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+    if (longPressed) {
+      setLongPressed(false)
+      setHovered(false)
+      setVideoVisible(false)
+      if (videoRef.current) {
+        videoRef.current.pause()
+        videoRef.current.currentTime = 0
+      }
+    }
+  }, [longPressed])
+
+  const handleTouchMoveCard = useCallback(() => {
+    // Cancel long press if finger moves (user is panning)
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }, [])
+
 
   return (
     <div
@@ -131,6 +175,9 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover,
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
+      onTouchStart={handleTouchStartCard}
+      onTouchEnd={handleTouchEndCard}
+      onTouchMove={handleTouchMoveCard}
     >
       {/* ── Frame (the white Polaroid border) ── */}
       <div
