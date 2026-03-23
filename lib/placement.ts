@@ -40,45 +40,49 @@ export function getDeterministicTilt(id: string): number {
   return ((h % 11) - 5) * 0.8
 }
 
-/** Spiral slots: center-out, no overlap. Leo & Justin side-by-side at center. */
+/** Spiral slots: center-out, no overlap guaranteed. Leo & Justin side-by-side at center. */
 function getSpiralSlots(count: number): { x: number; y: number }[] {
   const slots: { x: number; y: number }[] = []
   const stepX = POLAROID_WIDTH + CARD_GAP
   const stepY = POLAROID_HEIGHT + CARD_GAP
 
   if (count <= 0) return slots
-
-  // Slot 0: center. Slot 1: right of center (Leo & Justin side-by-side)
   if (count === 1) {
     slots.push({ x: 0, y: 0 })
     return slots
   }
-  if (count === 2) {
-    slots.push({ x: -stepX / 2, y: 0 })
-    slots.push({ x: stepX / 2, y: 0 })
-    return slots
-  }
 
-  // 3+: spiral outward
-  slots.push({ x: -stepX / 2, y: 0 })
-  slots.push({ x: stepX / 2, y: 0 })
-  slots.push({ x: 0, y: stepY })
+  // First two: side-by-side at center (half-grid offset)
+  const placed = [{ x: -stepX / 2, y: 0 }, { x: stepX / 2, y: 0 }]
+  slots.push(...placed)
 
-  let ring = 1
-  while (slots.length < count) {
-    for (let i = -ring; i <= ring && slots.length < count; i++) {
-      slots.push({ x: i * stepX, y: -ring * stepY })
+  if (count > 2) {
+    // Generate grid candidates, reject any that overlap existing slots
+    function wouldOverlap(gx: number, gy: number): boolean {
+      for (const p of placed) {
+        if (Math.abs(gx - p.x) < stepX - 1 && Math.abs(gy - p.y) < stepY - 1) {
+          return true
+        }
+      }
+      return false
     }
-    for (let j = -ring + 1; j <= ring && slots.length < count; j++) {
-      slots.push({ x: ring * stepX, y: j * stepY })
+
+    const maxRing = Math.ceil(Math.sqrt(count)) + 2
+    const candidates: { x: number; y: number; dist: number }[] = []
+    for (let row = -maxRing; row <= maxRing; row++) {
+      for (let col = -maxRing; col <= maxRing; col++) {
+        const gx = col * stepX
+        const gy = row * stepY
+        if (!wouldOverlap(gx, gy)) {
+          candidates.push({ x: gx, y: gy, dist: gx * gx + gy * gy })
+        }
+      }
     }
-    for (let i = ring - 1; i >= -ring && slots.length < count; i--) {
-      slots.push({ x: i * stepX, y: ring * stepY })
+    candidates.sort((a, b) => a.dist - b.dist)
+
+    for (let i = 0; i < count - 2 && i < candidates.length; i++) {
+      slots.push({ x: candidates[i].x, y: candidates[i].y })
     }
-    for (let j = ring - 1; j >= -ring && slots.length < count; j--) {
-      slots.push({ x: -ring * stepX, y: j * stepY })
-    }
-    ring++
   }
 
   return slots.slice(0, count)
@@ -131,7 +135,7 @@ export function computeClassroomPositions(
 ): { positions: Map<string, { x: number; y: number }>; canvasW: number; canvasH: number } {
   const sorted = getSortedMembers(members)
   const n = sorted.length
-  const cols = Math.max(2, Math.ceil(Math.sqrt(n)))
+  const cols = Math.min(8, Math.max(2, n))
   const rows = Math.ceil(n / cols)
   const innerW = cols * (POLAROID_WIDTH + CARD_GAP) - CARD_GAP
   const innerH = rows * (POLAROID_HEIGHT + CARD_GAP) - CARD_GAP
