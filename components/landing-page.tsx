@@ -872,7 +872,7 @@ export function LandingPage() {
           transition={{ duration: 0.6, delay: 0.6 }}
         >
           <span
-            className="text-black/80 text-[max(8px,0.5vw)]"
+            className="text-black/25 text-[max(8px,0.5vw)]"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             &quot;Goose&quot; (
@@ -891,7 +891,7 @@ export function LandingPage() {
           transition={{ duration: 0.6, delay: 0.6 }}
         >
           <span
-            className="text-black/60 text-[8px] text-center block"
+            className="text-black/25 text-[8px] text-center block"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             &quot;Goose&quot; by OlegPopka · CC-BY 4.0
