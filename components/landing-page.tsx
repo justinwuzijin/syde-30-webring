@@ -43,11 +43,13 @@ const MIN_ZOOM = 0.3
 const MAX_ZOOM = 2.5
 const ZOOM_SENSITIVITY = 0.002
 
-/** Splash preview offset — polaroids shifted up/left for visual centering. Must match camera on expand. */
-const PREVIEW_OFFSET_X = 72
-const PREVIEW_OFFSET_Y = 118
+/** Splash preview offset. Must match scrapbook camera on expand for zero-shift transitions. */
+const PREVIEW_OFFSET_X = 0
+const PREVIEW_OFFSET_Y = 0
 const DESKTOP_ZOOM = 0.75
 const MOBILE_ZOOM = 0.65
+const CLASSROOM_TOP_OFFSET_PX = 104
+const CLASSROOM_BOTTOM_GUTTER_PX = 24
 
 /** Landing preview: only Leo and Justin */
 function getLandingPreviewMembers(members: Member[]): Member[] {
@@ -110,6 +112,9 @@ export function LandingPage() {
   const [viewportWidth, setViewportWidth] = useState(
     () => (typeof window !== 'undefined' ? window.innerWidth : 1200)
   )
+  const [viewportHeight, setViewportHeight] = useState(
+    () => (typeof window !== 'undefined' ? window.innerHeight : 900)
+  )
 
   // Detect mobile viewport (for responsive circle sizing)
   useEffect(() => {
@@ -121,10 +126,13 @@ export function LandingPage() {
 
   // Track viewport width for dynamic classroom columns
   useEffect(() => {
-    const updateViewportWidth = () => setViewportWidth(window.innerWidth)
-    updateViewportWidth()
-    window.addEventListener('resize', updateViewportWidth)
-    return () => window.removeEventListener('resize', updateViewportWidth)
+    const updateViewport = () => {
+      setViewportWidth(window.innerWidth)
+      setViewportHeight(window.innerHeight)
+    }
+    updateViewport()
+    window.addEventListener('resize', updateViewport)
+    return () => window.removeEventListener('resize', updateViewport)
   }, [])
 
   // Fetch members from Supabase with SWR (cached, deduped)
@@ -224,10 +232,23 @@ export function LandingPage() {
     window.history.replaceState({}, '', '/')
   }, [playClick])
 
-  // ── Wheel → zoom centered (scrapbook only, disabled in classroom) ──
+  const clampClassroomY = useCallback((y: number) => {
+    const visibleHeight = Math.max(0, viewportHeight - CLASSROOM_TOP_OFFSET_PX - CLASSROOM_BOTTOM_GUTTER_PX)
+    const minY = Math.min(0, visibleHeight - canvasH)
+    return Math.max(minY, Math.min(0, y))
+  }, [viewportHeight, canvasH])
+
+  // ── Wheel interactions ──
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (phase !== 'expanded') return
-    if (viewMode === 'classroom' || viewMode === 'me') return // No zoom in classroom or me
+    if (viewMode === 'me') return
+    if (viewMode === 'classroom') {
+      // Classroom: vertical scroll only, no horizontal movement
+      e.preventDefault()
+      e.stopPropagation()
+      setClassroomCamera(prev => ({ ...prev, y: clampClassroomY(prev.y - e.deltaY) }))
+      return
+    }
     e.stopPropagation()
     setScrapbookCamera(prev => {
       const delta = -e.deltaY * ZOOM_SENSITIVITY
@@ -239,38 +260,33 @@ export function LandingPage() {
         k: newK,
       }
     })
-  }, [phase, viewMode])
+  }, [phase, viewMode, clampClassroomY])
 
-  // ── Drag → pan (expanded only) ──
+  // ── Drag → pan (expanded scrapbook only) ──
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (phase !== 'expanded') return
-    if (viewMode === 'me') return
+    if (viewMode === 'me' || viewMode === 'classroom') return
     if ((e.target as HTMLElement).closest('.polaroid-frame, button, a')) return
     setIsDragging(true)
     lastPos.current = { x: e.clientX, y: e.clientY }
     e.preventDefault()
-  }, [phase])
+  }, [phase, viewMode])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return
     const dx = e.clientX - lastPos.current.x
     const dy = e.clientY - lastPos.current.y
     
-    if (viewMode === 'classroom') {
-      // Classroom: free pan, no zoom
-      setClassroomCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
-    } else {
-      // Scrapbook: free pan in all directions
-      setScrapbookCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
-    }
+    // Scrapbook: free pan in all directions
+    setScrapbookCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
     lastPos.current = { x: e.clientX, y: e.clientY }
-  }, [isDragging, viewMode])
+  }, [isDragging])
 
   const handleMouseUp = useCallback(() => setIsDragging(false), [])
 
   // ── Touch handlers for mobile pan + pinch-to-zoom ──
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (phase !== 'expanded' || viewMode === 'me') return
+    if (phase !== 'expanded' || viewMode === 'me' || viewMode === 'classroom') return
     // On desktop, block drag from polaroids; on mobile, allow pan from anywhere
     if ((e.target as HTMLElement).closest('button, a')) return
 
@@ -292,17 +308,13 @@ export function LandingPage() {
   }, [phase, viewMode, classroomCamera.k, scrapbookCamera.k])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (phase !== 'expanded' || viewMode === 'me') return
+    if (phase !== 'expanded' || viewMode === 'me' || viewMode === 'classroom') return
     e.preventDefault() // prevent scroll
 
     if (e.touches.length === 1 && isDragging) {
       const dx = e.touches[0].clientX - lastTouchPos.current.x
       const dy = e.touches[0].clientY - lastTouchPos.current.y
-      if (viewMode === 'classroom') {
-        setClassroomCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
-      } else {
-        setScrapbookCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
-      }
+      setScrapbookCamera(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
       lastTouchPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
     } else if (e.touches.length === 2 && touchStartRef.current) {
       const dx = e.touches[0].clientX - e.touches[1].clientX
@@ -316,18 +328,13 @@ export function LandingPage() {
       const panDy = midY - lastTouchPos.current.y
       lastTouchPos.current = { x: midX, y: midY }
 
-      if (viewMode === 'scrapbook') {
-        // Pinch-to-zoom (scrapbook only)
-        const scale = dist / touchStartRef.current.dist
-        const newK = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, touchStartRef.current.k * scale))
-        setScrapbookCamera(prev => {
-          const ratio = newK / prev.k
-          return { x: prev.x * ratio + panDx, y: prev.y * ratio + panDy, k: newK }
-        })
-      } else {
-        // Classroom: pan only, no zoom
-        setClassroomCamera(prev => ({ ...prev, x: prev.x + panDx, y: prev.y + panDy }))
-      }
+      // Pinch-to-zoom (scrapbook only)
+      const scale = dist / touchStartRef.current.dist
+      const newK = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, touchStartRef.current.k * scale))
+      setScrapbookCamera(prev => {
+        const ratio = newK / prev.k
+        return { x: prev.x * ratio + panDx, y: prev.y * ratio + panDy, k: newK }
+      })
     }
   }, [phase, viewMode, isDragging])
 
@@ -356,9 +363,9 @@ export function LandingPage() {
   // Classroom mode anchors grid to top-left (aligned with photo folder at 5%, below toggles at ~6rem)
   const isClassroom = isExpanded && viewMode === 'classroom'
   const isMe = isExpanded && viewMode === 'me'
-  // Mobile needs less offset (smaller polaroids relative to larger circle) for better preview
-  const mobileOffsetX = 40
-  const mobileOffsetY = 60
+  // Mobile preview uses the same anchor as desktop to avoid transition drift.
+  const mobileOffsetX = PREVIEW_OFFSET_X
+  const mobileOffsetY = PREVIEW_OFFSET_Y
   const gridTransform = isExpanded
     ? isClassroom
       ? `translate(${camera.x}px, ${camera.y}px) scale(${camera.k})`
@@ -682,19 +689,6 @@ export function LandingPage() {
         </motion.button>
       )}
 
-      {/* ── Photo folder — fixed bottom-left in expanded view ── */}
-      {isExpanded && !isMe && (
-        <motion.div
-          className="fixed z-50"
-          style={{ left: '5%', bottom: '10%' }}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <PhotoFolder onHover={playFolderHover} onPhotoChange={playPageTurn} onPhotoHover={playPageTurn} />
-        </motion.div>
-      )}
-
       {/* ── Hint — bottom center in expanded view ── */}
       {isExpanded && !isMe && (
         <motion.div
@@ -704,7 +698,11 @@ export function LandingPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.3 }}
         >
-          {isMobile ? 'Drag to pan. Press to view.' : 'Scroll to zoom · Drag to pan · Click a polaroid to visit'}
+          {viewMode === 'classroom'
+            ? 'Scroll to browse · Click a polaroid to visit'
+            : isMobile
+            ? 'Drag to pan. Press to view.'
+            : 'Scroll to zoom · Drag to pan · Click a polaroid to visit'}
         </motion.div>
       )}
 
@@ -747,7 +745,7 @@ export function LandingPage() {
         <motion.div
           className="absolute left-0 top-[32%] w-[27%] hidden md:block"
           style={{ aspectRatio: '470 / 500' }}
-s          initial={{ opacity: 0, x: -30 }}
+          initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
         >

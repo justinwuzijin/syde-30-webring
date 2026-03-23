@@ -40,49 +40,97 @@ export function getDeterministicTilt(id: string): number {
   return ((h % 11) - 5) * 0.8
 }
 
-/** Spiral slots: center-out, no overlap guaranteed. Leo & Justin side-by-side at center. */
-function getSpiralSlots(count: number): { x: number; y: number }[] {
+function seededUnit(memberId: string, salt: string): number {
+  let h = 2166136261
+  const source = `${memberId}:${salt}`
+  for (let i = 0; i < source.length; i++) {
+    h ^= source.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return ((h >>> 0) % 10_000) / 10_000
+}
+
+function overlapsExisting(
+  x: number,
+  y: number,
+  existing: { x: number; y: number }[],
+  minDx: number,
+  minDy: number
+): boolean {
+  for (const p of existing) {
+    if (Math.abs(x - p.x) < minDx && Math.abs(y - p.y) < minDy) return true
+  }
+  return false
+}
+
+/**
+ * Organic scrapbook slots:
+ * - deterministic per member id
+ * - center-out expansion as count grows
+ * - jittered rows so large cohorts look less grid-like
+ * - hard collision guard so cards stay readable
+ */
+function getOrganicSlots(sorted: Member[]): { x: number; y: number }[] {
+  const count = sorted.length
   const slots: { x: number; y: number }[] = []
   const stepX = POLAROID_WIDTH + CARD_GAP
   const stepY = POLAROID_HEIGHT + CARD_GAP
+  const minDx = POLAROID_WIDTH + 14
+  const minDy = POLAROID_HEIGHT + 20
 
   if (count <= 0) return slots
-  if (count === 1) {
-    slots.push({ x: 0, y: 0 })
-    return slots
-  }
+  if (count === 1) return [{ x: 0, y: 0 }]
 
-  // First two: side-by-side at center (half-grid offset)
-  const placed = [{ x: -stepX / 2, y: 0 }, { x: stepX / 2, y: 0 }]
-  slots.push(...placed)
+  // Keep the two creators visually central.
+  slots.push({ x: -stepX / 2, y: 0 }, { x: stepX / 2, y: 0 })
 
-  if (count > 2) {
-    // Generate grid candidates, reject any that overlap existing slots
-    function wouldOverlap(gx: number, gy: number): boolean {
-      for (const p of placed) {
-        if (Math.abs(gx - p.x) < stepX - 1 && Math.abs(gy - p.y) < stepY - 1) {
-          return true
-        }
-      }
-      return false
-    }
-
-    const maxRing = Math.ceil(Math.sqrt(count)) + 2
-    const candidates: { x: number; y: number; dist: number }[] = []
-    for (let row = -maxRing; row <= maxRing; row++) {
-      for (let col = -maxRing; col <= maxRing; col++) {
-        const gx = col * stepX
-        const gy = row * stepY
-        if (!wouldOverlap(gx, gy)) {
-          candidates.push({ x: gx, y: gy, dist: gx * gx + gy * gy })
-        }
+  let ring = 1
+  let idx = 2
+  while (idx < count) {
+    const cells: { cx: number; cy: number; d2: number }[] = []
+    for (let row = -ring; row <= ring; row++) {
+      for (let col = -ring; col <= ring; col++) {
+        if (Math.max(Math.abs(row), Math.abs(col)) !== ring) continue
+        const cx = col * stepX
+        const cy = row * stepY
+        cells.push({ cx, cy, d2: cx * cx + cy * cy })
       }
     }
-    candidates.sort((a, b) => a.dist - b.dist)
+    cells.sort((a, b) => a.d2 - b.d2)
 
-    for (let i = 0; i < count - 2 && i < candidates.length; i++) {
-      slots.push({ x: candidates[i].x, y: candidates[i].y })
+    for (const cell of cells) {
+      if (idx >= count) break
+      const m = sorted[idx]
+      const jitterX = (seededUnit(m.id, 'jx') - 0.5) * Math.min(26, CARD_GAP * 0.55)
+      const jitterY = (seededUnit(m.id, 'jy') - 0.5) * Math.min(30, CARD_GAP * 0.65)
+      const tiltBias = (seededUnit(m.id, 'tb') - 0.5) * 16
+
+      let x = cell.cx + jitterX + tiltBias
+      let y = cell.cy + jitterY
+
+      if (overlapsExisting(x, y, slots, minDx, minDy)) {
+        // Deterministic fallback search around the target cell.
+        const angles = [20, 65, 110, 155, 200, 245, 290, 335]
+        let placed = false
+        for (const a of angles) {
+          const rad = (a * Math.PI) / 180
+          const radius = Math.max(18, CARD_GAP * 0.6)
+          const tx = cell.cx + Math.cos(rad) * radius
+          const ty = cell.cy + Math.sin(rad) * radius
+          if (!overlapsExisting(tx, ty, slots, minDx, minDy)) {
+            x = tx
+            y = ty
+            placed = true
+            break
+          }
+        }
+        if (!placed) continue
+      }
+
+      slots.push({ x, y })
+      idx++
     }
+    ring++
   }
 
   return slots.slice(0, count)
@@ -93,7 +141,7 @@ export function computeScrapbookPositions(
   members: Member[]
 ): { positions: Map<string, { x: number; y: number; rotation: number }>; canvasW: number; canvasH: number } {
   const sorted = getSortedMembers(members)
-  const slots = getSpiralSlots(sorted.length)
+  const slots = getOrganicSlots(sorted)
 
   let minX = Infinity
   let maxX = -Infinity
@@ -112,16 +160,25 @@ export function computeScrapbookPositions(
 
   const canvasW = Math.max(400, maxX - minX + GRID_PADDING * 2)
   const canvasH = Math.max(400, maxY - minY + GRID_PADDING * 2)
-  const offsetX = canvasW / 2 - (minX + maxX) / 2
-  const offsetY = canvasH / 2 - (minY + maxY) / 2
+
+  // Keep Leo + Justin anchor point immutable across cohort growth:
+  // the midpoint of the first two slots stays at canvas center.
+  const anchorX =
+    slots.length >= 2 ? (slots[0].x + slots[1].x) / 2 : slots.length === 1 ? slots[0].x : 0
+  const anchorY =
+    slots.length >= 2 ? (slots[0].y + slots[1].y) / 2 : slots.length === 1 ? slots[0].y : 0
+  const offsetX = canvasW / 2 - anchorX
+  const offsetY = canvasH / 2 - anchorY
 
   const positions = new Map<string, { x: number; y: number; rotation: number }>()
   sorted.forEach((m, i) => {
     const slot = slots[i]
     const rotation = getDeterministicTilt(m.id)
     positions.set(m.id, {
-      x: slot.x + offsetX,
-      y: slot.y + offsetY,
+      // PolaroidCard expects top-left x/y and derives visual center internally.
+      // Scrapbook slots are center-based, so convert here to top-left space.
+      x: slot.x + offsetX - POLAROID_WIDTH / 2,
+      y: slot.y + offsetY - POLAROID_HEIGHT / 2,
       rotation,
     })
   })
