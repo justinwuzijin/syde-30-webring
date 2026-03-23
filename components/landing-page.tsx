@@ -43,12 +43,15 @@ const MIN_ZOOM = 0.3
 const MAX_ZOOM = 2.5
 const ZOOM_SENSITIVITY = 0.002
 
+/** Splash preview offset. Must match scrapbook camera on expand for zero-shift transitions. */
+const PREVIEW_OFFSET_X = 0
+const PREVIEW_OFFSET_Y = 40
 const DESKTOP_ZOOM = 0.75
 const MOBILE_ZOOM = 0.65
 const CLASSROOM_TOP_OFFSET_PX = 104
 const CLASSROOM_BOTTOM_GUTTER_PX = 24
 
-/** Landing preview: all members (Leo & Justin centered via sort order) */
+/** Landing preview: all members */
 function getLandingPreviewMembers(members: Member[]): Member[] {
   return members
 }
@@ -162,7 +165,9 @@ export function LandingPage() {
   // Separate camera states for scrapbook and classroom views
   const defaultZoom = isMobile ? MOBILE_ZOOM : DESKTOP_ZOOM
   const [scrapbookCamera, setScrapbookCamera] = useState(() =>
-    startExpanded ? { x: 0, y: -60, k: defaultZoom } : { x: 0, y: 0, k: 1 }
+    startExpanded
+      ? { x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom }
+      : { x: 0, y: 0, k: 1 }
   )
   // Classroom always starts at default position (reset on each switch)
   const [classroomCamera, setClassroomCamera] = useState({ x: 0, y: 0, k: 1 })
@@ -192,7 +197,7 @@ export function LandingPage() {
           setPhase('expanded')
         } else {
           setPhase('splash')
-          setScrapbookCamera({ x: 0, y: 0, k: 1 })
+          setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 1 })
         }
       }
       prevPathname.current = '/'
@@ -214,7 +219,7 @@ export function LandingPage() {
     setPhase('transitioning')
     setTimeout(() => {
       setViewMode('scrapbook')
-      setScrapbookCamera({ x: 0, y: -60, k: defaultZoom })
+      setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
       setPhase('expanded')
     }, EXPANDED_DELAY)
   }, [phase, playClick])
@@ -223,7 +228,7 @@ export function LandingPage() {
   const handleBack = useCallback(() => {
     playClick()
     setPhase('splash')
-    setScrapbookCamera({ x: 0, y: -60, k: defaultZoom })
+    setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
     setClassroomCamera({ x: 0, y: 0, k: 1 })
     setViewMode('scrapbook')
     window.history.replaceState({}, '', '/')
@@ -360,29 +365,11 @@ export function LandingPage() {
   // Classroom mode anchors grid to top-left (aligned with photo folder at 5%, below toggles at ~6rem)
   const isClassroom = isExpanded && viewMode === 'classroom'
   const isMe = isExpanded && viewMode === 'me'
-  // Compute creators' centroid offset from canvas center so preview centers on Leo & Justin
-  const creatorsOffset = useMemo(() => {
-    const creatorIds = displayMembers.filter(m => isCreator(m)).map(m => m.id)
-    if (creatorIds.length === 0) return { dx: 0, dy: 0 }
-    let sumX = 0, sumY = 0
-    for (const id of creatorIds) {
-      const pos = positions.get(id)
-      if (pos) {
-        sumX += pos.x + POLAROID_WIDTH / 2
-        sumY += pos.y + POLAROID_HEIGHT / 2
-      }
-    }
-    const cx = sumX / creatorIds.length
-    const cy = sumY / creatorIds.length
-    // Offset from canvas center
-    return { dx: cx - canvasW / 2, dy: cy - canvasH / 2 }
-  }, [displayMembers, positions, canvasW, canvasH])
-
   const gridTransform = isExpanded
     ? isClassroom
       ? 'none'
       : `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
-    : `translate(calc(-50% - ${creatorsOffset.dx}px), calc(-50% - ${creatorsOffset.dy}px)) scale(0.62)`
+    : `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px)) scale(0.62)`
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden select-none md:select-auto">
@@ -640,7 +627,11 @@ export function LandingPage() {
             }}
           >
             <button
-              onClick={() => { playClick(); setScrapbookCamera({ x: 0, y: -60, k: defaultZoom }); setViewMode('scrapbook') }}
+              onClick={() => {
+                playClick()
+                setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
+                setViewMode('scrapbook')
+              }}
               className="flex items-center gap-1.5 text-sm transition-colors"
               style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
             >

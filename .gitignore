@@ -15,6 +15,7 @@ out/
 # Environment & secrets (never commit)
 .env
 .env*.local
+.env.local
 !.env.example
 
 # Package manager
