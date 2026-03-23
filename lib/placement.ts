@@ -65,72 +65,52 @@ function overlapsExisting(
 
 /**
  * Organic scrapbook slots:
- * - deterministic per member id
- * - center-out expansion as count grows
- * - jittered rows so large cohorts look less grid-like
- * - hard collision guard so cards stay readable
+ * - uniform grid, center-out, with subtle jitter for organic feel
+ * - all members treated equally (no special creator positions)
+ * - strict collision guard so no overlaps
  */
 function getOrganicSlots(sorted: Member[]): { x: number; y: number }[] {
   const count = sorted.length
-  const slots: { x: number; y: number }[] = []
+  if (count <= 0) return []
+
   const stepX = POLAROID_WIDTH + CARD_GAP
   const stepY = POLAROID_HEIGHT + CARD_GAP
-  const minDx = POLAROID_WIDTH + 14
-  const minDy = POLAROID_HEIGHT + 20
+  // Strict: no overlap allowed (full card size + small buffer)
+  const minDx = POLAROID_WIDTH + 8
+  const minDy = POLAROID_HEIGHT + 8
 
-  if (count <= 0) return slots
-  if (count === 1) return [{ x: 0, y: 0 }]
-
-  // Keep the two creators visually central.
-  slots.push({ x: -stepX / 2, y: 0 }, { x: stepX / 2, y: 0 })
-
-  let ring = 1
-  let idx = 2
-  while (idx < count) {
-    const cells: { cx: number; cy: number; d2: number }[] = []
-    for (let row = -ring; row <= ring; row++) {
-      for (let col = -ring; col <= ring; col++) {
-        if (Math.max(Math.abs(row), Math.abs(col)) !== ring) continue
-        const cx = col * stepX
-        const cy = row * stepY
-        cells.push({ cx, cy, d2: cx * cx + cy * cy })
-      }
+  // Generate grid positions sorted by distance from center
+  const maxRing = Math.ceil(Math.sqrt(count)) + 2
+  const candidates: { x: number; y: number; dist: number }[] = []
+  for (let row = -maxRing; row <= maxRing; row++) {
+    for (let col = -maxRing; col <= maxRing; col++) {
+      const gx = col * stepX
+      const gy = row * stepY
+      candidates.push({ x: gx, y: gy, dist: gx * gx + gy * gy })
     }
-    cells.sort((a, b) => a.d2 - b.d2)
+  }
+  candidates.sort((a, b) => a.dist - b.dist)
 
-    for (const cell of cells) {
-      if (idx >= count) break
-      const m = sorted[idx]
-      const jitterX = (seededUnit(m.id, 'jx') - 0.5) * Math.min(26, CARD_GAP * 0.55)
-      const jitterY = (seededUnit(m.id, 'jy') - 0.5) * Math.min(30, CARD_GAP * 0.65)
-      const tiltBias = (seededUnit(m.id, 'tb') - 0.5) * 16
+  // Place each member at the next closest grid cell with subtle jitter
+  const slots: { x: number; y: number }[] = []
+  let ci = 0
+  for (let i = 0; i < count && ci < candidates.length; ci++) {
+    const cell = candidates[ci]
+    const m = sorted[i]
+    // Subtle jitter — small enough to never cause overlap
+    const jx = (seededUnit(m.id, 'jx') - 0.5) * 16
+    const jy = (seededUnit(m.id, 'jy') - 0.5) * 16
+    const x = cell.x + jx
+    const y = cell.y + jy
 
-      let x = cell.cx + jitterX + tiltBias
-      let y = cell.cy + jitterY
-
-      if (overlapsExisting(x, y, slots, minDx, minDy)) {
-        // Deterministic fallback search around the target cell.
-        const angles = [20, 65, 110, 155, 200, 245, 290, 335]
-        let placed = false
-        for (const a of angles) {
-          const rad = (a * Math.PI) / 180
-          const radius = Math.max(18, CARD_GAP * 0.6)
-          const tx = cell.cx + Math.cos(rad) * radius
-          const ty = cell.cy + Math.sin(rad) * radius
-          if (!overlapsExisting(tx, ty, slots, minDx, minDy)) {
-            x = tx
-            y = ty
-            placed = true
-            break
-          }
-        }
-        if (!placed) continue
-      }
-
+    if (overlapsExisting(x, y, slots, minDx, minDy)) {
+      // Skip jitter, use raw grid position
+      if (overlapsExisting(cell.x, cell.y, slots, minDx, minDy)) continue
+      slots.push({ x: cell.x, y: cell.y })
+    } else {
       slots.push({ x, y })
-      idx++
     }
-    ring++
+    i++
   }
 
   return slots
@@ -158,25 +138,20 @@ export function computeScrapbookPositions(
     maxY = Math.max(maxY, slot.y + halfH)
   })
 
+  // Extra top padding so polaroids don't overlap the search bar / view toggle
+  const HEADER_PAD = 80
   const canvasW = Math.max(400, maxX - minX + GRID_PADDING * 2)
-  const canvasH = Math.max(400, maxY - minY + GRID_PADDING * 2)
+  const canvasH = Math.max(400, maxY - minY + GRID_PADDING * 2 + HEADER_PAD)
 
-  // Keep Leo + Justin anchor point immutable across cohort growth:
-  // the midpoint of the first two slots stays at canvas center.
-  const anchorX =
-    slots.length >= 2 ? (slots[0].x + slots[1].x) / 2 : slots.length === 1 ? slots[0].x : 0
-  const anchorY =
-    slots.length >= 2 ? (slots[0].y + slots[1].y) / 2 : slots.length === 1 ? slots[0].y : 0
-  const offsetX = canvasW / 2 - anchorX
-  const offsetY = canvasH / 2 - anchorY
+  // Center all slots in the canvas, shifted down by HEADER_PAD/2
+  const offsetX = canvasW / 2 - (minX + maxX) / 2
+  const offsetY = canvasH / 2 - (minY + maxY) / 2 + HEADER_PAD / 2
 
   const positions = new Map<string, { x: number; y: number; rotation: number }>()
   sorted.forEach((m, i) => {
     const slot = slots[i]
     const rotation = getDeterministicTilt(m.id)
     positions.set(m.id, {
-      // PolaroidCard expects top-left x/y and derives visual center internally.
-      // Scrapbook slots are center-based, so convert here to top-left space.
       x: slot.x + offsetX - POLAROID_WIDTH / 2,
       y: slot.y + offsetY - POLAROID_HEIGHT / 2,
       rotation,

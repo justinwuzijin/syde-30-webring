@@ -361,12 +361,12 @@ export function LandingPage() {
   const isClassroom = isExpanded && viewMode === 'classroom'
   const isMe = isExpanded && viewMode === 'me'
   // Vertical shift so Leo & Justin (center of spiral) appear centered in preview circle
-  const PREVIEW_Y_SHIFT = -60
+  const PREVIEW_Y_SHIFT = -40
   const gridTransform = isExpanded
     ? isClassroom
       ? 'none'
       : `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
-    : `translate(-50%, calc(-50% + ${PREVIEW_Y_SHIFT}px)) scale(0.55)`
+    : `translate(-50%, calc(-50% + ${PREVIEW_Y_SHIFT}px)) scale(0.62)`
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden select-none md:select-auto">
@@ -554,6 +554,20 @@ export function LandingPage() {
               }}
             />
           </>
+        )}
+
+        {/* Gaussian blur vignette inside the circle so edges fade and "click to explore" pops */}
+        {isSplash && (
+          <div
+            className="absolute inset-0 rounded-full pointer-events-none"
+            style={{
+              zIndex: 4,
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
+              maskImage: 'radial-gradient(circle, transparent 50%, black 80%)',
+              WebkitMaskImage: 'radial-gradient(circle, transparent 50%, black 80%)',
+            }}
+          />
         )}
 
         {/* "click to explore" — lower in circle for visibility, fades out */}
