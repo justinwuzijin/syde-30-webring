@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { type ReactElement, useState, useEffect, useMemo } from 'react'
 import { use } from 'react'
 import useSWR from 'swr'
-import { getDisplayUrl, type Member } from '@/types/member'
+import { type Member } from '@/types/member'
 import { parseSocialLink } from '@/lib/parse-social'
 import { useSound } from '@/lib/use-sound'
 import { usePageTransition } from '@/components/page-transition'
@@ -48,10 +48,11 @@ export default function ProfilePage({ params }: ProfilePageProps) {
   const [bioVisible, setBioVisible] = useState(false)
   const [leaving, setLeaving] = useState(false)
 
-  // Resolve website URL from member record — only valid external URLs, never webring origin
+  // Resolve website URL from member record — only personal websites, not social fallbacks
   const websiteUrl = useMemo(() => {
     if (!member) return null
-    const raw = getDisplayUrl(member)
+    // Only use embedUrl or explicit website — never fall back to social profile URLs
+    const raw = member.embedUrl || member.socials.website || ''
     return normalizeWebsiteUrl(raw)
   }, [member])
   const hasValidWebsite = !!websiteUrl
