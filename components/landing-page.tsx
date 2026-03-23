@@ -46,6 +46,8 @@ const ZOOM_SENSITIVITY = 0.002
 /** Splash preview offset — polaroids shifted up/left for visual centering. Must match camera on expand. */
 const PREVIEW_OFFSET_X = 72
 const PREVIEW_OFFSET_Y = 118
+const DESKTOP_ZOOM = 0.75
+const MOBILE_ZOOM = 0.65
 
 /** Landing preview: only Leo and Justin */
 function getLandingPreviewMembers(members: Member[]): Member[] {
@@ -153,8 +155,9 @@ export function LandingPage() {
   }, [searchTerm, displayMembers])
 
   // Separate camera states for scrapbook and classroom views
+  const defaultZoom = isMobile ? MOBILE_ZOOM : DESKTOP_ZOOM
   const [scrapbookCamera, setScrapbookCamera] = useState(() =>
-    startExpanded ? { x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 0.75 } : { x: 0, y: 0, k: 1 }
+    startExpanded ? { x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom } : { x: 0, y: 0, k: 1 }
   )
   // Classroom always starts at default position (reset on each switch)
   const [classroomCamera, setClassroomCamera] = useState({ x: 0, y: 0, k: 1 })
@@ -206,7 +209,7 @@ export function LandingPage() {
     setPhase('transitioning')
     setTimeout(() => {
       setViewMode('scrapbook')
-      setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 0.75 })
+      setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
       setPhase('expanded')
     }, EXPANDED_DELAY)
   }, [phase, playClick])
@@ -215,7 +218,7 @@ export function LandingPage() {
   const handleBack = useCallback(() => {
     playClick()
     setPhase('splash')
-    setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 0.75 })
+    setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
     setClassroomCamera({ x: 0, y: 0, k: 1 })
     setViewMode('scrapbook')
     window.history.replaceState({}, '', '/')
@@ -268,7 +271,8 @@ export function LandingPage() {
   // ── Touch handlers for mobile pan + pinch-to-zoom ──
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (phase !== 'expanded' || viewMode === 'me') return
-    if ((e.target as HTMLElement).closest('.polaroid-frame, button, a')) return
+    // On desktop, block drag from polaroids; on mobile, allow pan from anywhere
+    if ((e.target as HTMLElement).closest('button, a')) return
 
     if (e.touches.length === 1) {
       lastTouchPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
@@ -364,7 +368,7 @@ export function LandingPage() {
       : `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px)) scale(0.75)`
 
   return (
-    <div className="relative bg-white h-screen w-full overflow-hidden">
+    <div className="relative bg-white h-screen w-full overflow-hidden select-none md:select-auto">
       {/* ── Static graph paper grid — fixed full-screen, revealed by animated clip-path ── */}
       <motion.div
         className="fixed inset-0 pointer-events-none"
@@ -565,7 +569,7 @@ export function LandingPage() {
       {/* ── Search bar — top center, expanded only ── */}
       {isExpanded && !isMe && (
         <motion.div
-          className="fixed top-6 left-1/2 z-50 w-full max-w-md -translate-x-1/2 px-4"
+          className="fixed top-6 z-50 left-[7rem] right-6 md:left-1/2 md:right-auto md:w-full md:max-w-md md:-translate-x-1/2 md:px-4"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15, duration: 0.3 }}
@@ -574,10 +578,10 @@ export function LandingPage() {
             <div className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
             <Input
               type="text"
-              placeholder="Search polaroids by first name..."
+              placeholder="Search by first name..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="relative bg-transparent border-0 focus-visible:ring-0 focus-visible:border-0 text-sm text-neutral-900 placeholder:text-neutral-500 px-5 py-2.5 rounded-full"
+              className="relative bg-transparent border-0 focus-visible:ring-0 focus-visible:border-0 text-xs md:text-sm text-neutral-900 placeholder:text-neutral-500 px-3 md:px-5 py-2 md:py-2.5 rounded-full"
             />
           </div>
         </motion.div>
@@ -600,7 +604,7 @@ export function LandingPage() {
             }}
           >
             <button
-              onClick={() => { playClick(); setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: 0.75 }); setViewMode('scrapbook') }}
+              onClick={() => { playClick(); setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom }); setViewMode('scrapbook') }}
               className="flex items-center gap-1.5 text-sm transition-colors"
               style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
             >
@@ -700,7 +704,7 @@ export function LandingPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.3 }}
         >
-          {isMobile ? 'Drag to pan · Pinch to zoom · Long-press a polaroid' : 'Scroll to zoom · Drag to pan · Click a polaroid to visit'}
+          {isMobile ? 'Drag to pan. Press to view.' : 'Scroll to zoom · Drag to pan · Click a polaroid to visit'}
         </motion.div>
       )}
 
@@ -743,7 +747,7 @@ export function LandingPage() {
         <motion.div
           className="absolute left-0 top-[32%] w-[27%] hidden md:block"
           style={{ aspectRatio: '470 / 500' }}
-          initial={{ opacity: 0, x: -30 }}
+s          initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
         >
@@ -778,12 +782,12 @@ export function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="relative w-full" style={{ paddingTop: '22%' }}>
+          <div className="relative w-full" style={{ paddingTop: '32%' }}>
             <StretchText
               lines={["2030", "webring"]}
-              viewBox="0 0 700 320"
+              viewBox="0 0 700 420"
               fontSize={220}
-              lineHeight={160}
+              lineHeight={200}
               className="absolute inset-0 w-full h-full"
             />
           </div>

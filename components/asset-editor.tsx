@@ -25,15 +25,15 @@ const DESKTOP_TRANSFORMS: AssetTransform[] = [
   { id: 'releasing-march', x: 86, y: 40, width: 12, rotation: 0, zIndex: 2 },
 ]
 
-// Mobile layout — matches Figma mockup
+// Mobile layout — assets orbit around the circle preview (centered ~50%, ~46%, radius ~32.5vw)
 const MOBILE_TRANSFORMS: AssetTransform[] = [
-  { id: 'matlab', x: 2, y: 52, width: 38, rotation: 0, zIndex: 5 },
-  { id: 'sw-cube', x: 4, y: 20, width: 38, rotation: 12, zIndex: 5 },
-  { id: 'cpp', x: 70, y: 22, width: 16, rotation: 12, zIndex: 5 },
-  { id: 'sandwich', x: 66, y: 16, width: 30, rotation: 0, zIndex: 5 },
-  { id: 'crest', x: 58, y: 72, width: 30, rotation: -12, zIndex: 5 },
-  { id: 'book', x: 64, y: 52, width: 28, rotation: 8, zIndex: 1 },
-  { id: 'releasing-march', x: 3, y: 80, width: 28, rotation: -5, zIndex: 2 },
+  { id: 'matlab', x: 2, y: 28, width: 28, rotation: -8, zIndex: 5 },       // left of circle
+  { id: 'sw-cube', x: 4, y: 52, width: 28, rotation: 12, zIndex: 5 },      // bottom-left
+  { id: 'cpp', x: 78, y: 30, width: 16, rotation: 12, zIndex: 5 },         // right of circle
+  { id: 'sandwich', x: 62, y: 18, width: 26, rotation: 0, zIndex: 5 },     // top-right
+  { id: 'crest', x: 62, y: 62, width: 24, rotation: -12, zIndex: 5 },      // bottom-right
+  { id: 'book', x: 70, y: 44, width: 22, rotation: 8, zIndex: 1 },         // right
+  { id: 'releasing-march', x: 3, y: 72, width: 24, rotation: -5, zIndex: 2 }, // bottom-left
 ]
 
 function getInitialTransforms() {
