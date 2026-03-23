@@ -176,19 +176,20 @@ export function computeScrapbookPositions(
   return { positions, canvasW, canvasH }
 }
 
-/** Classroom: rigid grid, upright. Fixed 7 columns, centered horizontally. */
+/** Classroom: responsive grid, upright. Columns adapt to viewport width. */
 export function computeClassroomPositions(
   members: Member[],
   containerWidth?: number
 ): { positions: Map<string, { x: number; y: number }>; canvasW: number; canvasH: number } {
   const sorted = getSortedMembers(members)
 
-  // 7 columns on desktop, 2 on mobile (< 768px)
-  const COLS = (containerWidth ?? 1200) < 768 ? 2 : 7
-  const gridContentWidth = COLS * POLAROID_WIDTH + (COLS - 1) * CARD_GAP
-  const availableWidth = containerWidth ?? gridContentWidth + GRID_PADDING * 2
+  const availableWidth = containerWidth ?? 1200
+  const horizontalPad = Math.min(GRID_PADDING, Math.max(16, Math.floor(availableWidth * 0.04)))
+  const usableWidth = Math.max(POLAROID_WIDTH, availableWidth - horizontalPad * 2)
+  const cols = Math.max(1, Math.floor((usableWidth + CARD_GAP) / (POLAROID_WIDTH + CARD_GAP)))
+  const gridContentWidth = cols * POLAROID_WIDTH + (cols - 1) * CARD_GAP
   // Center: equal padding on left and right
-  const leftPad = Math.max(GRID_PADDING, (availableWidth - gridContentWidth) / 2)
+  const leftPad = Math.max(horizontalPad, (availableWidth - gridContentWidth) / 2)
 
   const positions = new Map<string, { x: number; y: number }>()
 
@@ -196,8 +197,8 @@ export function computeClassroomPositions(
   const topPad = 120
 
   sorted.forEach((m, i) => {
-    const row = Math.floor(i / COLS)
-    const col = i % COLS
+    const row = Math.floor(i / cols)
+    const col = i % cols
     positions.set(m.id, {
       x: leftPad + col * (POLAROID_WIDTH + CARD_GAP),
       y: topPad + row * (POLAROID_HEIGHT + CARD_GAP),

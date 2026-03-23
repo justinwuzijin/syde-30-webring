@@ -11,7 +11,6 @@ import { StretchText } from './stretch-text'
 import type { Member } from '@/types/member'
 import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import {
-  isCreator,
   computeScrapbookPositions,
   computeClassroomPositions,
   CARD_GAP,
@@ -408,7 +407,8 @@ export function LandingPage() {
           x: '-50%',
           y: '-50%',
           background: 'transparent',
-          overflow: isClassroom ? 'auto' : 'hidden',
+          overflowX: isClassroom ? 'hidden' : 'hidden',
+          overflowY: isClassroom ? 'auto' : 'hidden',
           boxShadow: isSplash ? '0 8px 40px rgba(0,0,0,0.15)' : 'none',
           cursor: isSplash
             ? 'pointer'
@@ -589,7 +589,7 @@ export function LandingPage() {
         </motion.div>
       </motion.div>
 
-      {/* ── Search bar — top center, expanded only ── */}
+      {/* ── Search bar — top center, expanded only (outside header bubble) ── */}
       {isExpanded && !isMe && (
         <motion.div
           className="fixed top-6 z-50 left-[7rem] right-6 md:left-1/2 md:right-auto md:w-full md:max-w-md md:-translate-x-1/2 md:px-4"
@@ -610,84 +610,88 @@ export function LandingPage() {
         </motion.div>
       )}
 
-
-      {/* ── View toggle — below search bar, expanded only ── */}
+      {/* ── Glossy header bubble (tabs only) ── */}
       {isExpanded && (
         <motion.div
-          className="fixed top-[4.5rem] left-1/2 z-50 -translate-x-1/2 flex items-center gap-4 pb-2"
+          className="fixed top-[4.45rem] left-1/2 z-50 -translate-x-1/2"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.3 }}
         >
-          <div
-            className="flex flex-col items-center"
-            style={{
-              borderBottom: viewMode === 'scrapbook' ? '1px solid rgba(0,0,0,0.15)' : '1px solid transparent',
-              paddingBottom: '0.5rem',
-            }}
-          >
-            <button
-              onClick={() => {
-                playClick()
-                setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
-                setViewMode('scrapbook')
-              }}
-              className="flex items-center gap-1.5 text-sm transition-colors"
-              style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
-            >
-              <span
-                className="inline-block w-2.5 h-2.5 rounded-full transition-colors"
-                style={{ backgroundColor: viewMode === 'scrapbook' ? '#171717' : '#d4d4d4' }}
-              />
-              <span style={{ color: viewMode === 'scrapbook' ? '#171717' : '#a3a3a3' }}>
-                scrapbook
-              </span>
-            </button>
-          </div>
-          <div
-            className="flex flex-col items-center"
-            style={{
-              borderBottom: viewMode === 'classroom' ? '1px solid rgba(0,0,0,0.15)' : '1px solid transparent',
-              paddingBottom: '0.5rem',
-            }}
-          >
-            <button
-              onClick={() => { playClick(); setClassroomCamera({ x: 0, y: 0, k: 1 }); setViewMode('classroom') }}
-              className="flex items-center gap-1.5 text-sm transition-colors"
-              style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
-            >
-              <span
-                className="inline-block w-2.5 h-2.5 rounded-full transition-colors"
-                style={{ backgroundColor: viewMode === 'classroom' ? '#171717' : '#d4d4d4' }}
-              />
-              <span style={{ color: viewMode === 'classroom' ? '#171717' : '#a3a3a3' }}>
-                classroom
-              </span>
-            </button>
-          </div>
-          {user && (
-            <div
-              className="flex flex-col items-center"
-              style={{
-                borderBottom: viewMode === 'me' ? '1px solid rgba(0,0,0,0.15)' : '1px solid transparent',
-                paddingBottom: '0.5rem',
-              }}
-            >
-              <button
-                onClick={() => { playClick(); setViewMode('me') }}
-                className="flex items-center gap-1.5 text-sm transition-colors"
-                style={{ fontFamily: '-apple-system, BlinkMacSystemFont, \"SF Pro Display\", system-ui, sans-serif' }}
+          <div className="relative rounded-full border border-white/55 bg-white/35 px-4 py-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-3xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/30">
+            <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/45 via-white/15 to-transparent" />
+            <div className="relative flex items-center justify-center gap-4 md:gap-5">
+              <div
+                className="flex flex-col items-center"
+                style={{
+                  borderBottom: viewMode === 'scrapbook' ? '1px solid rgba(0,0,0,0.15)' : '1px solid transparent',
+                  paddingBottom: '0.2rem',
+                }}
               >
-                <span
-                  className="inline-block w-2.5 h-2.5 rounded-full transition-colors"
-                  style={{ backgroundColor: viewMode === 'me' ? '#171717' : '#d4d4d4' }}
-                />
-                <span style={{ color: viewMode === 'me' ? '#171717' : '#a3a3a3' }}>
-                  me
-                </span>
-              </button>
+                <button
+                  onClick={() => {
+                    playClick()
+                    setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
+                    setViewMode('scrapbook')
+                  }}
+                  className="flex items-center gap-1.5 text-sm transition-colors"
+                  style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+                >
+                  <span
+                    className="inline-block w-2.5 h-2.5 rounded-full transition-colors"
+                    style={{ backgroundColor: viewMode === 'scrapbook' ? '#171717' : '#d4d4d4' }}
+                  />
+                  <span style={{ color: viewMode === 'scrapbook' ? '#171717' : '#a3a3a3' }}>
+                    scrapbook
+                  </span>
+                </button>
+              </div>
+              <div
+                className="flex flex-col items-center"
+                style={{
+                  borderBottom: viewMode === 'classroom' ? '1px solid rgba(0,0,0,0.15)' : '1px solid transparent',
+                  paddingBottom: '0.2rem',
+                }}
+              >
+                <button
+                  onClick={() => { playClick(); setClassroomCamera({ x: 0, y: 0, k: 1 }); setViewMode('classroom') }}
+                  className="flex items-center gap-1.5 text-sm transition-colors"
+                  style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+                >
+                  <span
+                    className="inline-block w-2.5 h-2.5 rounded-full transition-colors"
+                    style={{ backgroundColor: viewMode === 'classroom' ? '#171717' : '#d4d4d4' }}
+                  />
+                  <span style={{ color: viewMode === 'classroom' ? '#171717' : '#a3a3a3' }}>
+                    classroom
+                  </span>
+                </button>
+              </div>
+              {user && (
+                <div
+                  className="flex flex-col items-center"
+                  style={{
+                    borderBottom: viewMode === 'me' ? '1px solid rgba(0,0,0,0.15)' : '1px solid transparent',
+                    paddingBottom: '0.2rem',
+                  }}
+                >
+                  <button
+                    onClick={() => { playClick(); setViewMode('me') }}
+                    className="flex items-center gap-1.5 text-sm transition-colors"
+                    style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+                  >
+                    <span
+                      className="inline-block w-2.5 h-2.5 rounded-full transition-colors"
+                      style={{ backgroundColor: viewMode === 'me' ? '#171717' : '#d4d4d4' }}
+                    />
+                    <span style={{ color: viewMode === 'me' ? '#171717' : '#a3a3a3' }}>
+                      me
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </motion.div>
       )}
       {/* ── Back button — top-left, expanded only ── */}
