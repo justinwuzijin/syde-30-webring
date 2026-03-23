@@ -296,7 +296,10 @@ export function ProfilePictureField({
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="text-xs font-medium text-black lowercase" style={sfPro}>
+      <span
+        className={`text-xs font-medium text-black lowercase ${dense ? 'text-center' : ''}`}
+        style={sfPro}
+      >
         {label}
         <span className="ml-0.5 text-red-400">*</span>
         {requiredNote && (
@@ -386,16 +389,16 @@ export function ProfilePictureField({
                 delete
               </button>
             </div>
-            <p className="font-mono text-[10px] italic text-black/40 mt-0.5">
+            <p className="font-mono text-[10px] italic text-black/40 mt-0.5 text-center">
               {value && isVideoFile(value) ? 'click video to enlarge' : 'click image to enlarge'}
             </p>
             {value?.name && (
-              <p className="font-mono text-[10px] text-black/45 break-all mt-1">
+              <p className="font-mono text-[10px] text-black/45 break-all mt-1 text-center max-w-[90%]">
                 {value.name}
               </p>
             )}
             {selectedStateText && (
-              <p className="font-mono text-[10px] text-black/55 mt-1">{selectedStateText}</p>
+              <p className="font-mono text-[10px] text-black/55 mt-1 text-center">{selectedStateText}</p>
             )}
           </div>
         ) : (
@@ -405,7 +408,7 @@ export function ProfilePictureField({
               drag and drop, paste, or click to upload
             </span>
             {helperText && (
-              <p className="font-mono text-[10px] italic text-black/40">
+              <p className="font-mono text-[10px] italic text-black/40 text-center px-3">
                 {helperText}
               </p>
             )}

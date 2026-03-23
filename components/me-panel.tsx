@@ -735,8 +735,8 @@ export function MePanel() {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="flex flex-col items-center justify-center gap-0.5 text-center">
                       <span className="text-[11px] text-neutral-500 font-mono lowercase">
                         still photo
                       </span>
@@ -769,8 +769,8 @@ export function MePanel() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="flex flex-col items-center justify-center gap-0.5 text-center">
                       <span className="text-[11px] text-neutral-500 font-mono lowercase">
                         live clip
                       </span>
