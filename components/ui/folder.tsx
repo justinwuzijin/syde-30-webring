@@ -95,6 +95,15 @@ export function Folder({ photos, size = 154, onHover, onPhotoChange, onPhotoHove
       }}
       onMouseEnter={() => { setHovered(true); onHover?.() }}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => {
+        // Mobile: toggle open/close on tap
+        if ('ontouchstart' in window) {
+          setHovered(prev => {
+            if (!prev) onHover?.()
+            return !prev
+          })
+        }
+      }}
     >
       {/* Photos — small peek when collapsed, large fan when hovered */}
       {visible.map((src, i) => {
