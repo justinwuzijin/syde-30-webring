@@ -46,6 +46,12 @@ export function AssetEditor() {
   const containerRef = useRef<HTMLDivElement>(null)
   const [transforms, setTransforms] = useState<AssetTransform[]>(getInitialTransforms)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   // Snap layout when crossing 768px breakpoint
   const wasMobileRef = useRef(typeof window !== 'undefined' && window.innerWidth < 768)
@@ -180,19 +186,46 @@ export function AssetEditor() {
     <div
       ref={containerRef}
       className="absolute inset-0"
-      style={{ zIndex: 5, pointerEvents: 'auto' }}
+      style={{ zIndex: 5, pointerEvents: isMobile ? 'none' : 'auto' }}
     >
-      {/* Marquee select layer */}
-      <AssetMarqueeSelect
-        containerRef={containerRef}
-        transforms={transforms}
-        onSelectionChange={handleSelectionChange}
-      />
+      {/* Marquee select layer — desktop only */}
+      {!isMobile && (
+        <AssetMarqueeSelect
+          containerRef={containerRef}
+          transforms={transforms}
+          onSelectionChange={handleSelectionChange}
+        />
+      )}
 
       {/* Asset items */}
       {ASSET_CONFIGS.map(config => {
         const transform = transforms.find(t => t.id === config.id)
         if (!transform) return null
+        if (isMobile) {
+          // Mobile: plain image, no selection UI
+          return (
+            <div
+              key={config.id}
+              style={{
+                position: 'absolute',
+                left: `${transform.x}%`,
+                top: `${transform.y}%`,
+                width: `${transform.width}%`,
+                transform: `rotate(${transform.rotation}deg)`,
+                zIndex: transform.zIndex,
+                pointerEvents: 'none',
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={config.src}
+                alt={config.alt}
+                draggable={false}
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+              />
+            </div>
+          )
+        }
         return (
           <SelectableAsset
             key={config.id}
