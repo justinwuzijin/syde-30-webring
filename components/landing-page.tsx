@@ -43,17 +43,14 @@ const MIN_ZOOM = 0.3
 const MAX_ZOOM = 2.5
 const ZOOM_SENSITIVITY = 0.002
 
-/** Splash preview offset. Must match scrapbook camera on expand for zero-shift transitions. */
-const PREVIEW_OFFSET_X = 0
-const PREVIEW_OFFSET_Y = 0
 const DESKTOP_ZOOM = 0.75
 const MOBILE_ZOOM = 0.65
 const CLASSROOM_TOP_OFFSET_PX = 104
 const CLASSROOM_BOTTOM_GUTTER_PX = 24
 
-/** Landing preview: only Leo and Justin */
+/** Landing preview: all members (Leo & Justin centered via sort order) */
 function getLandingPreviewMembers(members: Member[]): Member[] {
-  return members.filter(isCreator)
+  return members
 }
 
 /** Compute positions for scrapbook (center-out, tilt) or classroom (rigid grid) */
@@ -165,7 +162,7 @@ export function LandingPage() {
   // Separate camera states for scrapbook and classroom views
   const defaultZoom = isMobile ? MOBILE_ZOOM : DESKTOP_ZOOM
   const [scrapbookCamera, setScrapbookCamera] = useState(() =>
-    startExpanded ? { x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom } : { x: 0, y: 0, k: 1 }
+    startExpanded ? { x: 0, y: -60, k: defaultZoom } : { x: 0, y: 0, k: 1 }
   )
   // Classroom always starts at default position (reset on each switch)
   const [classroomCamera, setClassroomCamera] = useState({ x: 0, y: 0, k: 1 })
@@ -217,16 +214,16 @@ export function LandingPage() {
     setPhase('transitioning')
     setTimeout(() => {
       setViewMode('scrapbook')
-      setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
+      setScrapbookCamera({ x: 0, y: -60, k: defaultZoom })
       setPhase('expanded')
     }, EXPANDED_DELAY)
   }, [phase, playClick])
 
-  // Back to splash — reset camera to match preview offset so Leo & Justin stay centered
+  // Back to splash — reset camera
   const handleBack = useCallback(() => {
     playClick()
     setPhase('splash')
-    setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
+    setScrapbookCamera({ x: 0, y: -60, k: defaultZoom })
     setClassroomCamera({ x: 0, y: 0, k: 1 })
     setViewMode('scrapbook')
     window.history.replaceState({}, '', '/')
@@ -302,10 +299,10 @@ export function LandingPage() {
       lastTouchPos.current = { x: midX, y: midY }
       touchStartRef.current = {
         x: midX, y: midY, dist,
-        k: viewMode === 'classroom' ? classroomCamera.k : scrapbookCamera.k,
+        k: scrapbookCamera.k,
       }
     }
-  }, [phase, viewMode, classroomCamera.k, scrapbookCamera.k])
+  }, [phase, viewMode, scrapbookCamera.k])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (phase !== 'expanded' || viewMode === 'me' || viewMode === 'classroom') return
@@ -363,16 +360,29 @@ export function LandingPage() {
   // Classroom mode anchors grid to top-left (aligned with photo folder at 5%, below toggles at ~6rem)
   const isClassroom = isExpanded && viewMode === 'classroom'
   const isMe = isExpanded && viewMode === 'me'
-  // Mobile preview uses the same anchor as desktop to avoid transition drift.
-  const mobileOffsetX = PREVIEW_OFFSET_X
-  const mobileOffsetY = PREVIEW_OFFSET_Y
+  // Compute creators' centroid offset from canvas center so preview centers on Leo & Justin
+  const creatorsOffset = useMemo(() => {
+    const creatorIds = displayMembers.filter(m => isCreator(m)).map(m => m.id)
+    if (creatorIds.length === 0) return { dx: 0, dy: 0 }
+    let sumX = 0, sumY = 0
+    for (const id of creatorIds) {
+      const pos = positions.get(id)
+      if (pos) {
+        sumX += pos.x + POLAROID_WIDTH / 2
+        sumY += pos.y + POLAROID_HEIGHT / 2
+      }
+    }
+    const cx = sumX / creatorIds.length
+    const cy = sumY / creatorIds.length
+    // Offset from canvas center
+    return { dx: cx - canvasW / 2, dy: cy - canvasH / 2 }
+  }, [displayMembers, positions, canvasW, canvasH])
+
   const gridTransform = isExpanded
     ? isClassroom
-      ? `translate(${camera.x}px, ${camera.y}px) scale(${camera.k})`
+      ? 'none'
       : `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
-    : isMobile
-      ? `translate(calc(-50% - ${mobileOffsetX}px), calc(-50% - ${mobileOffsetY}px)) scale(0.8)`
-      : `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px)) scale(0.75)`
+    : `translate(calc(-50% - ${creatorsOffset.dx}px), calc(-50% - ${creatorsOffset.dy}px)) scale(0.62)`
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden select-none md:select-auto">
@@ -411,13 +421,19 @@ export function LandingPage() {
           x: '-50%',
           y: '-50%',
           background: 'transparent',
-          overflow: 'hidden',
+          overflow: isClassroom ? 'auto' : 'hidden',
           boxShadow: isSplash ? '0 8px 40px rgba(0,0,0,0.15)' : 'none',
           cursor: isSplash
             ? 'pointer'
-            : isMe ? 'default' : isDragging ? 'grabbing' : isExpanded ? 'grab' : 'default',
+            : isMe || isClassroom ? 'default' : isDragging ? 'grabbing' : isExpanded ? 'grab' : 'default',
           zIndex: 20,
-          touchAction: 'none',
+          touchAction: isClassroom ? 'pan-y' : 'none',
+          maskImage: isClassroom
+            ? 'linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)'
+            : undefined,
+          WebkitMaskImage: isClassroom
+            ? 'linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)'
+            : undefined,
         }}
         animate={isSplash ? {
           width: isMobile ? '65vw' : '30vw',
@@ -454,17 +470,16 @@ export function LandingPage() {
         {!isMe && (
           <div
             style={{
-              position: 'absolute',
-              left: isClassroom ? '5%' : '50%',
-              top: isClassroom ? '6.5rem' : '50%',
-              width: canvasW,
-              height: canvasH,
+              position: isClassroom ? 'relative' : 'absolute',
+              left: isClassroom ? 'auto' : '50%',
+              top: isClassroom ? 'auto' : '50%',
+              width: isClassroom ? '100%' : canvasW,
+              height: isClassroom ? canvasH + 80 : canvasH,
               transform: gridTransform,
-              transformOrigin: isClassroom ? '0 0' : '50% 50%',
+              transformOrigin: isClassroom ? undefined : '50% 50%',
+              paddingBottom: isClassroom ? '2rem' : undefined,
               opacity: isSplash ? 0.7 : 1,
-              transition: isSplash
-                ? 'opacity 0.3s ease, transform 0.6s cubic-bezier(0.22,1,0.36,1)'
-                : 'opacity 0.5s ease, left 0.4s ease, top 0.4s ease',
+              transition: 'opacity 0.5s ease, transform 0.9s cubic-bezier(0.22,1,0.36,1), left 0.4s ease, top 0.4s ease',
               pointerEvents: isExpanded ? 'auto' : 'none',
             }}
           >
@@ -480,12 +495,12 @@ export function LandingPage() {
             )}
             {filteredMembers.length === 0 && searchTerm.trim() && !membersLoading && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className={'px-6 py-3 ' + GLASS_CHROME}>
-                  <div className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
-                  <p className="relative text-xs md:text-sm text-neutral-900 lowercase tracking-[0.16em] text-center">
-                    the user you are searching for does not exist yet, get them to sign up!
-                  </p>
-                </div>
+                <p
+                  className="text-black/40 text-xs md:text-sm lowercase tracking-[0.16em] text-center max-w-[min(90vw,28rem)]"
+                  style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+                >
+                  the user you are searching for does not exist yet, get them to sign up!
+                </p>
               </div>
             )}
 
@@ -557,6 +572,20 @@ export function LandingPage() {
           </>
         )}
 
+        {/* Gaussian blur vignette inside the circle so edges fade and "click to explore" pops */}
+        {isSplash && (
+          <div
+            className="absolute inset-0 rounded-full pointer-events-none"
+            style={{
+              zIndex: 4,
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              maskImage: 'radial-gradient(circle, transparent 42%, black 72%)',
+              WebkitMaskImage: 'radial-gradient(circle, transparent 42%, black 72%)',
+            }}
+          />
+        )}
+
         {/* "click to explore" — lower in circle for visibility, fades out */}
         <motion.div
           className="absolute inset-0 flex items-end justify-center"
@@ -611,7 +640,7 @@ export function LandingPage() {
             }}
           >
             <button
-              onClick={() => { playClick(); setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom }); setViewMode('scrapbook') }}
+              onClick={() => { playClick(); setScrapbookCamera({ x: 0, y: -60, k: defaultZoom }); setViewMode('scrapbook') }}
               className="flex items-center gap-1.5 text-sm transition-colors"
               style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
             >
@@ -843,7 +872,7 @@ export function LandingPage() {
           transition={{ duration: 0.6, delay: 0.6 }}
         >
           <span
-            className="text-black/80 text-[max(8px,0.5vw)]"
+            className="text-black/25 text-[max(8px,0.5vw)]"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             &quot;Goose&quot; (
@@ -862,7 +891,7 @@ export function LandingPage() {
           transition={{ duration: 0.6, delay: 0.6 }}
         >
           <span
-            className="text-black/60 text-[8px] text-center block"
+            className="text-black/25 text-[8px] text-center block"
             style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
           >
             &quot;Goose&quot; by OlegPopka · CC-BY 4.0
