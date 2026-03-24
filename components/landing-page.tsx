@@ -178,6 +178,14 @@ export function LandingPage() {
   const [isDragging, setIsDragging] = useState(false)
   const [isHoveringPreview, setIsHoveringPreview] = useState(false)
   const lastPos = useRef({ x: 0, y: 0 })
+  // Suppress CSS transition during any active interaction (drag, wheel, touch)
+  const [isInteracting, setIsInteracting] = useState(false)
+  const interactTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const markInteracting = useCallback(() => {
+    setIsInteracting(true)
+    if (interactTimeout.current) clearTimeout(interactTimeout.current)
+    interactTimeout.current = setTimeout(() => setIsInteracting(false), 120)
+  }, [])
 
   // Touch state for pan and pinch-to-zoom
   const touchStartRef = useRef<{ x: number; y: number; dist: number; k: number } | null>(null)
@@ -239,29 +247,47 @@ export function LandingPage() {
     return Math.max(minY, Math.min(0, y))
   }, [viewportHeight, canvasH])
 
-  // ── Wheel interactions ──
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  // ── Wheel interactions (attached as non-passive via ref for preventDefault) ──
+  const handleWheel = useCallback((e: WheelEvent) => {
     if (phase !== 'expanded') return
     if (viewMode === 'me') return
     if (viewMode === 'classroom') {
-      // Classroom: vertical scroll only, no horizontal movement
-      e.preventDefault()
-      e.stopPropagation()
-      setClassroomCamera(prev => ({ ...prev, y: clampClassroomY(prev.y - e.deltaY) }))
+      // Let native overflowY: auto handle scrolling
       return
     }
-    e.stopPropagation()
-    setScrapbookCamera(prev => {
-      const delta = -e.deltaY * ZOOM_SENSITIVITY
-      const newK = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.k * (1 + delta)))
-      const ratio = newK / prev.k
-      return {
-        x: prev.x * ratio,
-        y: prev.y * ratio,
-        k: newK,
-      }
-    })
-  }, [phase, viewMode, clampClassroomY])
+    e.preventDefault()
+    markInteracting()
+
+    // Trackpad pinch-to-zoom sets ctrlKey; otherwise it's a pan gesture
+    const isPinchZoom = e.ctrlKey
+    if (isPinchZoom) {
+      setScrapbookCamera(prev => {
+        const delta = -e.deltaY * ZOOM_SENSITIVITY
+        const newK = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.k * (1 + delta)))
+        const ratio = newK / prev.k
+        return {
+          x: prev.x * ratio,
+          y: prev.y * ratio,
+          k: newK,
+        }
+      })
+    } else {
+      // Two-finger trackpad scroll → pan
+      setScrapbookCamera(prev => ({
+        ...prev,
+        x: prev.x - e.deltaX,
+        y: prev.y - e.deltaY,
+      }))
+    }
+  }, [phase, viewMode, clampClassroomY, markInteracting])
+
+  // Attach wheel as non-passive so preventDefault works (React onWheel is passive)
+  useEffect(() => {
+    const el = circleRef.current
+    if (!el) return
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
 
   // ── Drag → pan (expanded scrapbook only) ──
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -443,7 +469,6 @@ export function LandingPage() {
           handleMouseUp()
         }}
         onClick={isSplash ? handleEnterWebring : undefined}
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -466,7 +491,10 @@ export function LandingPage() {
               transformOrigin: isClassroom ? undefined : '50% 50%',
               paddingBottom: isClassroom ? '2rem' : undefined,
               opacity: isSplash ? 0.7 : 1,
-              transition: 'opacity 0.5s ease, transform 0.9s cubic-bezier(0.22,1,0.36,1), left 0.4s ease, top 0.4s ease',
+              willChange: 'transform',
+              transition: (isDragging || isInteracting)
+                ? 'opacity 0.5s ease'
+                : 'opacity 0.5s ease, transform 0.9s cubic-bezier(0.22,1,0.36,1), left 0.4s ease, top 0.4s ease',
               pointerEvents: isExpanded ? 'auto' : 'none',
             }}
           >
@@ -618,14 +646,13 @@ export function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.3 }}
         >
-          <div className="relative rounded-full border border-white/55 bg-white/35 px-4 py-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-3xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/30">
+          <div className="relative rounded-full border border-white/55 bg-white/35 px-4 py-2 shadow-[0_12px_30px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-3xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/30">
             <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/45 via-white/15 to-transparent" />
             <div className="relative flex items-center justify-center gap-4 md:gap-5">
               <div
                 className="flex flex-col items-center"
                 style={{
-                  borderBottom: viewMode === 'scrapbook' ? '1px solid rgba(0,0,0,0.15)' : '1px solid transparent',
-                  paddingBottom: '0.2rem',
+                  paddingBottom: 0,
                 }}
               >
                 <button
@@ -649,8 +676,7 @@ export function LandingPage() {
               <div
                 className="flex flex-col items-center"
                 style={{
-                  borderBottom: viewMode === 'classroom' ? '1px solid rgba(0,0,0,0.15)' : '1px solid transparent',
-                  paddingBottom: '0.2rem',
+                  paddingBottom: 0,
                 }}
               >
                 <button
@@ -671,8 +697,7 @@ export function LandingPage() {
                 <div
                   className="flex flex-col items-center"
                   style={{
-                    borderBottom: viewMode === 'me' ? '1px solid rgba(0,0,0,0.15)' : '1px solid transparent',
-                    paddingBottom: '0.2rem',
+                    paddingBottom: 0,
                   }}
                 >
                   <button
