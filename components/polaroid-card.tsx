@@ -181,14 +181,16 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover,
       ref={cardRef}
       style={{
         position: 'absolute',
-        left: x + POLAROID_WIDTH / 2,
-        top: y + POLAROID_HEIGHT / 2,
+        left: x,
+        top: y,
         width: POLAROID_WIDTH,
         height: POLAROID_HEIGHT,
-        transform: `translate(-50%, -50%) rotate(${noTilt ? 0 : tilt.current}deg)`,
+        transform: `rotate(${noTilt ? 0 : tilt.current}deg)`,
         zIndex: hovered ? 100 : 1,
         userSelect: 'none',
         cursor: onClick ? 'pointer' : 'default',
+        // CSS transition for smooth view switching (only animates when x/y actually change)
+        transition: 'left 0.5s cubic-bezier(0.4, 0, 0.2, 1), top 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}

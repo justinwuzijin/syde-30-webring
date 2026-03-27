@@ -139,28 +139,14 @@ export function computeScrapbookPositions(
     maxY = Math.max(maxY, slot.y + halfH)
   })
 
-  // Preserve extra vertical breathing room under top controls.
-  const HEADER_PAD = 80
   const canvasW = Math.max(400, maxX - minX + GRID_PADDING * 2)
-  const canvasH = Math.max(400, maxY - minY + GRID_PADDING * 2 + HEADER_PAD)
+  const canvasH = Math.max(400, maxY - minY + GRID_PADDING * 2)
 
-  // Keep Leo + Justin midpoint fixed at canvas center without hard-coding slot anchors.
-  const creatorA = slots[0]
-  const creatorB = slots[1]
-  const creatorMidX =
-    creatorA && creatorB
-      ? (creatorA.x + creatorB.x) / 2
-      : creatorA
-        ? creatorA.x
-        : (minX + maxX) / 2
-  const creatorMidY =
-    creatorA && creatorB
-      ? (creatorA.y + creatorB.y) / 2
-      : creatorA
-        ? creatorA.y
-        : (minY + maxY) / 2
-  const offsetX = canvasW / 2 - creatorMidX
-  const offsetY = canvasH / 2 - creatorMidY + HEADER_PAD / 2
+  // Center all cards in the canvas (symmetric bounding box)
+  const midX = (minX + maxX) / 2
+  const midY = (minY + maxY) / 2
+  const offsetX = canvasW / 2 - midX
+  const offsetY = canvasH / 2 - midY
 
   const positions = new Map<string, { x: number; y: number; rotation: number }>()
   sorted.forEach((m, i) => {

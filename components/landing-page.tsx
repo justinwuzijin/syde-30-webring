@@ -38,15 +38,15 @@ const SPLASH_FADE_DURATION = 400
 const EXPANDED_DELAY = EXPAND_DURATION + 50
 
 // Pan/zoom limits
-const MIN_ZOOM = 0.3
-const MAX_ZOOM = 2.5
-const ZOOM_SENSITIVITY = 0.002
+const MIN_ZOOM = 0.5
+const MAX_ZOOM = 3
+const ZOOM_SENSITIVITY = 0.003
 
 /** Splash preview offset. Must match scrapbook camera on expand for zero-shift transitions. */
 const PREVIEW_OFFSET_X = 0
-const PREVIEW_OFFSET_Y = 40
-const DESKTOP_ZOOM = 0.75
-const MOBILE_ZOOM = 0.65
+const PREVIEW_OFFSET_Y = 0
+const DESKTOP_ZOOM = 0.95
+const MOBILE_ZOOM = 0.8
 const CLASSROOM_TOP_OFFSET_PX = 104
 const CLASSROOM_BOTTOM_GUTTER_PX = 24
 
@@ -258,9 +258,15 @@ export function LandingPage() {
     e.preventDefault()
     markInteracting()
 
-    // Trackpad pinch-to-zoom sets ctrlKey; otherwise it's a pan gesture
+    // Detect trackpad vs mouse wheel:
+    // - Trackpad pinch: ctrlKey is set
+    // - Trackpad two-finger scroll: has significant deltaX, or deltaMode is 0 with small deltaY
+    // - Mouse wheel: deltaMode is usually 0 or 1, no deltaX, larger deltaY jumps
     const isPinchZoom = e.ctrlKey
-    if (isPinchZoom) {
+    const isTrackpadPan = !e.ctrlKey && (Math.abs(e.deltaX) > 2 || (e.deltaMode === 0 && Math.abs(e.deltaY) < 50))
+    
+    if (isPinchZoom || !isTrackpadPan) {
+      // Zoom: pinch gesture OR mouse wheel scroll
       setScrapbookCamera(prev => {
         const delta = -e.deltaY * ZOOM_SENSITIVITY
         const newK = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.k * (1 + delta)))
@@ -272,7 +278,7 @@ export function LandingPage() {
         }
       })
     } else {
-      // Two-finger trackpad scroll → pan
+      // Pan: two-finger trackpad scroll
       setScrapbookCamera(prev => ({
         ...prev,
         x: prev.x - e.deltaX,
@@ -492,9 +498,10 @@ export function LandingPage() {
               paddingBottom: isClassroom ? '2rem' : undefined,
               opacity: isSplash ? 0.7 : 1,
               willChange: 'transform',
-              transition: (isDragging || isInteracting)
-                ? 'opacity 0.5s ease'
-                : 'opacity 0.5s ease, transform 0.9s cubic-bezier(0.22,1,0.36,1), left 0.4s ease, top 0.4s ease',
+              // Only animate transform during splash→expanded transition, not during scrapbook pan/zoom
+              transition: isSplash
+                ? 'opacity 0.5s ease, transform 0.6s cubic-bezier(0.22,1,0.36,1)'
+                : 'opacity 0.5s ease',
               pointerEvents: isExpanded ? 'auto' : 'none',
             }}
           >
