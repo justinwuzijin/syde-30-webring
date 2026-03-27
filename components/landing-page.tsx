@@ -33,9 +33,12 @@ type Phase = 'splash' | 'transitioning' | 'expanded'
 type ViewMode = 'scrapbook' | 'classroom' | 'me'
 
 // Transition timing
-const EXPAND_DURATION = 900
-const SPLASH_FADE_DURATION = 400
-const EXPANDED_DELAY = EXPAND_DURATION + 50
+const EXPAND_DURATION = 1200 // Slower circle expansion
+const SPLASH_FADE_DURATION = 500
+const EXPANDED_DELAY = EXPAND_DURATION + 100
+const GRID_ZOOM_DELAY = 450 // Pause before grid starts zooming in (noticeable beat)
+const GRID_ZOOM_DURATION = 800 // Slower zoom animation after the pause
+const AURA_FADE_DURATION = 300 // How fast the spinner aura fades out/in
 
 // Pan/zoom limits
 const MIN_ZOOM = 0.5
@@ -396,11 +399,21 @@ export function LandingPage() {
   // Classroom mode anchors grid to top-left (aligned with photo folder at 5%, below toggles at ~6rem)
   const isClassroom = isExpanded && viewMode === 'classroom'
   const isMe = isExpanded && viewMode === 'me'
-  const gridTransform = isExpanded
-    ? isClassroom
-      ? 'none'
-      : `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
-    : `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px)) scale(0.62)`
+  
+  // During transition, interpolate to target scale for smooth zoom (with pause)
+  const getGridTransform = () => {
+    if (isExpanded) {
+      if (isClassroom) return 'none'
+      return `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.k})`
+    }
+    if (isTransitioning) {
+      // Target scale for the zoom-in animation (starts after GRID_ZOOM_DELAY)
+      return `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px)) scale(${defaultZoom})`
+    }
+    // Splash state
+    return `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px)) scale(0.62)`
+  }
+  const gridTransform = getGridTransform()
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden select-none md:select-auto">
@@ -496,12 +509,18 @@ export function LandingPage() {
               transform: gridTransform,
               transformOrigin: isClassroom ? undefined : '50% 50%',
               paddingBottom: isClassroom ? '2rem' : undefined,
-              opacity: isSplash ? 0.7 : 1,
+              opacity: isSplash ? 0.7 : isTransitioning ? 0.85 : 1,
               willChange: 'transform',
-              // Only animate transform during splash→expanded transition, not during scrapbook pan/zoom
-              transition: isSplash
-                ? 'opacity 0.5s ease, transform 0.6s cubic-bezier(0.22,1,0.36,1)'
-                : 'opacity 0.5s ease',
+              // Animate transform during phase transitions, not during scrapbook pan/zoom
+              // Transitioning: pause first (GRID_ZOOM_DELAY), then zoom in smoothly
+              // Expanded but not interacting: keep transform transition so "back" animates smoothly
+              transition: isTransitioning
+                ? `opacity 0.5s ease, transform ${GRID_ZOOM_DURATION / 1000}s cubic-bezier(0.16, 1, 0.3, 1) ${GRID_ZOOM_DELAY / 1000}s`
+                : isSplash
+                  ? 'opacity 0.6s ease, transform 0.8s cubic-bezier(0.22,1,0.36,1)'
+                  : isInteracting
+                    ? 'opacity 0.5s ease'
+                    : 'opacity 0.6s ease, transform 0.8s cubic-bezier(0.22,1,0.36,1)',
               pointerEvents: isExpanded ? 'auto' : 'none',
             }}
           >
@@ -548,14 +567,14 @@ export function LandingPage() {
           </div>
         )}
 
-        {/* Frosted glass transition ring — only the outer edge is frosted, center stays clear */}
-        {isSplash && (
-          <>
-            {/* Single continuous glowing ribbon (pink -> purple -> blue -> fade) */}
-            <div
-              className="absolute inset-0 rounded-full pointer-events-none"
-              style={{
-                zIndex: 5,
+        {/* Frosted glass transition ring — fades out when leaving splash, fades in when returning */}
+        <motion.div
+          className="absolute inset-0 rounded-full pointer-events-none"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isSplash ? 0.95 : 0 }}
+          transition={{ duration: AURA_FADE_DURATION / 1000, ease: 'easeOut' }}
+          style={{
+            zIndex: 5,
                 backgroundImage: [
                   // Frosted band base
                   'radial-gradient(circle at center, transparent 56%, rgba(255,255,255,0.14) 66%, rgba(255,255,255,0.08) 76%, transparent 86%)',
@@ -582,17 +601,12 @@ export function LandingPage() {
                   'radial-gradient(circle, rgba(0,0,0,0) 58%, rgba(0,0,0,0.25) 65%, rgba(0,0,0,0.95) 70%, rgba(0,0,0,0.30) 78%, rgba(0,0,0,0) 86%)',
                 // More blur falloff = less border-stroke feel, more “ink in water”.
                 filter: 'blur(8px)',
-                opacity: 0.95,
-                // Use animation longhand to avoid React warnings about mixing with animationDirection.
                 animationName: 'webringPastelSpin',
                 animationDuration: '3.5s',
                 animationTimingFunction: 'linear',
                 animationIterationCount: 'infinite',
-                // Keep default rotation direction so clockwise feels coherent.
               }}
-            />
-          </>
-        )}
+        />
 
         {/* Gaussian blur vignette inside the circle so edges fade and "click to explore" pops */}
         {isSplash && (
@@ -653,8 +667,7 @@ export function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.3 }}
         >
-          <div className="relative rounded-full border border-white/55 bg-white/35 px-4 py-2 shadow-[0_12px_30px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-3xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/30">
-            <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/45 via-white/15 to-transparent" />
+          <div className="relative rounded-full border border-neutral-200 bg-white px-4 py-2 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <div className="relative flex items-center justify-center gap-4 md:gap-5">
               <div
                 className="flex flex-col items-center"
