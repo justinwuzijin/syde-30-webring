@@ -346,6 +346,7 @@ export function LandingPage() {
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (phase !== 'expanded' || viewMode === 'me' || viewMode === 'classroom') return
     e.preventDefault() // prevent scroll
+    markInteracting() // Disable CSS transitions during touch drag for smooth response
 
     if (e.touches.length === 1 && isDragging) {
       const dx = e.touches[0].clientX - lastTouchPos.current.x
@@ -372,7 +373,7 @@ export function LandingPage() {
         return { x: prev.x * ratio + panDx, y: prev.y * ratio + panDy, k: newK }
       })
     }
-  }, [phase, viewMode, isDragging])
+  }, [phase, viewMode, isDragging, markInteracting])
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (e.touches.length < 2) touchStartRef.current = null
@@ -430,6 +431,7 @@ export function LandingPage() {
             'linear-gradient(90deg, rgba(160,195,220,0.10) 1px, transparent 1px)',
           ].join(', '),
           backgroundSize: '80px 80px, 80px 80px, 16px 16px, 16px 16px',
+          willChange: 'clip-path',
         }}
         animate={isSplash ? {
           clipPath: 'circle(15vw at 50% 50%)',
@@ -466,6 +468,7 @@ export function LandingPage() {
           WebkitMaskImage: isClassroom
             ? 'linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%)'
             : undefined,
+          willChange: isTransitioning ? 'width, height, border-radius, transform' : 'auto',
         }}
         animate={isSplash ? {
           width: isMobile ? '65vw' : '30vw',
@@ -567,15 +570,16 @@ export function LandingPage() {
           </div>
         )}
 
-        {/* Frosted glass transition ring — fades out when leaving splash, fades in when returning */}
-        <motion.div
-          className="absolute inset-0 rounded-full pointer-events-none"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isSplash ? 0.95 : 0 }}
-          transition={{ duration: AURA_FADE_DURATION / 1000, ease: 'easeOut' }}
-          style={{
-            zIndex: 5,
-                backgroundImage: [
+        {/* Frosted glass transition ring — only render in splash to avoid mobile artifacts */}
+        {isSplash && (
+          <motion.div
+            className="absolute inset-0 rounded-full pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.95 }}
+            transition={{ duration: AURA_FADE_DURATION / 1000, ease: 'easeOut' }}
+            style={{
+              zIndex: 5,
+              backgroundImage: [
                   // Frosted band base
                   'radial-gradient(circle at center, transparent 56%, rgba(255,255,255,0.14) 66%, rgba(255,255,255,0.08) 76%, transparent 86%)',
                   // One continuous ribbon with smooth opacity falloff.
@@ -606,7 +610,8 @@ export function LandingPage() {
                 animationTimingFunction: 'linear',
                 animationIterationCount: 'infinite',
               }}
-        />
+          />
+        )}
 
         {/* Gaussian blur vignette inside the circle so edges fade and "click to explore" pops */}
         {isSplash && (
