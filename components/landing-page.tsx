@@ -29,7 +29,7 @@ const GooseViewer = dynamic(() => import('./goose-viewer'), { ssr: false })
 // Module-level set so revealed names survive remounts/navigation
 const revealedNamesSet = new Set<string>()
 
-type Phase = 'splash' | 'transitioning' | 'expanded'
+type Phase = 'splash' | 'transitioning' | 'expanded' | 'collapsing'
 type ViewMode = 'scrapbook' | 'classroom' | 'me'
 
 // Transition timing
@@ -234,14 +234,18 @@ export function LandingPage() {
     }, EXPANDED_DELAY)
   }, [phase, playClick])
 
-  // Back to splash — reset camera
+  // Back to splash — snap to large circle (invisible), then animate circle back to small
   const handleBack = useCallback(() => {
     playClick()
-    setPhase('splash')
     setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
     setClassroomCamera({ x: 0, y: 0, k: 1 })
     setViewMode('scrapbook')
     window.history.replaceState({}, '', '/')
+    // Step 1: synchronously commit the collapsing state so Framer Motion sees 200vmax as the
+    // starting point before the splash shrink animation begins.
+    flushSync(() => setPhase('collapsing'))
+    // Step 2: now animate the circle contracting to splash size
+    requestAnimationFrame(() => setPhase('splash'))
   }, [playClick])
 
   const clampClassroomY = useCallback((y: number) => {
@@ -400,7 +404,7 @@ export function LandingPage() {
   // Classroom mode anchors grid to top-left (aligned with photo folder at 5%, below toggles at ~6rem)
   const isClassroom = isExpanded && viewMode === 'classroom'
   const isMe = isExpanded && viewMode === 'me'
-  
+
   // During transition, interpolate to target scale for smooth zoom (with pause)
   const getGridTransform = () => {
     if (isExpanded) {
@@ -411,38 +415,14 @@ export function LandingPage() {
       // Target scale for the zoom-in animation (starts after GRID_ZOOM_DELAY)
       return `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px)) scale(${defaultZoom})`
     }
-    // Splash state
+    // Splash state AND collapsing: both use the same final splash layout so the content
+    // is already at rest when the circle starts shrinking (looks like one unified layer)
     return `translate(calc(-50% - ${PREVIEW_OFFSET_X}px), calc(-50% - ${PREVIEW_OFFSET_Y}px)) scale(0.62)`
   }
   const gridTransform = getGridTransform()
 
   return (
     <div className="relative bg-white h-screen w-full overflow-hidden select-none md:select-auto">
-      {/* ── Static graph paper grid — fixed full-screen, revealed by animated clip-path ── */}
-      <motion.div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          zIndex: 19,
-          background: '#f6f8fb',
-          backgroundImage: [
-            'linear-gradient(rgba(160,195,220,0.25) 1px, transparent 1px)',
-            'linear-gradient(90deg, rgba(160,195,220,0.25) 1px, transparent 1px)',
-            'linear-gradient(rgba(160,195,220,0.10) 1px, transparent 1px)',
-            'linear-gradient(90deg, rgba(160,195,220,0.10) 1px, transparent 1px)',
-          ].join(', '),
-          backgroundSize: '80px 80px, 80px 80px, 16px 16px, 16px 16px',
-          willChange: 'clip-path',
-        }}
-        animate={isSplash ? {
-          clipPath: 'circle(15vw at 50% 50%)',
-        } : {
-          clipPath: 'circle(150vmax at 50% 50%)',
-        }}
-        transition={{
-          duration: isSplash ? 0.6 : EXPAND_DURATION / 1000,
-          ease: [0.22, 1, 0.36, 1],
-        }}
-      />
 
       {/* ── The circle — zooms in on click, becomes the canvas ── */}
       <motion.div
@@ -453,8 +433,15 @@ export function LandingPage() {
           top: isSplash ? (isMobile ? '46%' : '50%') : '50%',
           x: '-50%',
           y: '-50%',
-          background: 'transparent',
-          overflowX: isClassroom ? 'hidden' : 'hidden',
+          background: '#f6f8fb',
+          backgroundImage: [
+            'linear-gradient(rgba(160,195,220,0.25) 1px, transparent 1px)',
+            'linear-gradient(90deg, rgba(160,195,220,0.25) 1px, transparent 1px)',
+            'linear-gradient(rgba(160,195,220,0.10) 1px, transparent 1px)',
+            'linear-gradient(90deg, rgba(160,195,220,0.10) 1px, transparent 1px)',
+          ].join(', '),
+          backgroundSize: '80px 80px, 80px 80px, 16px 16px, 16px 16px',
+          overflowX: 'hidden',
           overflowY: isClassroom ? 'auto' : 'hidden',
           boxShadow: isSplash ? '0 8px 40px rgba(0,0,0,0.15)' : 'none',
           cursor: isSplash
@@ -470,20 +457,40 @@ export function LandingPage() {
             : undefined,
           willChange: isTransitioning ? 'width, height, border-radius, transform' : 'auto',
         }}
-        animate={isSplash ? {
-          width: isMobile ? '65vw' : '30vw',
-          height: isMobile ? '65vw' : '30vw',
-          borderRadius: '50%',
-          scale: isHoveringPreview ? 1.04 : 1,
-        } : {
-          width: '100vw',
-          height: '100vh',
-          borderRadius: '0%',
-          scale: 1,
-        }}
+        animate={
+          isExpanded ? {
+            // Snap instantly to full-screen rect after the circle has covered viewport
+            width: '100vw',
+            height: '100vh',
+            borderRadius: '0%',
+            scale: 1,
+          } : isSplash ? {
+            width: isMobile ? '65vw' : '30vw',
+            height: isMobile ? '65vw' : '30vw',
+            borderRadius: '50%',
+            scale: isHoveringPreview ? 1.04 : 1,
+          } : {
+            // transitioning or collapsing: perfect circle large enough to fill the screen
+            width: '200vmax',
+            height: '200vmax',
+            borderRadius: '50%',
+            scale: 1,
+          }
+        }
         transition={{
-          duration: isSplash ? 0.25 : EXPAND_DURATION / 1000,
-          ease: [0.22, 1, 0.36, 1],
+          width: {
+            duration: isExpanded ? 0 : isSplash ? 0.7 : EXPAND_DURATION / 1000,
+            ease: [0.22, 1, 0.36, 1],
+          },
+          height: {
+            duration: isExpanded ? 0 : isSplash ? 0.7 : EXPAND_DURATION / 1000,
+            ease: [0.22, 1, 0.36, 1],
+          },
+          borderRadius: {
+            duration: isExpanded ? 0 : isSplash ? 0.7 : EXPAND_DURATION / 1000,
+            ease: [0.22, 1, 0.36, 1],
+          },
+          scale: { duration: 0.2, ease: 'easeOut' },
         }}
         onMouseEnter={() => { if (isSplash) setIsHoveringPreview(true) }}
         onMouseLeave={(e) => {
@@ -498,8 +505,6 @@ export function LandingPage() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-{/* Grid is rendered outside circle as a sibling */}
-
         {/* Polaroid grid — hidden in \"me\" view */}
         {!isMe && (
           <div
@@ -512,12 +517,14 @@ export function LandingPage() {
               transform: gridTransform,
               transformOrigin: isClassroom ? undefined : '50% 50%',
               paddingBottom: isClassroom ? '2rem' : undefined,
-              opacity: isSplash ? 0.7 : isTransitioning ? 0.85 : 1,
+              opacity: (isSplash || phase === 'collapsing') ? 0.7 : isTransitioning ? 0.85 : 1,
               willChange: 'transform',
-              // Animate transform during phase transitions, not during scrapbook pan/zoom
+              // Collapsing: instant snap so grid content matches splash layout before circle shrinks
               // Transitioning: pause first (GRID_ZOOM_DELAY), then zoom in smoothly
-              // Expanded but not interacting: keep transform transition so "back" animates smoothly
-              transition: isTransitioning
+              // Expanded but not interacting: keep transform transition so pan/zoom feels smooth
+              transition: phase === 'collapsing'
+                ? 'none'
+                : isTransitioning
                 ? `opacity 0.5s ease, transform ${GRID_ZOOM_DURATION / 1000}s cubic-bezier(0.16, 1, 0.3, 1) ${GRID_ZOOM_DELAY / 1000}s`
                 : isSplash
                   ? 'opacity 0.6s ease, transform 0.8s cubic-bezier(0.22,1,0.36,1)'
@@ -644,34 +651,30 @@ export function LandingPage() {
       </motion.div>
 
       {/* ── Search bar — top center, expanded only (outside header bubble) ── */}
-      {isExpanded && !isMe && (
-        <motion.div
-          className="fixed top-6 z-50 left-[7rem] right-6 md:left-1/2 md:right-auto md:w-full md:max-w-md md:-translate-x-1/2 md:px-4"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.3 }}
-        >
-          <div className={'flex items-center ' + GLASS_CHROME + ' hover:bg-white/20'}>
-            <div className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
-            <Input
-              type="text"
-              placeholder="Search by first name..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="relative bg-transparent border-0 focus-visible:ring-0 focus-visible:border-0 text-xs md:text-sm text-neutral-900 placeholder:text-neutral-500 px-3 md:px-5 py-2 md:py-2.5 rounded-full"
-            />
-          </div>
-        </motion.div>
-      )}
+      <motion.div
+        className="fixed top-6 z-50 left-[7rem] right-6 md:left-1/2 md:right-auto md:w-full md:max-w-md md:-translate-x-1/2 md:px-4"
+        animate={{ opacity: (isExpanded && !isMe) ? 1 : 0, y: (isExpanded && !isMe) ? 0 : -10 }}
+        transition={{ duration: 0.3, delay: (isExpanded && !isMe) ? 0.15 : 0 }}
+        style={{ pointerEvents: (isExpanded && !isMe) ? 'auto' : 'none' }}
+      >
+        <div className="flex items-center rounded-full border border-neutral-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+          <Input
+            type="text"
+            placeholder="Search by first name..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="relative bg-transparent border-0 focus-visible:ring-0 focus-visible:border-0 text-xs md:text-sm text-neutral-900 placeholder:text-neutral-500 px-3 md:px-5 py-2 md:py-2.5 rounded-full"
+          />
+        </div>
+      </motion.div>
 
       {/* ── Glossy header bubble (tabs only) ── */}
-      {isExpanded && (
-        <motion.div
-          className="fixed top-[4.45rem] left-1/2 z-50 -translate-x-1/2"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.3 }}
-        >
+      <motion.div
+        className="fixed top-[4.45rem] left-1/2 z-50 -translate-x-1/2"
+        animate={{ opacity: isExpanded ? 1 : 0, y: isExpanded ? 0 : -10 }}
+        transition={{ duration: 0.3, delay: isExpanded ? 0.2 : 0 }}
+        style={{ pointerEvents: isExpanded ? 'auto' : 'none' }}
+      >
           <div className="relative rounded-full border border-neutral-200 bg-white px-4 py-2 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <div className="relative flex items-center justify-center gap-4 md:gap-5">
               <div
@@ -743,42 +746,35 @@ export function LandingPage() {
             </div>
           </div>
         </motion.div>
-      )}
       {/* ── Back button — top-left, expanded only ── */}
-      {isExpanded && (
-        <motion.button
+      <motion.button
           className={
             'fixed top-6 left-6 z-50 px-4 py-2 text-sm text-neutral-900 hover:text-neutral-950 ' +
             GLASS_CHROME +
             ' hover:bg-white/20'
           }
-          style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+          style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif', pointerEvents: isExpanded ? 'auto' : 'none' }}
           onClick={handleBack}
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.3 }}
+          animate={{ opacity: isExpanded ? 1 : 0, y: isExpanded ? 0 : -10 }}
+          transition={{ duration: 0.3, delay: isExpanded ? 0.2 : 0 }}
         >
           <span className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
           &larr; back
         </motion.button>
-      )}
 
       {/* ── Hint — bottom center in expanded view ── */}
-      {isExpanded && !isMe && (
-        <motion.div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 text-xs uppercase tracking-widest pointer-events-none"
-          style={{ color: 'rgba(0,0,0,0.25)' }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.3 }}
-        >
-          {viewMode === 'classroom'
-            ? 'Scroll to browse · Click a polaroid to visit'
-            : isMobile
-            ? 'Drag to pan. Press to view.'
-            : 'Scroll to zoom · Drag to pan · Click a polaroid to visit'}
-        </motion.div>
-      )}
+      <motion.div
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 text-xs uppercase tracking-widest pointer-events-none"
+        style={{ color: 'rgba(0,0,0,0.25)' }}
+        animate={{ opacity: (isExpanded && !isMe) ? 1 : 0 }}
+        transition={{ duration: 0.3, delay: (isExpanded && !isMe) ? 0.5 : 0 }}
+      >
+        {viewMode === 'classroom'
+          ? 'Scroll to browse · Click a polaroid to visit'
+          : isMobile
+          ? 'Drag to pan. Press to view.'
+          : 'Scroll to zoom · Drag to pan · Click a polaroid to visit'}
+      </motion.div>
 
       {/* ── Splash elements — staggered fade-in on mount, fade out when leaving splash ── */}
       <motion.div
