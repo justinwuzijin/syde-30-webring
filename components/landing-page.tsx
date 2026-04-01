@@ -877,20 +877,6 @@ export function LandingPage() {
           <GooseViewer key={`goose-${gooseKey}`} />
         </motion.div>
 
-        {/* Footer credits — hidden on mobile to avoid overlap with 2030/webring */}
-        <motion.div
-          className="absolute bottom-[2%] left-[4%] hidden md:block"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-        >
-          <span
-            className="text-black text-[max(10px,0.8vw)]"
-            style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}
-          >
-            With help from V0, Cursor, Claude Code
-          </span>
-        </motion.div>
         <motion.div
           className="absolute bottom-[2%] right-[4%] hidden md:block"
           initial={{ opacity: 0 }}
