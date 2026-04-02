@@ -6,6 +6,7 @@ import { AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowUpRight, ChevronDown, Eye, EyeOff, Trash2, Upload, X } from 'lucide-react'
 import { AuthCelebration } from './auth-celebration'
 import { StretchText } from './stretch-text'
+import { usePageTransition } from './page-transition'
 import { createClient } from '@supabase/supabase-js'
 // heic2any accesses `window` at import time — must be dynamically imported
 const importHeic2any = () => import('heic2any').then(m => m.default)
@@ -459,6 +460,7 @@ export function ProfilePictureField({
 
 export function JoinForm() {
   const router = useRouter()
+  const { startTransition } = usePageTransition()
   const [form, setForm] = useState<FormData>(initialForm)
   const [submitted, setSubmitted] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
@@ -734,7 +736,7 @@ export function JoinForm() {
         <h1
           className="text-center leading-none text-black"
           style={{
-            fontFamily: "'Bebas Neue', sans-serif",
+            fontFamily: "var(--font-bebas-neue), 'Bebas Neue', sans-serif",
             fontSize: 'clamp(3rem, 10vw, 8rem)',
             letterSpacing: '0.02em',
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards',
@@ -762,8 +764,12 @@ export function JoinForm() {
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both',
           }}
         />
-        <a
-          href="/"
+        <button
+          type="button"
+          onClick={() => {
+            startTransition({ message: 'returning home...' })
+            router.push('/')
+          }}
           className="font-mono text-xs flex items-center gap-2 transition-opacity hover:opacity-80 text-black/50"
           style={{
             animation: 'fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both',
@@ -771,7 +777,7 @@ export function JoinForm() {
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           back to the web
-        </a>
+        </button>
       </div>
       </>
     )
@@ -784,13 +790,17 @@ export function JoinForm() {
     >
       <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto flex-1">
         {/* Back */}
-        <a
-          href="/"
+        <button
+          type="button"
+          onClick={() => {
+            startTransition({ message: 'returning home...' })
+            router.push('/')
+          }}
           className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 sm:mb-12 text-black/50"
         >
           <ArrowLeft className="w-3 h-3" />
           back
-        </a>
+        </button>
 
         {/* Heading — compressed text to match landing page */}
         <div className="w-[55%] sm:w-[45%] mb-8 sm:mb-10">

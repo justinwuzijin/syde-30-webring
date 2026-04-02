@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AssetLoadingSpinner } from './asset-loading-spinner'
 
-// Minimum visible duration for the loader overlay (>= 700ms).
-const MIN_LOADING_MS = 700
+// Minimum visible duration for the loader overlay (1.5 seconds).
+const MIN_LOADING_MS = 1500
 
 const TransitionContext = createContext<{
   startTransition: (opts?: { waitForManualEnd?: boolean; message?: string }) => void

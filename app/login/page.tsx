@@ -20,9 +20,7 @@ export default function LoginPage() {
   const [showCelebration, setShowCelebration] = useState(false)
   const { login } = useAuth()
   const router = useRouter()
-  const { endTransition } = usePageTransition()
-
-  const { startTransition } = usePageTransition()
+  const { startTransition, endTransition } = usePageTransition()
   
   const handleCelebrationComplete = useCallback(() => {
     startTransition({ waitForManualEnd: true })
@@ -70,13 +68,17 @@ export default function LoginPage() {
       style={{ background: '#ffffff' }}
     >
       <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto flex-1 flex flex-col justify-center">
-        <a
-          href="/"
+        <button
+          type="button"
+          onClick={() => {
+            startTransition({ message: 'returning home...' })
+            router.push('/')
+          }}
           className="inline-flex items-center gap-1.5 font-sans text-xs tracking-wider lowercase transition-opacity hover:opacity-80 mb-8 text-black/50"
         >
           <ArrowLeft className="w-3 h-3" />
           back
-        </a>
+        </button>
 
         {/* Heading — compressed text to match landing page */}
         <div className="w-[55%] sm:w-[45%] mb-8 sm:mb-10">

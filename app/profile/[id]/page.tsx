@@ -158,6 +158,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         <button
           onClick={() => {
             playClick()
+            startTransition({ message: 'returning to webring...' })
             setLeaving(true)
             setTimeout(() => {
               router.push('/?view=webring')

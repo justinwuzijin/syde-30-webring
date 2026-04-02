@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const ASSETS = [
@@ -12,6 +12,14 @@ const ASSETS = [
   { src: '/book-river.webp', alt: 'Book' },
   { src: '/releasing-march.png', alt: 'Releasing March' },
 ]
+
+// Preload all spinner images immediately on module load
+if (typeof window !== 'undefined') {
+  ASSETS.forEach(({ src }) => {
+    const img = new Image()
+    img.src = src
+  })
+}
 
 const RADIUS = 52
 const ITEM_SIZE = 32

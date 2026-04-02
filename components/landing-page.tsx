@@ -106,6 +106,23 @@ export function LandingPage() {
     () => (typeof window !== 'undefined' ? window.innerHeight : 900)
   )
 
+  // Defer heavy work until after initial paint so loading spinner animates smoothly
+  const [hydrated, setHydrated] = useState(false)
+  useEffect(() => {
+    // Use requestIdleCallback if available, otherwise setTimeout
+    // This lets the spinner render and start animating before we do heavy work
+    const id = typeof requestIdleCallback !== 'undefined'
+      ? requestIdleCallback(() => setHydrated(true), { timeout: 300 })
+      : setTimeout(() => setHydrated(true), 100)
+    return () => {
+      if (typeof requestIdleCallback !== 'undefined') {
+        cancelIdleCallback(id as number)
+      } else {
+        clearTimeout(id as ReturnType<typeof setTimeout>)
+      }
+    }
+  }, [])
+
   // Detect mobile viewport (for responsive circle sizing)
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -126,8 +143,9 @@ export function LandingPage() {
   }, [])
 
   // Fetch members from Supabase with SWR (cached, deduped)
+  // Defer fetch until hydrated so loading spinner can animate smoothly first
   const { data: membersData, isLoading: membersLoading } = useSWR<{ members: Member[] }>(
-    '/api/members',
+    hydrated ? '/api/members' : null,
     (url) => fetch(url).then((r) => r.json()),
     { revalidateOnFocus: false, dedupingInterval: 60_000 }
   )
