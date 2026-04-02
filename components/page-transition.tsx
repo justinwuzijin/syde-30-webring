@@ -9,7 +9,7 @@ import { AssetLoadingSpinner } from './asset-loading-spinner'
 const MIN_LOADING_MS = 700
 
 const TransitionContext = createContext<{
-  startTransition: (opts?: { waitForManualEnd?: boolean }) => void
+  startTransition: (opts?: { waitForManualEnd?: boolean; message?: string }) => void
   endTransition: () => void
 }>({ startTransition: () => {}, endTransition: () => {} })
 
@@ -21,14 +21,16 @@ export function PageTransitionProvider({ children }: { children: React.ReactNode
   const [isLoading, setIsLoading] = useState(true)
   const [pageReady, setPageReady] = useState(false)
   const [minElapsed, setMinElapsed] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState('loading site...')
   const startTimeRef = useRef(Date.now())
   const pathname = usePathname()
   const waitForManualRef = useRef(false)
   const isInitialRef = useRef(true)
 
-  const startTransition = useCallback((opts?: { waitForManualEnd?: boolean }) => {
+  const startTransition = useCallback((opts?: { waitForManualEnd?: boolean; message?: string }) => {
     isInitialRef.current = false
     waitForManualRef.current = !!opts?.waitForManualEnd
+    setLoadingMessage(opts?.message ?? 'loading site...')
     setIsLoading(true)
     setPageReady(false)
     setMinElapsed(false)
@@ -74,7 +76,7 @@ export function PageTransitionProvider({ children }: { children: React.ReactNode
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
           >
-            <AssetLoadingSpinner />
+            <AssetLoadingSpinner message={loadingMessage} />
           </motion.div>
         )}
       </AnimatePresence>

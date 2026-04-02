@@ -22,9 +22,12 @@ export default function LoginPage() {
   const router = useRouter()
   const { endTransition } = usePageTransition()
 
+  const { startTransition } = usePageTransition()
+  
   const handleCelebrationComplete = useCallback(() => {
+    startTransition({ waitForManualEnd: true })
     router.push('/')
-  }, [router])
+  }, [router, startTransition])
 
   useEffect(() => {
     // Allow the global transition overlay to dismiss once this page is mounted.

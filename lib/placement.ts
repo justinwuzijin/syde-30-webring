@@ -162,6 +162,25 @@ export function computeScrapbookPositions(
   return { positions, canvasW, canvasH }
 }
 
+/** Pile: all cards stacked at canvas center with small seeded offsets + large random tilts. */
+export function computePilePositions(
+  members: Member[],
+  canvasW: number,
+  canvasH: number
+): Map<string, { x: number; y: number; rotation: number }> {
+  const sorted = getSortedMembers(members)
+  const cx = canvasW / 2 - POLAROID_WIDTH / 2
+  const cy = canvasH / 2 - POLAROID_HEIGHT / 2
+  const positions = new Map<string, { x: number; y: number; rotation: number }>()
+  sorted.forEach((m) => {
+    const ox = (seededUnit(m.id, 'pile-x') - 0.5) * 48  // ±24px
+    const oy = (seededUnit(m.id, 'pile-y') - 0.5) * 48  // ±24px
+    const rot = (seededUnit(m.id, 'pile-r') - 0.5) * 44 // ±22°
+    positions.set(m.id, { x: cx + ox, y: cy + oy, rotation: rot })
+  })
+  return positions
+}
+
 /** Classroom: responsive grid, upright. Columns adapt to viewport width. */
 export function computeClassroomPositions(
   members: Member[],
@@ -179,7 +198,7 @@ export function computeClassroomPositions(
 
   const positions = new Map<string, { x: number; y: number }>()
 
-  // Top padding to clear the search bar + view toggle overlay (~120px)
+  // Top padding — clears the fixed tabs bar (top-[4.45rem] + pill height ~38px + 12px gap ≈ 120px)
   const topPad = 120
 
   sorted.forEach((m, i) => {

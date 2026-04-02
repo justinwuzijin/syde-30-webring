@@ -13,6 +13,7 @@ import { PolaroidCard, POLAROID_WIDTH, POLAROID_HEIGHT } from './polaroid-card'
 import {
   computeScrapbookPositions,
   computeClassroomPositions,
+  computePilePositions,
   CARD_GAP,
   GRID_PADDING,
 } from '@/lib/placement'
@@ -76,26 +77,13 @@ function computePositions(
   return { positions, canvasW, canvasH }
 }
 
-const GLASS_CHROME =
-  'relative overflow-hidden rounded-full ' +
-  // Base glass fill: slightly darker, still translucent
-  'bg-white/35 bg-gradient-to-b from-white/60 via-white/35 to-white/25 ' +
-  // Strong, crisp glass edge
-  'border border-white/60 ' +
-  // Deep blur + saturation for Apple-style glass
-  'backdrop-blur-3xl backdrop-saturate-150 ' +
-  // Floating depth + top inset highlight
-  'shadow-[0_10px_30px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.8)] ' +
-  // On browsers that support backdrop-filter, keep the tint subtle
-  'supports-[backdrop-filter]:bg-white/30 ' +
-  'transition-colors transition-shadow duration-200';
 
 export function LandingPage() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, logout, setUserFromToken } = useAuth()
-  const { startTransition } = usePageTransition()
+  const { startTransition, endTransition } = usePageTransition()
 
   // Sound effects
   const playClick = useSound('/click.mp3', { volume: 0.4 })
@@ -155,6 +143,12 @@ export function LandingPage() {
     [displayMembers, placementMode, viewportWidth]
   )
 
+  // Pile positions: all cards stacked at canvas center (scrapbook only)
+  const pilePositions = useMemo(
+    () => computePilePositions(displayMembers, canvasW, canvasH),
+    [displayMembers, canvasW, canvasH]
+  )
+
   const filteredMembers = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
     if (!query) return displayMembers
@@ -163,6 +157,43 @@ export function LandingPage() {
       return firstName.toLowerCase().startsWith(query)
     })
   }, [searchTerm, displayMembers])
+
+  const isSearching = searchTerm.trim().length > 0
+  const filteredSet = useMemo(() => new Set(filteredMembers.map(m => m.id)), [filteredMembers])
+  const filteredIndexMap = useMemo(() => new Map(filteredMembers.map((m, i) => [m.id, i])), [filteredMembers])
+
+  // Fan positions: filtered cards spread out from pile center on hover (scrapbook search)
+  const pileFanPositions = useMemo(() => {
+    if (!isSearching || placementMode !== 'scrapbook') return null
+    const N = filteredMembers.length
+    if (N === 0) return null
+    const cx = canvasW / 2 - POLAROID_WIDTH / 2
+    const cy = canvasH / 2 - POLAROID_HEIGHT / 2
+    const fanGap = 24
+    const totalWidth = N * POLAROID_WIDTH + (N - 1) * fanGap
+    const startX = cx - (totalWidth - POLAROID_WIDTH) / 2
+    const map = new Map<string, { x: number; y: number; rotation: number }>()
+    filteredMembers.forEach((m, i) => {
+      // Slight diagonal drop + subtle spread rotation
+      const t = N > 1 ? (i / (N - 1) - 0.5) : 0
+      map.set(m.id, {
+        x: startX + i * (POLAROID_WIDTH + fanGap),
+        y: cy + Math.abs(t) * 20,
+        rotation: t * 10,
+      })
+    })
+    return map
+  }, [isSearching, filteredMembers, placementMode, canvasW, canvasH])
+
+  // Classroom search row: filtered cards in first row, left-aligned same as regular grid
+  const classroomSearchPositions = useMemo(() => {
+    if (!isSearching || placementMode !== 'classroom') return null
+    // Reuse the same classroom layout logic on just the filtered members
+    // so they start at the exact same left offset as the full grid
+    const { positions: searchPos } = computeClassroomPositions(filteredMembers, viewportWidth)
+    // Only keep the first-row entries (all results are already in row 0 since count ≤ cols)
+    return searchPos
+  }, [isSearching, filteredMembers, placementMode, viewportWidth])
 
   // Separate camera states for scrapbook and classroom views
   const defaultZoom = isMobile ? MOBILE_ZOOM : DESKTOP_ZOOM
@@ -180,6 +211,8 @@ export function LandingPage() {
   
   const [isDragging, setIsDragging] = useState(false)
   const [isHoveringPreview, setIsHoveringPreview] = useState(false)
+  const [pileHoverCount, setPileHoverCount] = useState(0)
+  const isPileHovered = pileHoverCount > 0
   const lastPos = useRef({ x: 0, y: 0 })
   // Suppress CSS transition during any active interaction (drag, wheel, touch)
   const [isInteracting, setIsInteracting] = useState(false)
@@ -217,10 +250,14 @@ export function LandingPage() {
   }, [pathname, searchParams])
 
   // Fade out the white intro overlay after a short delay
+  // Also signal the global page transition that this page is ready
   useEffect(() => {
-    const id = setTimeout(() => setPageReady(true), 600)
+    const id = setTimeout(() => {
+      setPageReady(true)
+      endTransition()
+    }, 600)
     return () => clearTimeout(id)
-  }, [])
+  }, [endTransition])
 
   // Click the circle → expand (camera offset matches splash so no jump)
   const handleEnterWebring = useCallback(() => {
@@ -234,19 +271,6 @@ export function LandingPage() {
     }, EXPANDED_DELAY)
   }, [phase, playClick])
 
-  // Back to splash — snap to large circle (invisible), then animate circle back to small
-  const handleBack = useCallback(() => {
-    playClick()
-    setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
-    setClassroomCamera({ x: 0, y: 0, k: 1 })
-    setViewMode('scrapbook')
-    window.history.replaceState({}, '', '/')
-    // Step 1: synchronously commit the collapsing state so Framer Motion sees 200vmax as the
-    // starting point before the splash shrink animation begins.
-    flushSync(() => setPhase('collapsing'))
-    // Step 2: now animate the circle contracting to splash size
-    requestAnimationFrame(() => setPhase('splash'))
-  }, [playClick])
 
   const clampClassroomY = useCallback((y: number) => {
     const visibleHeight = Math.max(0, viewportHeight - CLASSROOM_TOP_OFFSET_PX - CLASSROOM_BOTTOM_GUTTER_PX)
@@ -544,34 +568,65 @@ export function LandingPage() {
                 </p>
               </div>
             )}
-            {filteredMembers.length === 0 && searchTerm.trim() && !membersLoading && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <p
-                  className="text-black/40 text-xs md:text-sm lowercase tracking-[0.16em] text-center max-w-[min(90vw,28rem)]"
-                  style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
-                >
-                  the user you are searching for does not exist yet, get them to sign up!
-                </p>
-              </div>
-            )}
 
-            {filteredMembers.map((m) => {
-              const pos = positions.get(m.id)
+            {displayMembers.map((m, globalIdx) => {
+              const isScrapbook = placementMode === 'scrapbook'
+              const isActive = !isSearching || filteredSet.has(m.id)
+              const filteredIdx = filteredIndexMap.get(m.id) ?? 0
+
+              // Position: scrapbook+searching+hovered → fan; scrapbook+searching → pile; scrapbook → spread
+              // Classroom+searching → row; classroom → grid
+              let pos
+              if (isScrapbook) {
+                if (isSearching && isActive) {
+                  pos = isPileHovered
+                    ? pileFanPositions?.get(m.id)
+                    : pilePositions.get(m.id)
+                } else {
+                  pos = positions.get(m.id)
+                }
+              } else {
+                pos = (isSearching && isActive && classroomSearchPositions)
+                  ? classroomSearchPositions.get(m.id)
+                  : positions.get(m.id)
+              }
               if (!pos) return null
               const hasRotation = 'rotation' in pos && typeof pos.rotation === 'number'
+
+              // Stagger delay: entering pile (search starts) staggers in; fanning out staggers out;
+              // reappearing (search clears) staggers back in by original grid index
+              const staggerDelay = isScrapbook && isSearching && isActive
+                ? filteredIdx * 0.03
+                : !isSearching && isActive
+                  ? globalIdx * 0.012
+                  : 0
+
+              // Opacity transition: classroom reappear fades in smoothly; scrapbook and hide are instant
+              const opacityTransition = !isScrapbook && !isSearching && isActive
+                ? `opacity 0.3s ease ${globalIdx * 0.012}s`
+                : 'opacity 0s'
+
               return (
-                <PolaroidCard
+                // Wrapper controls visibility without unmounting — prevents fly-from-origin on search clear
+                <div
                   key={m.id}
-                  member={m}
-                  x={pos.x}
-                  y={pos.y}
-                  onClick={isExpanded ? () => handleCardClick(m.id) : undefined}
-                  noTilt={placementMode === 'classroom'}
-                  rotation={hasRotation ? pos.rotation : undefined}
-                  onHover={playPageTurn}
-                  initialNameRevealed={revealedNamesSet.has(m.id)}
-                  onNameReveal={() => revealedNamesSet.add(m.id)}
-                />
+                  style={{ opacity: isActive ? 1 : 0, pointerEvents: isActive ? 'auto' : 'none', transition: opacityTransition }}
+                  onMouseEnter={isScrapbook && isSearching && isActive ? () => setPileHoverCount(c => c + 1) : undefined}
+                  onMouseLeave={isScrapbook && isSearching && isActive ? () => setPileHoverCount(c => Math.max(0, c - 1)) : undefined}
+                >
+                  <PolaroidCard
+                    member={m}
+                    x={pos.x}
+                    y={pos.y}
+                    onClick={isExpanded && isActive ? () => handleCardClick(m.id) : undefined}
+                    noTilt={placementMode === 'classroom' || (isScrapbook && isSearching && isPileHovered)}
+                    rotation={hasRotation ? (pos as { x: number; y: number; rotation: number }).rotation : undefined}
+                    onHover={isActive ? playPageTurn : undefined}
+                    initialNameRevealed={revealedNamesSet.has(m.id)}
+                    onNameReveal={() => revealedNamesSet.add(m.id)}
+                    transitionDelay={staggerDelay}
+                  />
+                </div>
               )
             })}
           </div>
@@ -654,7 +709,7 @@ export function LandingPage() {
       <motion.div
         className="fixed top-6 z-50 left-[7rem] right-6 md:left-1/2 md:right-auto md:w-full md:max-w-md md:-translate-x-1/2 md:px-4"
         animate={{ opacity: (isExpanded && !isMe) ? 1 : 0, y: (isExpanded && !isMe) ? 0 : -10 }}
-        transition={{ duration: 0.3, delay: (isExpanded && !isMe) ? 0.15 : 0 }}
+        transition={{ duration: 0.25, delay: (isExpanded && !isMe) ? 0.35 : 0 }}
         style={{ pointerEvents: (isExpanded && !isMe) ? 'auto' : 'none' }}
       >
         <div className="flex items-center rounded-full border border-neutral-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
@@ -671,8 +726,8 @@ export function LandingPage() {
       {/* ── Glossy header bubble (tabs only) ── */}
       <motion.div
         className="fixed top-[4.45rem] left-1/2 z-50 -translate-x-1/2"
-        animate={{ opacity: isExpanded ? 1 : 0, y: isExpanded ? 0 : -10 }}
-        transition={{ duration: 0.3, delay: isExpanded ? 0.2 : 0 }}
+        animate={{ opacity: isExpanded ? 1 : 0, y: isExpanded ? (isMe ? -47 : 0) : -10 }}
+        transition={{ duration: 0.3, delay: isExpanded && !isMe ? 0 : isExpanded ? 0.2 : 0 }}
         style={{ pointerEvents: isExpanded ? 'auto' : 'none' }}
       >
           <div className="relative rounded-full border border-neutral-200 bg-white px-4 py-2 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
@@ -722,12 +777,7 @@ export function LandingPage() {
                 </button>
               </div>
               {user && (
-                <div
-                  className="flex flex-col items-center"
-                  style={{
-                    paddingBottom: 0,
-                  }}
-                >
+                <div className="flex flex-col items-center">
                   <button
                     onClick={() => { playClick(); setViewMode('me') }}
                     className="flex items-center gap-1.5 text-sm transition-colors"
@@ -746,21 +796,31 @@ export function LandingPage() {
             </div>
           </div>
         </motion.div>
+
       {/* ── Back button — top-left, expanded only ── */}
       <motion.button
-          className={
-            'fixed top-6 left-6 z-50 px-4 py-2 text-sm text-neutral-900 hover:text-neutral-950 ' +
-            GLASS_CHROME +
-            ' hover:bg-white/20'
-          }
-          style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif', pointerEvents: isExpanded ? 'auto' : 'none' }}
-          onClick={handleBack}
-          animate={{ opacity: isExpanded ? 1 : 0, y: isExpanded ? 0 : -10 }}
-          transition={{ duration: 0.3, delay: isExpanded ? 0.2 : 0 }}
-        >
-          <span className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-b from-white/45 to-transparent opacity-70" />
-          &larr; back
-        </motion.button>
+        className="fixed top-6 left-6 z-50 flex items-center gap-1.5 px-4 py-2 text-sm rounded-full border border-neutral-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:bg-neutral-50 transition-colors text-neutral-900"
+        style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif', pointerEvents: isExpanded ? 'auto' : 'none' }}
+        onClick={() => {
+          playClick()
+          startTransition({ waitForManualEnd: true, message: 'returning home...' })
+          setTimeout(() => {
+            setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
+            setClassroomCamera({ x: 0, y: 0, k: 1 })
+            setViewMode('scrapbook')
+            window.history.replaceState({}, '', '/')
+            flushSync(() => setPhase('collapsing'))
+            requestAnimationFrame(() => setPhase('splash'))
+            setTimeout(() => {
+              endTransition()
+            }, 650)
+          }, 250)
+        }}
+        animate={{ opacity: isExpanded ? 1 : 0, y: isExpanded ? 0 : -10 }}
+        transition={{ duration: 0.3, delay: isExpanded ? 0.2 : 0 }}
+      >
+        ← back
+      </motion.button>
 
       {/* ── Hint — bottom center in expanded view ── */}
       <motion.div
@@ -954,7 +1014,21 @@ export function LandingPage() {
                 logged in as {user.name}
               </span>
               <button
-                onClick={() => { playClick(); logout() }}
+                onClick={() => {
+                  playClick()
+                  startTransition({ waitForManualEnd: true, message: 'see u next time!' })
+                  setTimeout(() => {
+                    logout()
+                    // Reset to splash view after logout
+                    setPhase('splash')
+                    setScrapbookCamera({ x: -PREVIEW_OFFSET_X, y: -PREVIEW_OFFSET_Y, k: defaultZoom })
+                    setClassroomCamera({ x: 0, y: 0, k: 1 })
+                    setViewMode('scrapbook')
+                    window.history.replaceState({}, '', '/')
+                    // End the transition to dismiss the loading screen
+                    endTransition()
+                  }, 2000)
+                }}
                 className="px-4 py-2 text-black/70 text-xs font-medium lowercase tracking-wider border border-black/20 hover:bg-black/10 hover:text-black transition-colors"
               >
                 Log out
@@ -1014,6 +1088,18 @@ export function LandingPage() {
         }}
       />
 
+      {/* No-results message — fixed, unaffected by canvas pan/zoom */}
+      {filteredMembers.length === 0 && searchTerm.trim() && !membersLoading && isExpanded && !isMe && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center pointer-events-none">
+          <p
+            className="text-black/40 text-xs md:text-sm lowercase tracking-[0.16em] text-center max-w-[min(90vw,28rem)]"
+            style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+          >
+            the user you are searching for does not exist yet, get them to sign up!
+          </p>
+        </div>
+      )}
+
       {/* Signed-in \"me\" panel — expanded view only */}
       {isExpanded && viewMode === 'me' && (
         <motion.div
@@ -1026,7 +1112,7 @@ export function LandingPage() {
           onWheel={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <MePanel />
+          <MePanel onPolaroidHover={playPageTurn} />
         </motion.div>
       )}
     </div>

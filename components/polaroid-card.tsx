@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import { getDisplayUrl, type Member } from '@/types/member'
 
 // ── Instax Mini proportions (real: 54×86mm, photo: 46×62mm) ──────────────
@@ -32,9 +33,11 @@ interface PolaroidCardProps {
   onHover?: () => void
   initialNameRevealed?: boolean
   onNameReveal?: () => void
+  /** Optional Framer Motion transition delay (e.g. for stagger) */
+  transitionDelay?: number
 }
 
-export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover, initialNameRevealed, onNameReveal }: PolaroidCardProps) {
+export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover, initialNameRevealed, onNameReveal, transitionDelay = 0 }: PolaroidCardProps) {
   const [hovered, setHovered] = useState(false)
   const [nameRevealed, setNameRevealed] = useState(initialNameRevealed ?? false)
   const [imageLoaded, setImageLoaded] = useState(false)
@@ -177,20 +180,25 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover,
 
 
   return (
-    <div
+    <motion.div
       ref={cardRef}
       style={{
         position: 'absolute',
-        left: x,
-        top: y,
+        left: 0,
+        top: 0,
         width: POLAROID_WIDTH,
         height: POLAROID_HEIGHT,
-        transform: `rotate(${noTilt ? 0 : tilt.current}deg)`,
         zIndex: hovered ? 100 : 1,
         userSelect: 'none',
         cursor: onClick ? 'pointer' : 'default',
-        // CSS transition for smooth view switching (only animates when x/y actually change)
-        transition: 'left 0.5s cubic-bezier(0.4, 0, 0.2, 1), top 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
+      animate={{ x, y, rotate: noTilt ? 0 : tilt.current }}
+      transition={{
+        type: 'spring',
+        stiffness: 220,
+        damping: 28,
+        mass: 1,
+        delay: transitionDelay,
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -380,6 +388,6 @@ export function PolaroidCard({ member, x, y, onClick, noTilt, rotation, onHover,
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

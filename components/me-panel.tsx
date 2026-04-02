@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import useSWR, { mutate } from 'swr'
 import { useAuth } from '@/lib/auth-context'
 import type { Member } from '@/types/member'
@@ -65,7 +66,7 @@ async function uploadToS3WithProgress(
   })
 }
 
-export function MePanel() {
+export function MePanel({ onPolaroidHover }: { onPolaroidHover?: () => void }) {
   const { user } = useAuth()
   const [draft, setDraft] = useState<DraftProfile>({
     name: '',
@@ -600,11 +601,16 @@ export function MePanel() {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-x-hidden overflow-y-auto lg:overflow-hidden">
       <div className="min-h-full w-full flex flex-col">
-        {/* Spacer for fixed nav (back button + tabs) */}
-        <div className="h-[5.5rem] shrink-0" />
+        {/* Spacer: animates up in sync with the tabs shifting when me view activates */}
+        <motion.div
+          className="shrink-0"
+          initial={{ height: '7.5rem' }}
+          animate={{ height: '4.5rem' }}
+          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+        />
 
         {/* Center main content in remaining viewport */}
-        <div className="flex-1 px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-center min-h-0">
+        <div className="flex-1 px-4 sm:px-6 lg:px-8 pb-6 flex items-center justify-center min-h-0">
           <div className="w-full max-w-5xl pointer-events-auto">
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] gap-6 items-center justify-center">
               {/* Left: live preview (centered beside editor) */}
@@ -635,6 +641,7 @@ export function MePanel() {
                           x={0}
                           y={0}
                           noTilt
+                          onHover={onPolaroidHover}
                         />
                       )}
                     </div>

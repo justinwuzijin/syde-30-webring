@@ -18,7 +18,11 @@ const ITEM_SIZE = 32
 const STAGGER_DELAY = 0.1
 const SPIN_DURATION = 3
 
-export function AssetLoadingSpinner() {
+interface AssetLoadingSpinnerProps {
+  message?: string
+}
+
+export function AssetLoadingSpinner({ message = 'loading site...' }: AssetLoadingSpinnerProps) {
   const [visibleCount, setVisibleCount] = useState(0)
 
   useEffect(() => {
@@ -90,7 +94,7 @@ export function AssetLoadingSpinner() {
         className="mt-8 text-sm text-neutral-400 lowercase tracking-[0.15em]"
         style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
       >
-        loading site...
+        {message}
       </p>
     </div>
   )
