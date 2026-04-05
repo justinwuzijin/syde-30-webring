@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { type Member } from '@/types/member'
+import { type Member, getDisplayUrl } from '@/types/member'
 import { PolaroidStatic, POLAROID_WIDTH, POLAROID_HEIGHT } from '@/components/polaroid-static'
 
 export const revalidate = 60
@@ -71,20 +71,34 @@ export default async function EmbedPage({ params }: PageProps) {
 
   if (!member) notFound()
 
+  // Preload the photo so the browser fetches it in parallel with rendering
+  const photoUrl = member.polaroid_still_url
+    ?? (getDisplayUrl(member)
+      ? `https://api.microlink.io/?url=${encodeURIComponent(getDisplayUrl(member))}&screenshot=true&meta=false&embed=screenshot.url`
+      : null)
+
   // Extra padding so the hover scale doesn't clip against the iframe edge
   const pad = 24
 
   return (
-    <div
-      style={{
-        width: POLAROID_WIDTH + pad * 2,
-        height: POLAROID_HEIGHT + pad * 2,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <PolaroidStatic member={member} />
-    </div>
+    <>
+      {photoUrl && (
+        // eslint-disable-next-line @next/next/no-head-element
+        <head>
+          <link rel="preload" as="image" href={photoUrl} />
+        </head>
+      )}
+      <div
+        style={{
+          width: POLAROID_WIDTH + pad * 2,
+          height: POLAROID_HEIGHT + pad * 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <PolaroidStatic member={member} />
+      </div>
+    </>
   )
 }
