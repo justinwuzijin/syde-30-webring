@@ -25,7 +25,7 @@ paste this anywhere in your site's html — replace `your-id` with your webring 
 
 ```html
 <iframe
-  src="https://syde30.vercel.app/embed/your-id"
+  src="https://syde30.com/embed/your-id"
   width="198"
   height="287"
   style="border:none;background:transparent;overflow:hidden"

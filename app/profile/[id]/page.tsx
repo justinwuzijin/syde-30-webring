@@ -299,7 +299,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
 
 const EMBED_WIDTH = 198   // POLAROID_WIDTH(150) + 2*pad(24)
 const EMBED_HEIGHT = 287  // POLAROID_HEIGHT(239) + 2*pad(24)
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://syde30.vercel.app'
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://syde30.com'
 
 function EmbedSnippet({ memberId }: { memberId: string }) {
   const [copied, setCopied] = useState(false)
