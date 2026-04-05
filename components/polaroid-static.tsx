@@ -14,8 +14,6 @@ export const POLAROID_HEIGHT = Math.round(POLAROID_WIDTH * (86 / 54)) // ~239px
 
 const HOVER_SCALE = 1.08
 const HOVER_LIFT = -6
-const HOVER_SHADOW_IDLE = '0 20px 16px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08)'
-const HOVER_SHADOW_ACTIVE = '0 40px 40px rgba(0,0,0,0.22), 0 6px 16px rgba(0,0,0,0.12)'
 
 interface PolaroidStaticProps {
   member: Member
@@ -84,8 +82,6 @@ export function PolaroidStatic({ member }: PolaroidStaticProps) {
       style={{
         width: POLAROID_WIDTH,
         height: POLAROID_HEIGHT,
-        transform: `rotate(${tilt}deg)`,
-        transformOrigin: 'center bottom',
         userSelect: 'none',
       }}
       onMouseEnter={handleMouseEnter}
@@ -102,7 +98,7 @@ export function PolaroidStatic({ member }: PolaroidStaticProps) {
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: hovered ? HOVER_SHADOW_ACTIVE : HOVER_SHADOW_IDLE,
+          boxShadow: 'none',
           transform: hovered
             ? `scale(${HOVER_SCALE}) translateY(${HOVER_LIFT}px) rotate(0deg)`
             : 'scale(1) translateY(0px) rotate(0deg)',
