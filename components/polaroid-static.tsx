@@ -22,7 +22,6 @@ interface PolaroidStaticProps {
 /** A self-contained, statically-positioned Polaroid — used in the /embed/[id] iframe. */
 export function PolaroidStatic({ member }: PolaroidStaticProps) {
   const [hovered, setHovered] = useState(false)
-  const [imageLoaded, setImageLoaded] = useState(false)
   const [imageFailed, setImageFailed] = useState(false)
   const [videoVisible, setVideoVisible] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -133,18 +132,6 @@ export function PolaroidStatic({ member }: PolaroidStaticProps) {
             flexShrink: 0,
           }}
         >
-          {!imageLoaded && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'linear-gradient(90deg, #e8e5df 25%, #d8d5cf 50%, #e8e5df 75%)',
-                backgroundSize: '200% 100%',
-                animation: 'polaroid-shimmer 1.4s ease infinite',
-              }}
-            />
-          )}
-
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             loading="eager"
@@ -161,12 +148,11 @@ export function PolaroidStatic({ member }: PolaroidStaticProps) {
               filter: hovered
                 ? 'saturate(1.1) contrast(1.05) brightness(1.0)'
                 : 'saturate(0) contrast(1.02) brightness(0.85)',
-              opacity: imageLoaded ? (videoVisible ? 0 : 1) : 0,
+              opacity: videoVisible ? 0 : 1,
               transition: 'filter 400ms ease, opacity 300ms ease',
             }}
             draggable={false}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => { setImageFailed(true); setImageLoaded(false) }}
+            onError={() => setImageFailed(true)}
           />
 
           {hasUploadedStill && imageFailed && (

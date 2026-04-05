@@ -41,10 +41,6 @@ export default function EmbedLayout({ children }: { children: React.ReactNode })
           :root {
             --font-polaroid-name: var(--font-comma), 'Caveat', system-ui, -apple-system, sans-serif;
           }
-          @keyframes polaroid-shimmer {
-            0%   { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-          }
         `}</style>
         {children}
       </body>
