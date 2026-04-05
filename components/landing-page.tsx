@@ -832,6 +832,8 @@ export function LandingPage() {
             setTimeout(() => {
               endTransition()
             }, 650)
+
+            
           }, 250)
         }}
         animate={{ opacity: isExpanded ? 1 : 0, y: isExpanded ? 0 : -10 }}
@@ -875,7 +877,8 @@ export function LandingPage() {
               viewBox="0 0 1728 296"
               fontSize={280}
               className="absolute inset-0 w-full h-full"
-            />
+
+/>
           </div>
           {/* Mobile — 3 stacked lines */}
           <div className="relative w-full block md:hidden" style={{ paddingTop: '52%' }}>

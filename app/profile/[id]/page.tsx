@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { type ReactElement, useState, useEffect, useMemo } from 'react'
+import { type ReactElement, useState, useEffect, useMemo, useCallback } from 'react'
 import { use } from 'react'
 import useSWR from 'swr'
 import { type Member } from '@/types/member'
@@ -275,11 +275,15 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           </div>
         )}
 
+          {/* Polaroid embed snippet */}
+          <EmbedSnippet memberId={member.id} />
+
           {/* (No separate visit CTA button needed; URL + live preview already present) */}
         </div>
       </div>
 
       {/* Soft white veil when leaving a bio to return to the collage */}
+
       <div
         className="pointer-events-none fixed inset-0 z-40 bg-white"
         style={{
@@ -287,6 +291,57 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           transition: 'opacity 220ms ease',
         }}
       />
+    </div>
+  )
+}
+
+// ── Embed Snippet ──────────────────────────────────────────────────────────────
+
+const EMBED_WIDTH = 198   // POLAROID_WIDTH(150) + 2*pad(24)
+const EMBED_HEIGHT = 287  // POLAROID_HEIGHT(239) + 2*pad(24)
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://syde30.vercel.app'
+
+function EmbedSnippet({ memberId }: { memberId: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const snippet = `<iframe src="${BASE_URL}/embed/${memberId}" width="${EMBED_WIDTH}" height="${EMBED_HEIGHT}" style="border:none;background:transparent;overflow:hidden" scrolling="no" allow="autoplay" loading="lazy"></iframe>`
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(snippet).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }, [snippet])
+
+  return (
+    <div className="mt-10">
+      <p
+        className="text-xs text-black/40 uppercase tracking-widest mb-3"
+        style={{ fontFamily: 'JetBrains Mono, monospace' }}
+      >
+        embed your polaroid
+      </p>
+      <div className="relative group">
+        <pre
+          className="text-xs text-black/60 bg-black/4 border border-black/8 rounded-lg px-4 py-3 overflow-x-auto whitespace-pre-wrap break-all"
+          style={{ fontFamily: 'JetBrains Mono, monospace' }}
+        >
+          {snippet}
+        </pre>
+        <button
+          onClick={handleCopy}
+          className="absolute top-2 right-2 px-2.5 py-1 text-xs rounded-md bg-white border border-black/10 text-black/50 hover:text-black hover:border-black/20 transition-all"
+          style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+        >
+          {copied ? 'copied!' : 'copy'}
+        </button>
+      </div>
+      <p
+        className="text-xs text-black/30 mt-2"
+        style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif' }}
+      >
+        Paste anywhere on your site. Hover to reveal the live photo.
+      </p>
     </div>
   )
 }
