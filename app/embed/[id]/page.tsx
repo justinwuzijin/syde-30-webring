@@ -88,17 +88,21 @@ export default async function EmbedPage({ params }: PageProps) {
           <link rel="preload" as="image" href={photoUrl} />
         </head>
       )}
-      <div
+      <a
+        href="https://syde30.com/"
+        target="_blank"
+        rel="noopener noreferrer"
         style={{
           width: POLAROID_WIDTH + pad * 2,
           height: POLAROID_HEIGHT + pad * 2,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          textDecoration: 'none',
         }}
       >
         <PolaroidStatic member={member} />
-      </div>
+      </a>
     </>
   )
 }

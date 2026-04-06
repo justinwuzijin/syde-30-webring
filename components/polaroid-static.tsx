@@ -59,6 +59,7 @@ export function PolaroidStatic({ member }: PolaroidStaticProps) {
   const padTop = POLAROID_HEIGHT * FRAME_PADDING_TOP
 
   const handleMouseEnter = useCallback(() => {
+    
     setHovered(true)
     if (hasUploadedLive && videoRef.current) {
       setVideoVisible(true)

@@ -18,12 +18,13 @@ export function usePageTransition() {
 }
 
 export function PageTransitionProvider({ children }: { children: React.ReactNode }) {
-  const [isLoading, setIsLoading] = useState(true)
+  const pathname = usePathname()
+  const isEmbedRoute = pathname.startsWith('/embed')
+  const [isLoading, setIsLoading] = useState(!isEmbedRoute)
   const [pageReady, setPageReady] = useState(false)
   const [minElapsed, setMinElapsed] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('loading site...')
   const startTimeRef = useRef(Date.now())
-  const pathname = usePathname()
   const waitForManualRef = useRef(false)
   const isInitialRef = useRef(true)
 
